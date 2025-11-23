@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Maelane Stone</title>
+    <title>梅兰石材编辑器</title>
     <style>
         /* --- Layout & Reset --- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -103,21 +103,17 @@
         .qty-btn { width: 40px; height: 40px; background: #fff; border: 1px solid #ddd; border-radius: 8px; font-size: 20px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #333; }
         #qty-input-main { width: 60px; border: none; background: transparent; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
 
-        /* --- Refined Weight Card --- */
-        .weight-card { width: 100%; background: #333; color: #fff; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); overflow: hidden; }
+        /* --- Table Style Stats --- */
+        .weight-card { width: 100%; background: #333; color: #fff; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); padding: 20px; }
         
-        .stat-section { padding: 15px 20px; }
-        .stat-section.total { background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.15); }
+        .stats-table { width: 100%; border-collapse: collapse; }
+        .stats-table th { text-align: right; font-size: 11px; color: rgba(255,255,255,0.5); font-weight: normal; padding-bottom: 8px; width: 35%; }
+        .stats-table th:first-child { text-align: left; width: 30%; }
         
-        .stat-title { font-size: 11px; text-transform: uppercase; color: rgba(255,255,255,0.5); letter-spacing: 1px; margin-bottom: 10px; font-weight: 600; }
+        .stats-table td { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.1); font-family: monospace; font-size: 15px; text-align: right; color: #fff; }
+        .stats-table td:first-child { text-align: left; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 500; }
         
-        .weight-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 14px; opacity: 0.9; }
-        .weight-row:last-child { margin-bottom: 0; }
-        
-        .weight-row.highlight { margin-top: 5px; font-size: 18px; font-weight: bold; opacity: 1; color: #fff; }
-        .weight-row.highlight span:first-child { font-size: 14px; font-weight: normal; opacity: 0.8; }
-        
-        .weight-val { font-family: monospace; }
+        .stats-table tr:last-child td { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -186,18 +182,29 @@
                     </div>
                 </div>
                 
-                <!-- Refined UI Structure -->
+                <!-- Table Layout for Stats -->
                 <div class="weight-card">
-                    <div class="stat-section">
-                        <div class="stat-title">单片规格</div>
-                        <div class="weight-row"><span>面积</span><span class="weight-val" id="single-area">0.04 m²</span></div>
-                        <div class="weight-row"><span>重量</span><span class="weight-val" id="single-weight">2.00 kg</span></div>
-                    </div>
-                    <div class="stat-section total">
-                        <div class="stat-title">订单总计</div>
-                        <div class="weight-row"><span>总面积</span><span class="weight-val" id="total-area">0.04 m²</span></div>
-                        <div class="weight-row highlight"><span>总重量</span><span class="weight-val" id="total-weight">2.00 kg</span></div>
-                    </div>
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>规格</th>
+                                <th>单片</th>
+                                <th>总计</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>面积 (m²)</td>
+                                <td id="single-area">0.04</td>
+                                <td id="total-area">0.04</td>
+                            </tr>
+                            <tr>
+                                <td>重量 (kg)</td>
+                                <td id="single-weight">2.00</td>
+                                <td id="total-weight">2.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -241,7 +248,8 @@
             gridContainer.appendChild(btn);
         });
 
-        const STATE = { length: 0.2, width: 0.2, thickness: 0.02, stoneType: 'none', quantity: 1, edges: { top: false, bottom: false, left: false, right: false, face: false, back: false } };
+        // Initial State: Face is true for 'none'
+        const STATE = { length: 0.2, width: 0.2, thickness: 0.02, stoneType: 'none', quantity: 1, edges: { top: false, bottom: false, left: false, right: false, face: true, back: false } };
         const DENSITY = 2500;
         const TEXTURE_URLS = {};
         STONE_CONFIG.forEach(s => { if(s.url) TEXTURE_URLS[s.id] = s.url; });
@@ -264,6 +272,16 @@
             thkIn: document.getElementById('thickness-input'),
             texLoader: document.getElementById('texture-loader')
         };
+
+        // Sync UI with STATE
+        function updateEdgeUI() {
+            document.querySelectorAll('.edge-toggle').forEach(b => {
+                const edge = b.dataset.edge;
+                b.classList.toggle('active', STATE.edges[edge]);
+            });
+        }
+        // Call initially
+        updateEdgeUI();
 
         // UI Events
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -491,10 +509,10 @@
             const vol = area * STATE.thickness;
             const sw = vol * DENSITY;
             
-            els.sArea.textContent = area.toFixed(2) + ' m²';
-            els.tArea.textContent = (area * STATE.quantity).toFixed(2) + ' m²';
-            els.sWeight.textContent = sw.toFixed(2) + ' kg';
-            els.tWeight.textContent = (sw * STATE.quantity).toFixed(2) + ' kg';
+            els.sArea.textContent = area.toFixed(2);
+            els.tArea.textContent = (area * STATE.quantity).toFixed(2);
+            els.sWeight.textContent = sw.toFixed(2);
+            els.tWeight.textContent = (sw * STATE.quantity).toFixed(2);
         }
 
         // Inputs
@@ -508,7 +526,21 @@
         
         document.getElementById('stone-grid-container').onclick = (e) => {
             const t = e.target.closest('.stone-btn');
-            if(t) { document.querySelectorAll('.stone-btn').forEach(b=>b.classList.remove('active')); t.classList.add('active'); STATE.stoneType=t.dataset.type; genSlab(); }
+            if(t) { 
+                document.querySelectorAll('.stone-btn').forEach(b=>b.classList.remove('active')); 
+                t.classList.add('active'); 
+                STATE.stoneType = t.dataset.type; 
+                
+                // Logic: If none -> Face=True, Else -> Face=False
+                if(STATE.stoneType === 'none') {
+                    STATE.edges.face = true;
+                } else {
+                    STATE.edges.face = false;
+                }
+                updateEdgeUI(); // Sync UI buttons
+                
+                genSlab(); 
+            }
         };
         document.querySelectorAll('.edge-toggle').forEach(b => b.onclick = () => { b.classList.toggle('active'); STATE.edges[b.dataset.edge]=!STATE.edges[b.dataset.edge]; updateHighlights(); });
         const upQty = (v) => { v=Math.max(1,Math.min(999,v)); STATE.quantity=v; els.qty.value=v; genSlab(); };
