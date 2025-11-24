@@ -171,7 +171,7 @@
                     <div class="edge-toggle" data-edge="bottom"><div class="edge-indicator"></div> 下 L</div>
                     <div class="edge-toggle" data-edge="left"><div class="edge-indicator"></div> 左 W</div>
                     <div class="edge-toggle" data-edge="right"><div class="edge-indicator"></div> 右 W</div>
-                    <!-- 默认添加 active 类 -->
+                    <!-- 强制添加 active 类 -->
                     <div class="edge-toggle active" data-edge="face"><div class="edge-indicator"></div> 正面/顶部</div>
                     <div class="edge-toggle" data-edge="back"><div class="edge-indicator"></div> 底部</div>
                 </div>
@@ -615,6 +615,16 @@
         // Initial Fit (Wait for next frame to ensure geometry is ready)
         requestAnimationFrame(() => fitView(false));
         appLoader.classList.add('hidden');
+
+        // --- 强制同步 UI 状态 ---
+        // 确保 JS 状态与 HTML 样式完全一致
+        Object.keys(STATE.edges).forEach(key => {
+            const btn = document.querySelector(`.edge-toggle[data-edge="${key}"]`);
+            if (btn) {
+                if (STATE.edges[key]) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }
+        });
         
         function animate() { 
             requestAnimationFrame(animate); 
