@@ -171,7 +171,8 @@
                     <div class="edge-toggle" data-edge="bottom"><div class="edge-indicator"></div> 下 L</div>
                     <div class="edge-toggle" data-edge="left"><div class="edge-indicator"></div> 左 W</div>
                     <div class="edge-toggle" data-edge="right"><div class="edge-indicator"></div> 右 W</div>
-                    <div class="edge-toggle" data-edge="face"><div class="edge-indicator"></div> 正面/顶部</div>
+                    <!-- 默认添加 active 类 -->
+                    <div class="edge-toggle active" data-edge="face"><div class="edge-indicator"></div> 正面/顶部</div>
                     <div class="edge-toggle" data-edge="back"><div class="edge-indicator"></div> 底部</div>
                 </div>
                 <div style="margin-top:15px; font-size:12px; color:#888; text-align:center;">* 无材质模式下：选中面显示三角，相邻面均选中时公共边变红</div>
@@ -243,7 +244,8 @@
             gridContainer.appendChild(btn);
         });
 
-        const STATE = { length: 0.2, width: 0.2, thickness: 0.02, stoneType: 'none', quantity: 1, edges: { top: false, bottom: false, left: false, right: false, face: false, back: false } };
+        // 初始状态：face 设为 true
+        const STATE = { length: 0.2, width: 0.2, thickness: 0.02, stoneType: 'none', quantity: 1, edges: { top: false, bottom: false, left: false, right: false, face: true, back: false } };
         const DENSITY = 2500;
         const TEXTURE_URLS = {};
         STONE_CONFIG.forEach(s => { if(s.url) TEXTURE_URLS[s.id] = s.url; });
@@ -577,10 +579,31 @@
         const setThk = (v) => { els.thkIn.value=v; document.querySelectorAll('.thick-btn').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.val)==v)); reqUp('thickness',v); };
         document.querySelectorAll('.thick-btn').forEach(b=>b.onclick=()=>setThk(b.dataset.val));
         els.thkIn.onchange = (e) => setThk(parseInt(e.target.value)||20);
+        
+        // 材质切换逻辑优化
         document.getElementById('stone-grid-container').onclick = (e) => {
             const t = e.target.closest('.stone-btn');
-            if(t) { document.querySelectorAll('.stone-btn').forEach(b=>b.classList.remove('active')); t.classList.add('active'); STATE.stoneType=t.dataset.type; genSlab(); }
+            if(t) { 
+                document.querySelectorAll('.stone-btn').forEach(b=>b.classList.remove('active')); 
+                t.classList.add('active'); 
+                
+                const prevType = STATE.stoneType;
+                STATE.stoneType = t.dataset.type; 
+                
+                // 智能切换：如果是无材质，强制开启正面；如果是从无材质切走，强制关闭正面
+                if (STATE.stoneType === 'none') {
+                    STATE.edges.face = true;
+                } else if (prevType === 'none') {
+                    STATE.edges.face = false;
+                }
+                
+                // 同步UI按钮状态
+                document.querySelector('.edge-toggle[data-edge="face"]').classList.toggle('active', STATE.edges.face);
+                
+                genSlab(); 
+            }
         };
+        
         document.querySelectorAll('.edge-toggle').forEach(b => b.onclick = () => { b.classList.toggle('active'); STATE.edges[b.dataset.edge]=!STATE.edges[b.dataset.edge]; updateHighlights(); });
         const upQty = (v) => { v=Math.max(1,Math.min(999,v)); STATE.quantity=v; els.qty.value=v; genSlab(); };
         document.getElementById('qty-minus').onclick = () => upQty(STATE.quantity-1);
