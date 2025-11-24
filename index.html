@@ -103,21 +103,58 @@
         .qty-btn { width: 40px; height: 40px; background: #fff; border: 1px solid #ddd; border-radius: 8px; font-size: 20px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #333; }
         #qty-input-main { width: 60px; border: none; background: transparent; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
 
-        /* --- Refined Weight Card --- */
-        .weight-card { width: 100%; background: #333; color: #fff; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); overflow: hidden; }
+        /* --- New Weight Card Style --- */
+        .weight-card { 
+            width: 100%; 
+            background: #333; 
+            color: #fff; 
+            border-radius: 12px; 
+            margin-top: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
+            padding: 5px 15px;
+        }
         
-        .stat-section { padding: 15px 20px; }
-        .stat-section.total { background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.15); }
+        .stat-line { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px 0; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            font-size: 14px; /* 统一字体大小 */
+        }
+        .stat-line:last-child { 
+            border-bottom: none; 
+        }
         
-        .stat-title { font-size: 11px; text-transform: uppercase; color: rgba(255,255,255,0.5); letter-spacing: 1px; margin-bottom: 10px; font-weight: 600; }
+        .st-label { 
+            font-weight: bold; 
+            color: #ddd; 
+            min-width: 40px;
+        }
         
-        .weight-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 14px; opacity: 0.9; }
-        .weight-row:last-child { margin-bottom: 0; }
+        .st-vals { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            font-family: monospace; /* 数字等宽对齐 */
+        }
         
-        .weight-row.highlight { margin-top: 5px; font-size: 18px; font-weight: bold; opacity: 1; color: #fff; }
-        .weight-row.highlight span:first-child { font-size: 14px; font-weight: normal; opacity: 0.8; }
+        .st-prefix { 
+            color: #888; 
+            font-size: 12px; 
+            margin-right: 2px;
+        }
         
-        .weight-val { font-family: monospace; }
+        .st-sep { 
+            color: #555; 
+            margin: 0 4px; 
+            font-size: 12px;
+        }
+
+        .st-val-txt {
+            color: #fff;
+            font-weight: normal;
+        }
     </style>
 </head>
 <body>
@@ -187,19 +224,26 @@
                     </div>
                 </div>
                 
-                <!-- Refined UI Structure -->
+                <!-- 新的统计布局 -->
                 <div class="weight-card">
-                    <div class="stat-section">
-                        <div class="stat-title">单片规格</div>
-                        <div class="weight-row"><span>面积</span><span class="weight-val" id="single-area">0.04 m²</span></div>
-                        <div class="weight-row"><span>重量</span><span class="weight-val" id="single-weight">2.00 kg</span></div>
+                    <div class="stat-line">
+                        <div class="st-label">面积</div>
+                        <div class="st-vals">
+                            <span class="st-prefix">单</span><span class="st-val-txt" id="single-area">0.04 m²</span>
+                            <span class="st-sep">|</span>
+                            <span class="st-prefix">总</span><span class="st-val-txt" id="total-area">0.04 m²</span>
+                        </div>
                     </div>
-                    <div class="stat-section total">
-                        <div class="stat-title">订单总计</div>
-                        <div class="weight-row"><span>总面积</span><span class="weight-val" id="total-area">0.04 m²</span></div>
-                        <div class="weight-row highlight"><span>总重量</span><span class="weight-val" id="total-weight">2.00 kg</span></div>
+                    <div class="stat-line">
+                        <div class="st-label">重量</div>
+                        <div class="st-vals">
+                            <span class="st-prefix">单</span><span class="st-val-txt" id="single-weight">2.00 kg</span>
+                            <span class="st-sep">|</span>
+                            <span class="st-prefix">总</span><span class="st-val-txt" id="total-weight">2.00 kg</span>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -319,9 +363,6 @@
             // 2. Calculate Distance to Fit
             // Get the max dimension relative to aspect ratio
             const aspect = camera.aspect;
-            // If menu is open, the effective aspect ratio is wider (height is halved)
-            // But we handle this by adjusting the "fit" logic below.
-            
             const fov = camera.fov * (Math.PI / 180);
             
             // Basic distance to fit the object vertically
@@ -336,33 +377,16 @@
             distance *= 1.3;
 
             // 3. Adjust for Menu
-            // If menu is open, we want the object to be centered in the TOP HALF of the screen.
-            // This means the camera should look at a point BELOW the object's center.
-            // Or, we shift the camera down.
-            
             let yOffset = 0;
             if (isMenuOpen) {
-                // When menu is open, visible height is ~50%.
-                // We need to zoom out more because the vertical FOV effectively covers less screen real estate for the object?
-                // Actually, simpler: Just ensure the distance is calculated as if the screen is half height.
-                // Half height means we need to fit the object in a smaller vertical angle? No, FOV is constant.
-                // We just need to ensure the object fits in the top half.
-                
-                // Strategy: Double the vertical required distance roughly, or add padding.
-                distance = Math.max(distanceV * 2, distanceH); // Treat height as tighter constraint
-                distance *= 1.1; // Extra padding
-
-                // Shift the target point down. 
-                // If we look at (center.y - offset), the object (center.y) appears higher on screen.
-                // Offset should be roughly 1/4 of the visible vertical frustum at that distance.
+                distance = Math.max(distanceV * 2, distanceH); 
+                distance *= 1.1; 
                 const visibleHeight = 2 * Math.tan(fov / 2) * distance;
                 yOffset = -visibleHeight * 0.25; 
             }
 
             // 4. Set Targets
             const endTarget = new THREE.Vector3(center.x, center.y + yOffset, center.z);
-            // We keep the camera angle consistent (looking from slightly above/front)
-            // Standard view vector: (0, 0, 1) -> normalized
             const viewDir = new THREE.Vector3(0, 0, 1).normalize(); 
             
             // New Camera Position
