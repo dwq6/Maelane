@@ -103,17 +103,21 @@
         .qty-btn { width: 40px; height: 40px; background: #fff; border: 1px solid #ddd; border-radius: 8px; font-size: 20px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #333; }
         #qty-input-main { width: 60px; border: none; background: transparent; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
 
-        /* --- Table Style Stats --- */
-        .weight-card { width: 100%; background: #333; color: #fff; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); padding: 20px; }
+        /* --- Refined Weight Card --- */
+        .weight-card { width: 100%; background: #333; color: #fff; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); overflow: hidden; }
         
-        .stats-table { width: 100%; border-collapse: collapse; }
-        .stats-table th { text-align: right; font-size: 11px; color: rgba(255,255,255,0.5); font-weight: normal; padding-bottom: 8px; width: 35%; }
-        .stats-table th:first-child { text-align: left; width: 30%; }
+        .stat-section { padding: 15px 20px; }
+        .stat-section.total { background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.15); }
         
-        .stats-table td { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.1); font-family: monospace; font-size: 15px; text-align: right; color: #fff; }
-        .stats-table td:first-child { text-align: left; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 500; }
+        .stat-title { font-size: 11px; text-transform: uppercase; color: rgba(255,255,255,0.5); letter-spacing: 1px; margin-bottom: 10px; font-weight: 600; }
         
-        .stats-table tr:last-child td { border-bottom: none; }
+        .weight-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 14px; opacity: 0.9; }
+        .weight-row:last-child { margin-bottom: 0; }
+        
+        .weight-row.highlight { margin-top: 5px; font-size: 18px; font-weight: bold; opacity: 1; color: #fff; }
+        .weight-row.highlight span:first-child { font-size: 14px; font-weight: normal; opacity: 0.8; }
+        
+        .weight-val { font-family: monospace; }
     </style>
 </head>
 <body>
@@ -182,29 +186,18 @@
                     </div>
                 </div>
                 
-                <!-- Table Layout for Stats -->
+                <!-- Refined UI Structure -->
                 <div class="weight-card">
-                    <table class="stats-table">
-                        <thead>
-                            <tr>
-                                <th>规格</th>
-                                <th>单片</th>
-                                <th>总计</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>面积 (m²)</td>
-                                <td id="single-area">0.04</td>
-                                <td id="total-area">0.04</td>
-                            </tr>
-                            <tr>
-                                <td>重量 (kg)</td>
-                                <td id="single-weight">2.00</td>
-                                <td id="total-weight">2.00</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="stat-section">
+                        <div class="stat-title">单片规格</div>
+                        <div class="weight-row"><span>面积</span><span class="weight-val" id="single-area">0.04 m²</span></div>
+                        <div class="weight-row"><span>重量</span><span class="weight-val" id="single-weight">2.00 kg</span></div>
+                    </div>
+                    <div class="stat-section total">
+                        <div class="stat-title">订单总计</div>
+                        <div class="weight-row"><span>总面积</span><span class="weight-val" id="total-area">0.04 m²</span></div>
+                        <div class="weight-row highlight"><span>总重量</span><span class="weight-val" id="total-weight">2.00 kg</span></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -228,13 +221,17 @@
         // Hide loader when module is parsed
         const appLoader = document.getElementById('app-loader');
         
-        // Config
+        // --- FIX: Use a CORS Proxy ---
+        // We prepend 'https://wsrv.nl/?url=' to the image URLs. 
+        // This service proxies the image and adds the necessary CORS headers.
+        const PROXY_BASE = 'https://wsrv.nl/?url=';
+        
         const STONE_CONFIG = [
             { id: 'none', name: '无材质(白模)', url: '' },
-            { id: 'white_shimao', name: '白世贸', url: 'https://img.website.xin/contents/sitefiles10828/54140055/images/33314796.jpg' },
-            { id: 'bala_white', name: '巴拉白', url: 'https://img.website.xin/contents/sitefiles10828/54140055/images/173623572.jpg' },
-            { id: 'tan_brown', name: '英国棕', url: 'https://img.website.xin/contents/sitefiles10828/54140055/images/33314798.jpg' },
-            { id: 'angola_black', name: '安哥拉黑', url: 'https://img.website.xin/contents/sitefiles10828/54140055/images/173623573.jpg' }
+            { id: 'white_shimao', name: '白世贸', url: PROXY_BASE + 'img.website.xin/contents/sitefiles10828/54140055/images/33314796.jpg' },
+            { id: 'bala_white', name: '巴拉白', url: PROXY_BASE + 'img.website.xin/contents/sitefiles10828/54140055/images/173623572.jpg' },
+            { id: 'tan_brown', name: '英国棕', url: PROXY_BASE + 'img.website.xin/contents/sitefiles10828/54140055/images/33314798.jpg' },
+            { id: 'angola_black', name: '安哥拉黑', url: PROXY_BASE + 'img.website.xin/contents/sitefiles10828/54140055/images/173623573.jpg' }
         ];
 
         // UI Init
@@ -243,13 +240,13 @@
             const btn = document.createElement('div');
             btn.className = `stone-btn ${index === 0 ? 'active' : ''}`;
             btn.dataset.type = stone.id;
-            const bgStyle = stone.url ? `background-image: url('${stone.url}');` : `background: #fff; border: 1px solid #ddd;`;
+            // Use the proxied URL for the UI preview as well
+            const bgStyle = stone.url ? `background-image: url('${stone.url}&w=64&h=64&fit=cover');` : `background: #fff; border: 1px solid #ddd;`;
             btn.innerHTML = `<div class="stone-preview" style="${bgStyle}"></div>${stone.name}`;
             gridContainer.appendChild(btn);
         });
 
-        // Initial State: Face is true for 'none'
-        const STATE = { length: 0.2, width: 0.2, thickness: 0.02, stoneType: 'none', quantity: 1, edges: { top: false, bottom: false, left: false, right: false, face: true, back: false } };
+        const STATE = { length: 0.2, width: 0.2, thickness: 0.02, stoneType: 'none', quantity: 1, edges: { top: false, bottom: false, left: false, right: false, face: false, back: false } };
         const DENSITY = 2500;
         const TEXTURE_URLS = {};
         STONE_CONFIG.forEach(s => { if(s.url) TEXTURE_URLS[s.id] = s.url; });
@@ -272,16 +269,6 @@
             thkIn: document.getElementById('thickness-input'),
             texLoader: document.getElementById('texture-loader')
         };
-
-        // Sync UI with STATE
-        function updateEdgeUI() {
-            document.querySelectorAll('.edge-toggle').forEach(b => {
-                const edge = b.dataset.edge;
-                b.classList.toggle('active', STATE.edges[edge]);
-            });
-        }
-        // Call initially
-        updateEdgeUI();
 
         // UI Events
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -343,16 +330,40 @@
         function loadTexture(type, cb) {
             if (TEXTURE_CACHE[type]) return cb(TEXTURE_CACHE[type]);
             if (!TEXTURE_URLS[type]) return cb(null);
-            const img = new Image(); img.crossOrigin = "anonymous"; img.src = TEXTURE_URLS[type];
+            
+            const img = new Image(); 
+            img.crossOrigin = "anonymous"; 
+            img.src = TEXTURE_URLS[type];
+            
+            // --- FIX: Add error handling ---
+            img.onerror = () => {
+                console.error("Texture load failed:", type);
+                els.texLoader.classList.remove('visible');
+                alert("图片加载失败，请检查网络或源图片地址。");
+                cb(null);
+            };
+
             img.onload = () => {
                 setTimeout(() => {
-                    const c = document.createElement('canvas'); const cx = c.getContext('2d');
-                    c.width = img.width; c.height = img.height; cx.drawImage(img, 0, 0);
-                    if (img.height > 350) cx.drawImage(c, 0, 200, 350, 150, 0, 0, 350, 150);
-                    makeSeamless(cx, c.width, c.height);
-                    const tex = new THREE.CanvasTexture(c);
-                    tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-                    TEXTURE_CACHE[type] = tex; cb(tex);
+                    try {
+                        const c = document.createElement('canvas'); const cx = c.getContext('2d');
+                        c.width = img.width; c.height = img.height; cx.drawImage(img, 0, 0);
+                        // Simple crop logic for specific aspect ratios if needed
+                        if (img.height > 350) cx.drawImage(c, 0, 200, 350, 150, 0, 0, 350, 150);
+                        
+                        makeSeamless(cx, c.width, c.height);
+                        
+                        const tex = new THREE.CanvasTexture(c);
+                        tex.colorSpace = THREE.SRGBColorSpace; 
+                        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                        
+                        TEXTURE_CACHE[type] = tex; 
+                        cb(tex);
+                    } catch (e) {
+                        console.error("Texture processing error (CORS?):", e);
+                        els.texLoader.classList.remove('visible');
+                        cb(null);
+                    }
                 }, 10);
             };
         }
@@ -509,10 +520,10 @@
             const vol = area * STATE.thickness;
             const sw = vol * DENSITY;
             
-            els.sArea.textContent = area.toFixed(2);
-            els.tArea.textContent = (area * STATE.quantity).toFixed(2);
-            els.sWeight.textContent = sw.toFixed(2);
-            els.tWeight.textContent = (sw * STATE.quantity).toFixed(2);
+            els.sArea.textContent = area.toFixed(2) + ' m²';
+            els.tArea.textContent = (area * STATE.quantity).toFixed(2) + ' m²';
+            els.sWeight.textContent = sw.toFixed(2) + ' kg';
+            els.tWeight.textContent = (sw * STATE.quantity).toFixed(2) + ' kg';
         }
 
         // Inputs
@@ -526,21 +537,7 @@
         
         document.getElementById('stone-grid-container').onclick = (e) => {
             const t = e.target.closest('.stone-btn');
-            if(t) { 
-                document.querySelectorAll('.stone-btn').forEach(b=>b.classList.remove('active')); 
-                t.classList.add('active'); 
-                STATE.stoneType = t.dataset.type; 
-                
-                // Logic: If none -> Face=True, Else -> Face=False
-                if(STATE.stoneType === 'none') {
-                    STATE.edges.face = true;
-                } else {
-                    STATE.edges.face = false;
-                }
-                updateEdgeUI(); // Sync UI buttons
-                
-                genSlab(); 
-            }
+            if(t) { document.querySelectorAll('.stone-btn').forEach(b=>b.classList.remove('active')); t.classList.add('active'); STATE.stoneType=t.dataset.type; genSlab(); }
         };
         document.querySelectorAll('.edge-toggle').forEach(b => b.onclick = () => { b.classList.toggle('active'); STATE.edges[b.dataset.edge]=!STATE.edges[b.dataset.edge]; updateHighlights(); });
         const upQty = (v) => { v=Math.max(1,Math.min(999,v)); STATE.quantity=v; els.qty.value=v; genSlab(); };
