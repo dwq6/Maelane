@@ -2,98 +2,160 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Back Chamfer</title>
+    <!-- 关键：添加视口设置，禁止用户缩放，适配移动端宽度 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Back Chamfer Generator</title>
     <style>
-        body {
-            font-family: "Times New Roman", serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%; /* 占满屏幕高度 */
+            width: 100%;
             background-color: #f0f0f0;
-            padding: 20px;
+            font-family: "Times New Roman", serif;
+            overflow: hidden; /* 防止整体滚动，只让内容适应布局 */
         }
+
         .container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
             display: flex;
             flex-direction: column;
+            height: 100%;
+            max-width: 1000px; /* 电脑端限制最大宽度 */
+            margin: 0 auto; /* 电脑端居中 */
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        /* 绘图区域：占据剩余空间，内容居中 */
+        .drawing-area {
+            flex: 1; /* 关键：自动伸缩 */
+            width: 100%;
+            display: flex;
+            justify-content: center;
             align-items: center;
-        }
-        svg {
-            border: 1px solid #ddd;
+            padding: 10px;
+            min-height: 0; /* 关键：允许在Flex容器中压缩高度 */
             background-color: #fff;
-            margin-bottom: 20px;
+            position: relative;
         }
-        .input-group {
-            margin-top: 10px;
+
+        svg {
+            max-width: 100%;
+            max-height: 100%;
+            /* 保持边框以便看到边界，也可以去掉 */
+            border: 1px dashed #eee; 
+        }
+
+        /* 底部操作区域 */
+        .controls-area {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #ddd;
             display: flex;
             flex-direction: column;
             gap: 10px;
             align-items: center;
-            width: 100%;
+            z-index: 10;
         }
+
+        .input-group {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
         input[type="text"] {
             padding: 10px;
-            font-size: 18px;
-            width: 300px;
+            font-size: 16px;
+            width: 100%; /* 手机端占满 */
+            max-width: 400px; /* 电脑端限制宽度 */
             text-align: center;
             border: 2px solid #007bff;
             border-radius: 4px;
+            outline: none;
         }
+        
+        input[type="text"]:focus {
+            border-color: #0056b3;
+            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+        }
+
         button {
-            padding: 10px 20px;
+            padding: 12px 30px;
             font-size: 16px;
             background-color: #28a745;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            width: 100%;
+            max-width: 400px;
+            -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
         }
+
         button:hover {
             background-color: #218838;
         }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
         .hint {
             color: #666;
-            font-size: 14px;
-            margin-top: 5px;
+            font-size: 12px;
+            text-align: center;
         }
+
         .error {
             color: red;
             font-size: 14px;
             height: 20px;
+            line-height: 20px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <svg id="drawingSvg" width="800" height="500" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <!-- 填充保持旋转 -45 度 -->
-            <pattern id="mixedHatch" patternUnits="userSpaceOnUse" width="30" height="30" patternTransform="rotate(-45)">
-                <line x1="0" y1="0" x2="30" y2="0" stroke="#000" stroke-width="1" />
-                <line x1="0" y1="15" x2="30" y2="15" stroke="#000" stroke-width="1" stroke-dasharray="8,6" />
-            </pattern>
-            
-            <!-- 圆点标记 -->
-            <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <circle cx="4" cy="4" r="3" fill="red" />
-            </marker>
-        </defs>
-        <g id="svgContent"></g>
-    </svg>
+    <div class="drawing-area">
+        <!-- 
+            1. 移除了 width/height 属性，改用 viewBox 定义逻辑坐标系 
+            2. preserveAspectRatio 确保图形按比例缩放且居中
+        -->
+        <svg id="drawingSvg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <pattern id="mixedHatch" patternUnits="userSpaceOnUse" width="30" height="30" patternTransform="rotate(-45)">
+                    <line x1="0" y1="0" x2="30" y2="0" stroke="#000" stroke-width="1" />
+                    <line x1="0" y1="15" x2="30" y2="15" stroke="#000" stroke-width="1" stroke-dasharray="8,6" />
+                </pattern>
+                <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <circle cx="4" cy="4" r="3" fill="red" />
+                </marker>
+            </defs>
+            <g id="svgContent"></g>
+        </svg>
+    </div>
     
-    <div class="input-group">
-        <label for="specInput" style="font-weight: bold; font-size: 1.2em;">输入规格文字:</label>
-        <input type="text" id="specInput" value="1W背倒20*27余3光" placeholder="例如: 1W背倒20*27余3光">
-        <div class="error" id="errorMsg"></div>
+    <div class="controls-area">
+        <div class="input-group">
+            <label for="specInput">输入规格文字:</label>
+            <input type="text" id="specInput" value="1W背倒20*27余3光" placeholder="例如: 1W背倒20*27余3光">
+            <div class="error" id="errorMsg"></div>
+        </div>
         
         <button onclick="downloadJPG()">下载 JPG 图片</button>
-        
         <div class="hint">支持格式示例: 1W背倒20*27余3光 / 2L背倒15*10余5</div>
     </div>
 </div>
@@ -104,6 +166,10 @@
     const input = document.getElementById('specInput');
     const errorMsg = document.getElementById('errorMsg');
 
+    // 定义逻辑画布大小（对应 viewBox）
+    const LOGICAL_WIDTH = 800;
+    const LOGICAL_HEIGHT = 500;
+
     parseAndDraw();
     input.addEventListener('input', parseAndDraw);
 
@@ -113,7 +179,7 @@
         const match = text.match(regex);
 
         if (!match) {
-            errorMsg.textContent = "格式无法识别，请参照示例：1W背倒20*27余3光";
+            errorMsg.textContent = "格式错误，例：1W背倒20*27余3光";
             return;
         } else {
             errorMsg.textContent = "";
@@ -136,32 +202,29 @@
             svgContent.removeChild(svgContent.firstChild);
         }
 
-        const width = parseInt(svg.getAttribute('width'));
-        const height = parseInt(svg.getAttribute('height'));
+        // 使用常量逻辑宽高，不再获取 DOM 元素的实际像素宽高
+        const width = LOGICAL_WIDTH;
+        const height = LOGICAL_HEIGHT;
         
         // --- 布局参数配置 ---
-        const sidePadding = 30;    // 左右留白
-        const topPadding = 40;     // 顶部留白
-        const bottomAreaHeight = 60; // 底部预留给文字的高度 (比之前小，让图更大)
+        const sidePadding = 30;
+        const topPadding = 40;
+        const bottomAreaHeight = 60;
         
-        // 计算绘图区的可用空间
         const availableW = width - sidePadding * 2;
         const availableH = height - topPadding - bottomAreaHeight; 
 
         const logicalH = data.totalThickness;
-        const logicalW = logicalH * 5.5; // 保持长宽比
+        const logicalW = logicalH * 5.5; 
         
-        // 计算缩放比例，让图形尽可能大
         const scale = Math.min(availableW / logicalW, availableH / logicalH) * 0.85;
 
-        // 计算图形居中位置 (在绘图区内居中)
         const offsetX = sidePadding + (availableW - logicalW * scale) / 2;
         const offsetY = topPadding + (availableH - logicalH * scale) / 2;
 
         const toX = (val) => offsetX + val * scale;
         const toY = (val) => offsetY + val * scale;
 
-        // 坐标点
         const pTopLeft = { x: toX(0), y: toY(0) };
         const pChamferStart = { x: toX(0), y: toY(data.remaining) };
         const pChamferEnd = { x: toX(data.cutWidth), y: toY(data.totalThickness) };
@@ -192,31 +255,25 @@
         });
 
         // 3. 标注
-        // 3.1 顶部 W/L
         const topY = pTopLeft.y - 30;
         drawDimLine(pTopLeft.x, topY, pTopRight.x, topY, data.dimType, false, -25, 36);
         createLine(pTopLeft.x, pTopLeft.y, pTopLeft.x, topY - 5);
         createLine(pTopRight.x, pTopRight.y, pTopRight.x, topY - 5);
 
-        // 3.2 右侧 T
         const rightX = pTopRight.x + 45;
         drawDimLine(rightX, pTopRight.y, rightX, pBottomRight.y, data.totalThickness + "T", true, 20);
         createLine(pTopRight.x, pTopRight.y, rightX + 5, pTopRight.y);
         createLine(pBottomRight.x, pBottomRight.y, rightX + 5, pBottomRight.y);
 
-        // 3.3 左侧标注
         const leftLabelX = pTopLeft.x - 45;
         
-        // 剩余高度
         drawDimLine(leftLabelX, pTopLeft.y, leftLabelX, pChamferStart.y, data.remaining, true, -20);
         createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
         createLine(pChamferStart.x, pChamferStart.y, leftLabelX - 5, pChamferStart.y);
 
-        // 切去高度
         drawDimLine(leftLabelX, pChamferStart.y, leftLabelX, pChamferEnd.y, data.cutHeight, true, -20);
         createLine(pChamferEnd.x, pChamferEnd.y, leftLabelX - 5, pChamferEnd.y);
 
-        // 3.4 底部切宽
         const bottomLabelY = pBottomRight.y + 40;
         const cutX = pChamferEnd.x;
         const zeroX = pTopLeft.x;
@@ -225,12 +282,10 @@
         createLine(zeroX, pBottomRight.y, zeroX, bottomLabelY + 5);
         createLine(cutX, pBottomRight.y, cutX, bottomLabelY + 5);
 
-        // 4. 三角标记
         const triHalfW = 6;
         const triLen = 12;
         const triGap = 8;
 
-        // 4.1 顶部三角
         const topTriX = (pTopLeft.x + pTopRight.x) / 2;
         const topTriY = pTopLeft.y - triGap; 
         createSvgElement('polygon', {
@@ -238,7 +293,6 @@
             fill: 'black'
         });
 
-        // 4.2 左侧光三角
         if (data.isPolished) {
             const sideTriX = pTopLeft.x - triGap;
             const sideTriY = (pTopLeft.y + pChamferStart.y) / 2;
@@ -248,10 +302,9 @@
             });
         }
 
-        // 5. 底部文字 (无框，位置上移)
         createSvgElement('text', {
             x: width / 2,
-            y: height - 30, // 距离底部 30px，比之前更靠上
+            y: height - 30,
             'text-anchor': 'middle',
             'dominant-baseline': 'middle',
             'font-family': 'Times New Roman',
@@ -313,16 +366,23 @@
     function downloadJPG() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
+        // 使用逻辑尺寸乘以倍率，保证下载图片的清晰度一致
         const scaleFactor = 2;
-        const w = parseInt(svg.getAttribute('width'));
-        const h = parseInt(svg.getAttribute('height'));
+        const w = LOGICAL_WIDTH;
+        const h = LOGICAL_HEIGHT;
         
         canvas.width = w * scaleFactor;
         canvas.height = h * scaleFactor;
         
         const serializer = new XMLSerializer();
+        // 确保 SVG 字符串包含正确的宽高属性，以便 Image 对象正确加载
         let source = serializer.serializeToString(svg);
         
+        // 临时给 SVG 字符串加上 width 和 height 属性，因为 CSS 控制的 DOM 可能没有这两个属性
+        if (!source.includes('width=')) {
+             source = source.replace('<svg', `<svg width="${w}" height="${h}"`);
+        }
+
         if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
             source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
         }
