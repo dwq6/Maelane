@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>自动开槽图生成器</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            background-color: #f0f2f5; font-family: "Microsoft YaHei", sans-serif;
+            overflow: hidden;
+        }
+        .container {
+            display: flex; flex-direction: column; height: 100%;
+            max-width: 1200px; margin: 0 auto; background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        }
+        .drawing-area {
+            flex: 1; width: 100%; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            background-color: #fff; position: relative;
+        }
+        svg {
+            width: 95%; height: 95%;
+            border: 1px dashed #e8e8e8;
+        }
+        .controls-area {
+            padding: 15px; background-color: #fff;
+            border-top: 1px solid #eee; z-index: 10;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+            overflow-y: auto; max-height: 45vh;
+        }
+        .control-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px; margin-bottom: 15px;
+        }
+        .input-group { display: flex; flex-direction: column; gap: 4px; }
+        .input-group label { font-size: 12px; color: #666; font-weight: bold; }
+        .input-group input, .input-group select {
+            padding: 8px; border: 1px solid #ddd; border-radius: 4px;
+            font-size: 14px; outline: none; transition: border-color 0.2s; background: white;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: #1890ff; }
+        .input-group input:disabled { background-color: #f9f9f9; color: #d32f2f; font-weight: bold; border-color: #eee; }
+        
+        .action-bar { display: flex; gap: 10px; align-items: center; }
+        button {
+            flex: 1; padding: 10px; font-size: 15px;
+            border: none; border-radius: 4px; cursor: pointer;
+            background-color: #1890ff; color: white; font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button.secondary { background-color: #52c41a; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="drawing-area">
+        <svg id="drawingSvg" viewBox="-150 -100 1300 900" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrowEnd" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L9,3 z" fill="red" />
+                </marker>
+                <marker id="arrowStart" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M9,0 L9,6 L0,3 z" fill="red" />
+                </marker>
+                <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <circle cx="4" cy="4" r="2" fill="red" />
+                </marker>
+            </defs>
+            <g id="svgContent"></g>
+        </svg>
+    </div>
+    
+    <div class="controls-area">
+        <div class="control-grid">
+            <div class="input-group">
+                <label>总宽 W (左侧高度)</label>
+                <input type="number" id="totalW" value="618">
+            </div>
+            <div class="input-group">
+                <label>总长 L (顶部宽度)</label>
+                <input type="number" id="totalL" value="1400">
+            </div>
+            <div class="input-group">
+                <label>开槽宽度</label>
+                <input type="number" id="slotWidth" value="6">
+            </div>
+            <div class="input-group">
+                <label>槽间隔 (大面)</label>
+                <input type="number" id="slotGap" value="114">
+            </div>
+            <div class="input-group">
+                <label>末端余量 (自动计算)</label>
+                <input type="text" id="endRemainder" value="-" disabled>
+            </div>
+            <div class="input-group">
+                <label>槽深 (仅用于文字)</label>
+                <input type="number" id="slotDepth" value="5">
+            </div>
+            <div class="input-group">
+                <label>编号前缀</label>
+                <input type="text" id="textPrefix" value="3-1">
+            </div>
+            
+            <div class="input-group">
+                <label>L 标注格式</label>
+                <select id="lDisplayMode">
+                    <option value="val">显示数值 (1400)</option>
+                    <option value="l_val">显示 L=数值</option>
+                    <option value="l_only">只显示 L</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>W 标注格式</label>
+                <select id="wDisplayMode">
+                    <option value="val">显示数值 (618)</option>
+                    <option value="w_val">显示 W=数值</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="action-bar">
+            <button onclick="draw()">刷新图纸</button>
+            <button class="secondary" onclick="downloadJPG()">下载 JPG 图片</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const svg = document.getElementById('drawingSvg');
+    const svgContent = document.getElementById('svgContent');
+    const endRemainderInput = document.getElementById('endRemainder');
+    
+    document.querySelectorAll('input:not([disabled]), select').forEach(el => {
+        el.addEventListener('change', draw);
+        el.addEventListener('input', draw);
+    });
+
+    function draw() {
+        // 1. 获取数据
+        const W = parseFloat(document.getElementById('totalW').value) || 618;
+        const L = parseFloat(document.getElementById('totalL').value) || 1400;
+        const sw = parseFloat(document.getElementById('slotWidth').value) || 6;
+        const gap = parseFloat(document.getElementById('slotGap').value) || 114;
+        const depth = document.getElementById('slotDepth').value;
+        const prefix = document.getElementById('textPrefix').value;
+        
+        const lMode = document.getElementById('lDisplayMode').value;
+        const wMode = document.getElementById('wDisplayMode').value;
+
+        // 清空画布
+        while (svgContent.firstChild) {
+            svgContent.removeChild(svgContent.firstChild);
+        }
+
+        // 2. 计算绘图比例
+        const targetDrawWidth = 1000;
+        const targetDrawHeight = 600;
+        let scale = Math.min(targetDrawWidth / L, targetDrawHeight / W);
+        
+        const toX = (val) => val * scale;
+        const toY = (val) => val * scale;
+
+        const drawL = toX(L);
+        const drawW = toY(W);
+
+        // 3. 绘制外框
+        createSvgElement('rect', {
+            x: 0, y: 0, width: drawL, height: drawW,
+            fill: 'none', stroke: 'black', 'stroke-width': 2
+        });
+
+        // 辅助函数：绘制自适应三角
+        function drawAdaptiveTriangle(yStart, yEnd) {
+            const h = yEnd - yStart;
+            if (h <= 0.1) return; 
+
+            const centerY = toY(yStart + h / 2);
+            const centerX = drawL / 2;
+            
+            const pixelH = toY(h);
+            const maxR = (pixelH / 2) - 2; 
+            const r = Math.min(6, Math.max(1, maxR)); 
+            
+            if (r < 0.5) return; 
+
+            const p1 = `${centerX - r},${centerY - r}`;
+            const p2 = `${centerX + r},${centerY - r}`;
+            const p3 = `${centerX},${centerY + r}`;
+            
+            createSvgElement('polygon', {
+                points: `${p1} ${p2} ${p3}`,
+                fill: 'black'
+            });
+        }
+
+        // 4. 绘制内部结构
+        // 逻辑：起始为0，直接开始排 [槽] -> [间隔] -> [槽] ...
+        let currentY = 0;
+        let prevY = 0; 
+        const dimTotalX = -100; 
+
+        let loopCount = 0;
+        const maxLoops = 200;
+
+        while (currentY + sw <= W + 0.01 && loopCount < maxLoops) {
+            loopCount++;
+            
+            // --- 槽 (Slot) ---
+            const slotBottomY = currentY + sw;
+            createLine(0, toY(slotBottomY), drawL, toY(slotBottomY), 'black', 1);
+            
+            // 标注槽宽
+            drawDimLine(-10, toY(currentY), -10, toY(slotBottomY), sw, true, -15);
+            
+            // 辅助红线
+            if (currentY > 0.1) { // 如果不是第一条线（第一条线重合于边框）
+                 createLine(-15, toY(currentY), 0, toY(currentY), 'red', 0.5);
+            }
+            createLine(-15, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
+
+            currentY = slotBottomY;
+            prevY = currentY;
+
+            // --- 间隔 (Gap) ---
+            // 只有当剩余空间足够放一个间隔时，才画间隔
+            if (currentY + gap <= W + 0.01) {
+                const nextY = currentY + gap;
+                
+                drawDimLine(-10, toY(currentY), -10, toY(nextY), gap, true, -15);
+                createLine(-15, toY(nextY), 0, toY(nextY), 'red', 0.5);
+                createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
+
+                // 绘制三角 (间隔面)
+                drawAdaptiveTriangle(currentY, nextY);
+                
+                currentY = nextY;
+                prevY = currentY;
+            } else {
+                // 空间不足以放完整间隔，或者正好结束
+                break;
+            }
+        }
+
+        // --- 计算并绘制末端余量 (Remainder) ---
+        let remainder = W - prevY;
+        if (remainder < 0) remainder = 0;
+        
+        // 更新UI显示
+        endRemainderInput.value = Math.round(remainder * 100) / 100;
+
+        if (remainder > 0.1) {
+            const displayRem = Math.round(remainder * 100) / 100;
+            drawDimLine(-10, toY(prevY), -10, toY(W), displayRem, true, -15);
+            createLine(-15, toY(W), 0, toY(W), 'red', 0.5);
+            
+            // 绘制三角 (余量面)
+            drawAdaptiveTriangle(prevY, W);
+        }
+
+        // 5. 总尺寸 W
+        let wLabel = W;
+        if (wMode === 'w_val') wLabel = `W=${W}`;
+        drawArrowDimLine(dimTotalX, 0, dimTotalX, drawW, wLabel, true, -20, true);
+        createLine(dimTotalX - 10, 0, -15, 0, 'red', 0.5);
+        createLine(dimTotalX - 10, drawW, -15, drawW, 'red', 0.5);
+
+        // 6. 总尺寸 L
+        let lLabel = L;
+        if (lMode === 'l_val') lLabel = `L=${L}`;
+        if (lMode === 'l_only') lLabel = 'L';
+
+        const dimTopY = -50;
+        drawArrowDimLine(0, dimTopY, drawL, dimTopY, lLabel, false, -15, true);
+        createLine(0, dimTopY - 10, 0, 0, 'red', 0.5);
+        createLine(drawL, dimTopY - 10, drawL, 0, 'red', 0.5);
+
+        // 7. 底部文字
+        const bottomText = `${prefix}加工 开槽${sw}*${depth}`;
+        createSvgElement('text', {
+            x: drawL / 2,
+            y: drawW + 80,
+            'text-anchor': 'middle',
+            'font-family': 'SimHei, sans-serif',
+            'font-size': '40px',
+            fill: 'red'
+        }, bottomText);
+        
+        const vbW = drawL + 300;
+        const vbH = drawW + 250;
+        svg.setAttribute('viewBox', `-150 -100 ${vbW} ${vbH}`);
+    }
+
+    function createSvgElement(type, attrs, textContent) {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", type);
+        for (const [key, value] of Object.entries(attrs)) {
+            el.setAttribute(key, value);
+        }
+        if (textContent) {
+            el.textContent = textContent;
+        }
+        svgContent.appendChild(el);
+        return el;
+    }
+
+    function createLine(x1, y1, x2, y2, color, width) {
+        createSvgElement('line', {
+            x1: x1, y1: y1, x2: x2, y2: y2,
+            stroke: color, 'stroke-width': width
+        });
+    }
+
+    function drawArrowDimLine(x1, y1, x2, y2, text, isVertical, textOffset, useArrow) {
+        const attrs = {
+            x1: x1, y1: y1, x2: x2, y2: y2,
+            stroke: 'red', 'stroke-width': 1
+        };
+        if (useArrow) {
+            attrs['marker-start'] = 'url(#arrowStart)';
+            attrs['marker-end'] = 'url(#arrowEnd)';
+        }
+        createSvgElement('line', attrs);
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        
+        const textAttrs = {
+            'font-family': 'Times New Roman, SimHei',
+            'font-size': '36px',
+            fill: 'red',
+            'text-anchor': 'middle',
+            'dominant-baseline': 'middle'
+        };
+
+        if (isVertical) {
+            textAttrs.transform = `rotate(-90, ${midX}, ${midY})`;
+            textAttrs.x = midX;
+            textAttrs.y = midY + textOffset; 
+        } else {
+            textAttrs.x = midX;
+            textAttrs.y = midY + textOffset; 
+        }
+        
+        createSvgElement('text', textAttrs, text);
+    }
+
+    function drawDimLine(x1, y1, x2, y2, text, isVertical, textOffset) {
+         const dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+         createSvgElement('line', {
+            x1: x1, y1: y1, x2: x2, y2: y2,
+            stroke: 'red', 'stroke-width': 1,
+            'marker-start': dist > 10 ? 'url(#dot)' : '',
+            'marker-end': dist > 10 ? 'url(#dot)' : ''
+        });
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        
+        const textAttrs = {
+            'font-family': 'Times New Roman',
+            'font-size': '20px',
+            fill: 'red',
+            'text-anchor': 'middle',
+            'dominant-baseline': 'middle'
+        };
+
+        if (isVertical) {
+            textAttrs.transform = `rotate(-90, ${midX}, ${midY})`;
+            textAttrs.x = midX;
+            textAttrs.y = midY + textOffset;
+        } else {
+            textAttrs.x = midX;
+            textAttrs.y = midY + textOffset;
+        }
+        createSvgElement('text', textAttrs, text);
+    }
+
+    function downloadJPG() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+        const vbW = vb[2];
+        const vbH = vb[3];
+        const scaleFactor = 2; 
+        canvas.width = vbW * scaleFactor;
+        canvas.height = vbH * scaleFactor;
+        
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(svg);
+        if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+            source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        
+        const img = new Image();
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+        
+        img.onload = function() {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.scale(scaleFactor, scaleFactor);
+            ctx.translate(-vb[0], -vb[1]); 
+            ctx.drawImage(img, vb[0], vb[1], vbW, vbH);
+            ctx.restore();
+            
+            const a = document.createElement('a');
+            const prefix = document.getElementById('textPrefix').value;
+            a.download = `${prefix}_开槽图.jpg`;
+            a.href = canvas.toDataURL('image/jpeg', 0.9);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+    }
+    
+    window.onload = draw;
+</script>
+</body>
+</html>
