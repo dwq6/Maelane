@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -42,7 +42,7 @@
             font-size: 14px; outline: none; transition: border-color 0.2s; background: white;
         }
         .input-group input:focus, .input-group select:focus { border-color: #1890ff; }
-        .input-group input:disabled { background-color: #f9f9f9; color: #d32f2f; font-weight: bold; border-color: #eee; }
+        .input-group input:disabled { background-color: #f5f5f5; color: #d32f2f; font-weight: bold; cursor: not-allowed; }
         
         .action-bar { display: flex; gap: 10px; align-items: center; }
         button {
@@ -90,12 +90,12 @@
                 <input type="number" id="slotWidth" value="6">
             </div>
             <div class="input-group">
-                <label>槽间隔 (大面)</label>
+                <label>槽间隔</label>
                 <input type="number" id="slotGap" value="114">
             </div>
             <div class="input-group">
-                <label>末端余量 (自动计算)</label>
-                <input type="text" id="endRemainder" value="-" disabled>
+                <label>首槽起始数值 (自动计算)</label>
+                <input type="number" id="startOffset" value="0" disabled>
             </div>
             <div class="input-group">
                 <label>槽深 (仅用于文字)</label>
@@ -133,7 +133,7 @@
 <script>
     const svg = document.getElementById('drawingSvg');
     const svgContent = document.getElementById('svgContent');
-    const endRemainderInput = document.getElementById('endRemainder');
+    const startOffsetInput = document.getElementById('startOffset');
     
     document.querySelectorAll('input:not([disabled]), select').forEach(el => {
         el.addEventListener('change', draw);
@@ -152,6 +152,14 @@
         const lMode = document.getElementById('lDisplayMode').value;
         const wMode = document.getElementById('wDisplayMode').value;
 
+        // 自动计算起始数值
+        const unit = sw + gap;
+        let calculatedStart = W % unit;
+        calculatedStart = Math.round(calculatedStart * 100) / 100;
+        
+        startOffsetInput.value = calculatedStart;
+        const startOff = calculatedStart;
+
         // 清空画布
         while (svgContent.firstChild) {
             svgContent.removeChild(svgContent.firstChild);
@@ -167,6 +175,11 @@
 
         const drawL = toX(L);
         const drawW = toY(W);
+
+        // 定义标注线位置 (X坐标)
+        const dimX_Gap = -15;   // 间隔和余量的标注线位置
+        const dimX_Slot = -45;  // 槽的标注线位置 (更靠外，避免重叠)
+        const extLineStart = -50; // 红色辅助延伸线的起始X
 
         // 3. 绘制外框
         createSvgElement('rect', {
@@ -199,10 +212,25 @@
         }
 
         // 4. 绘制内部结构
-        // 逻辑：起始为0，直接开始排 [槽] -> [间隔] -> [槽] ...
-        let currentY = 0;
-        let prevY = 0; 
-        const dimTotalX = -100; 
+        let currentY = startOff;
+        const dimTotalX = -120; // 总宽标注更靠外
+
+        // --- 起始部分 (Start Offset) ---
+        if (currentY > 0.1) {
+            // 标注在内层 (Gap层)
+            drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), currentY, true, -15);
+            
+            createLine(-5, toY(currentY), drawL, toY(currentY), 'black', 1);
+            
+            // 延伸线
+            createLine(extLineStart, 0, 0, 0, 'red', 0.5); 
+            createLine(extLineStart, toY(currentY), 0, toY(currentY), 'red', 0.5);
+            
+            drawAdaptiveTriangle(0, currentY);
+        } else {
+            // 即使没有起始偏移，第一条红线也要画
+            createLine(extLineStart, 0, 0, 0, 'red', 0.5);
+        }
 
         let loopCount = 0;
         const maxLoops = 200;
@@ -214,60 +242,40 @@
             const slotBottomY = currentY + sw;
             createLine(0, toY(slotBottomY), drawL, toY(slotBottomY), 'black', 1);
             
-            // 标注槽宽
-            drawDimLine(-10, toY(currentY), -10, toY(slotBottomY), sw, true, -15);
+            // 标注在外层 (Slot层) - 错开显示
+            drawDimLine(dimX_Slot, toY(currentY), dimX_Slot, toY(slotBottomY), sw, true, -15);
             
-            // 辅助红线
-            if (currentY > 0.1) { // 如果不是第一条线（第一条线重合于边框）
-                 createLine(-15, toY(currentY), 0, toY(currentY), 'red', 0.5);
-            }
-            createLine(-15, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
+            // 延伸线
+            createLine(extLineStart, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
 
             currentY = slotBottomY;
-            prevY = currentY;
 
             // --- 间隔 (Gap) ---
-            // 只有当剩余空间足够放一个间隔时，才画间隔
-            if (currentY + gap <= W + 0.01) {
-                const nextY = currentY + gap;
+            if (currentY < W - 0.1) {
+                let nextY = currentY + gap;
+                if (nextY > W) nextY = W;
                 
-                drawDimLine(-10, toY(currentY), -10, toY(nextY), gap, true, -15);
-                createLine(-15, toY(nextY), 0, toY(nextY), 'red', 0.5);
+                const dist = Math.round((nextY - currentY)*100)/100;
+                
+                // 标注在内层 (Gap层)
+                drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), dist, true, -15);
+                
+                createLine(extLineStart, toY(nextY), 0, toY(nextY), 'red', 0.5);
                 createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
 
-                // 绘制三角 (间隔面)
                 drawAdaptiveTriangle(currentY, nextY);
                 
                 currentY = nextY;
-                prevY = currentY;
-            } else {
-                // 空间不足以放完整间隔，或者正好结束
-                break;
             }
-        }
-
-        // --- 计算并绘制末端余量 (Remainder) ---
-        let remainder = W - prevY;
-        if (remainder < 0) remainder = 0;
-        
-        // 更新UI显示
-        endRemainderInput.value = Math.round(remainder * 100) / 100;
-
-        if (remainder > 0.1) {
-            const displayRem = Math.round(remainder * 100) / 100;
-            drawDimLine(-10, toY(prevY), -10, toY(W), displayRem, true, -15);
-            createLine(-15, toY(W), 0, toY(W), 'red', 0.5);
-            
-            // 绘制三角 (余量面)
-            drawAdaptiveTriangle(prevY, W);
         }
 
         // 5. 总尺寸 W
         let wLabel = W;
         if (wMode === 'w_val') wLabel = `W=${W}`;
         drawArrowDimLine(dimTotalX, 0, dimTotalX, drawW, wLabel, true, -20, true);
-        createLine(dimTotalX - 10, 0, -15, 0, 'red', 0.5);
-        createLine(dimTotalX - 10, drawW, -15, drawW, 'red', 0.5);
+        // 总尺寸的延伸线
+        createLine(dimTotalX - 10, 0, extLineStart, 0, 'red', 0.5);
+        createLine(dimTotalX - 10, drawW, extLineStart, drawW, 'red', 0.5);
 
         // 6. 总尺寸 L
         let lLabel = L;
@@ -292,7 +300,7 @@
         
         const vbW = drawL + 300;
         const vbH = drawW + 250;
-        svg.setAttribute('viewBox', `-150 -100 ${vbW} ${vbH}`);
+        svg.setAttribute('viewBox', `-180 -100 ${vbW} ${vbH}`);
     }
 
     function createSvgElement(type, attrs, textContent) {
