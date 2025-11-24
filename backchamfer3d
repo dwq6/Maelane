@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>梅兰背倒编辑器 (最终完善版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: #f5f5f5; font-family: "Microsoft YaHei", sans-serif; overflow: hidden; }
+        
+        .viz-container {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+        
+        .view-2d, .view-3d {
+            flex: 1;
+            position: relative;
+            border: 1px solid #ccc;
+            background: white;
+            margin: 5px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .view-label {
+            position: absolute;
+            top: 10px; left: 10px;
+            background: rgba(0,0,0,0.1); color: #333;
+            padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
+            z-index: 10; pointer-events: none;
+        }
+
+        .controls-panel {
+            height: auto;
+            background: white;
+            padding: 10px 20px;
+            border-top: 1px solid #ddd;
+            z-index: 20;
+        }
+
+        .params-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 15px;
+            max-width: 1200px;
+            margin: 0 auto;
+            align-items: end;
+        }
+
+        .param-item { display: flex; flex-direction: column; }
+        .param-item label { font-size: 12px; color: #666; margin-bottom: 4px; }
+        .param-item input, .param-item select {
+            padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; text-align: center;
+        }
+        .param-item input:focus { border-color: #333; outline: none; }
+
+        /* 特殊按钮样式 */
+        .toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            padding-bottom: 8px;
+        }
+        .toggle-btn input { margin: 0; cursor: pointer; }
+
+        .full-string-display {
+            text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 16px; color: #333;
+            padding: 8px; background: #f0f0f0; border-radius: 4px;
+        }
+        
+        .btn-row { display: flex; justify-content: center; margin-top: 10px; }
+        button {
+            background: #333; color: white; border: none; padding: 8px 25px; border-radius: 4px; cursor: pointer; font-size: 14px;
+        }
+        button:hover { background: #555; }
+
+        @media (max-width: 768px) {
+            .viz-container { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="viz-container">
+    <div class="view-2d">
+        <div class="view-label">2D 截面 (带加工符号)</div>
+        <svg id="drawingSvg" width="100%" height="100%" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <pattern id="mixedHatch" patternUnits="userSpaceOnUse" width="30" height="30" patternTransform="rotate(-45)">
+                    <line x1="0" y1="0" x2="30" y2="0" stroke="#000" stroke-width="1" />
+                    <line x1="0" y1="15" x2="30" y2="15" stroke="#000" stroke-width="1" stroke-dasharray="8,6" />
+                </pattern>
+                <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <circle cx="4" cy="4" r="3" fill="red" />
+                </marker>
+            </defs>
+            <g id="svgContent"></g>
+        </svg>
+    </div>
+    
+    <div class="view-3d" id="container3d">
+        <div class="view-label">3D 白膜 (黑色贴边标注)</div>
+    </div>
+</div>
+
+<div class="controls-panel">
+    <div class="full-string-display" id="resultString">1W背倒20*27余3光</div>
+    <div class="params-grid">
+        <div class="param-item"><label>编号</label><input type="number" id="pIndex" value="1" min="1"></div>
+        <div class="param-item">
+            <label>类型</label>
+            <select id="pType"><option value="W">W (宽)</option><option value="L">L (长)</option></select>
+        </div>
+        <div class="param-item"><label>切宽 (mm)</label><input type="number" id="pCutW" value="20" min="0"></div>
+        <div class="param-item"><label>切深 (mm)</label><input type="number" id="pCutH" value="27" min="0"></div>
+        <div class="param-item"><label>余厚 (mm)</label><input type="number" id="pRem" value="3" min="1"></div>
+        
+        <!-- 加工面复选框 -->
+        <div class="param-item" style="align-items: flex-start;">
+            <label style="margin-bottom:8px;">加工选项</label>
+            <label class="toggle-btn">
+                <input type="checkbox" id="pPolish" checked>
+                <span>光面 (显示 ▼)</span>
+            </label>
+        </div>
+        
+        <div class="param-item">
+             <button onclick="downloadJPG()">下载图纸</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const inputs = {
+        index: document.getElementById('pIndex'), type: document.getElementById('pType'),
+        cutW: document.getElementById('pCutW'), cutH: document.getElementById('pCutH'),
+        rem: document.getElementById('pRem'), polish: document.getElementById('pPolish')
+    };
+    const resultDisplay = document.getElementById('resultString');
+    const svgContent = document.getElementById('svgContent');
+
+    let scene, camera, renderer, controls, mainGroup;
+
+    Object.values(inputs).forEach(el => el.addEventListener('input', updateAll));
+    init3D();
+    updateAll();
+
+    function updateAll() {
+        const data = {
+            index: inputs.index.value, dimType: inputs.type.value,
+            cutWidth: parseInt(inputs.cutW.value)||0, cutHeight: parseInt(inputs.cutH.value)||0,
+            remaining: parseInt(inputs.rem.value)||0, isPolished: inputs.polish.checked
+        };
+        data.totalThickness = data.cutHeight + data.remaining;
+        const str = `${data.index}${data.dimType}背倒${data.cutWidth}*${data.cutHeight}余${data.remaining}${data.isPolished?'光':''}`;
+        resultDisplay.textContent = str;
+        drawSVG(data, str);
+        update3D(data);
+    }
+
+    // ===================== 2D SVG Logic =====================
+    function drawSVG(data, textStr) {
+        while (svgContent.firstChild) svgContent.removeChild(svgContent.firstChild);
+        const LOGICAL_W = 800, LOGICAL_H = 500;
+        const padX=40, padY=60, botH=80;
+        const logicalH = data.totalThickness;
+        const logicalW = logicalH * 5; 
+        const availW = LOGICAL_W - padX*2, availH = LOGICAL_H - padY - botH;
+        const scale = Math.min(availW/logicalW, availH/logicalH) * 0.8;
+        const offX = padX + (availW - logicalW*scale)/2;
+        const offY = padY + (availH - logicalH*scale)/2;
+        const toX = v => offX + v*scale;
+        const toY = v => offY + v*scale;
+
+        const pTL = {x: toX(0), y: toY(0)};
+        const pStep = {x: toX(0), y: toY(data.remaining)};
+        const pInner = {x: toX(data.cutWidth), y: toY(data.totalThickness)};
+        const pBR = {x: toX(logicalW), y: toY(data.totalThickness)};
+        const pTR = {x: toX(logicalW), y: toY(0)};
+
+        const points = `${pTL.x},${pTL.y} ${pStep.x},${pStep.y} ${pInner.x},${pInner.y} ${pBR.x},${pBR.y} ${pTR.x},${pTR.y}`;
+        createSvg('polygon', {points, fill: 'url(#mixedHatch)', stroke: 'none'});
+        createSvg('polygon', {points, fill: 'none', stroke: '#000', 'stroke-width': 3});
+
+        // 标注
+        const topY = pTL.y - 30;
+        drawDim(pTL.x, topY, pTR.x, topY, data.dimType, false, -25);
+        createLine(pTL.x, pTL.y, pTL.x, topY); createLine(pTR.x, pTR.y, pTR.x, topY);
+
+        const rightX = pTR.x + 50;
+        drawDim(rightX, pTR.y, rightX, pBR.y, data.totalThickness+'T', true, 20);
+        createLine(pTR.x, pTR.y, rightX, pTR.y); createLine(pBR.x, pBR.y, rightX, pBR.y);
+
+        const leftX = pTL.x - 50;
+        drawDim(leftX, pTL.y, leftX, pStep.y, data.remaining, true, -20);
+        drawDim(leftX, pStep.y, leftX, pInner.y, data.cutHeight, true, -20);
+        createLine(pTL.x, pTL.y, leftX, pTL.y); createLine(pStep.x, pStep.y, leftX, pStep.y); createLine(pInner.x, pInner.y, leftX, pInner.y);
+
+        const botY = pBR.y + 40;
+        drawDim(pTL.x, botY, pInner.x, botY, data.cutWidth, false, -10);
+        createLine(pTL.x, pBR.y, pTL.x, botY); createLine(pInner.x, pBR.y, pInner.x, botY);
+
+        // --- 加工符号 (三角) ---
+        if (data.isPolished) {
+            const triSize = 12;
+            // 顶部三角
+            const midTopX = (pTL.x + pTR.x) / 2;
+            const midTopY = pTL.y;
+            const triPointsTop = `${midTopX-triSize/2},${midTopY-triSize} ${midTopX+triSize/2},${midTopY-triSize} ${midTopX},${midTopY}`;
+            createSvg('polygon', {points: triPointsTop, fill: 'black'});
+
+            // 侧面三角 (如果有余厚)
+            if (data.remaining > 0) {
+                const midSideX = pTL.x;
+                const midSideY = (pTL.y + pStep.y) / 2;
+                // 三角形指向右侧
+                // const triPointsSide = `${midSideX-triSize},${midSideY-triSize/2} ${midSideX-triSize},${midSideY+triSize/2} ${midSideX},${midSideY}`;
+                // 通常侧面加工符号也是在外部指向内部，或者在上方。这里假设是在左侧外部指向右
+                const triPointsSide = `${midSideX-triSize},${midSideY-triSize/2} ${midSideX-triSize},${midSideY+triSize/2} ${midSideX},${midSideY}`;
+                createSvg('polygon', {points: triPointsSide, fill: 'black'});
+            }
+        }
+
+        createSvg('text', {x: LOGICAL_W/2, y: LOGICAL_H-30, 'text-anchor': 'middle', 'font-size': '36px', 'font-weight': 'bold', fill: '#333'}, textStr);
+    }
+
+    // ===================== 3D Logic =====================
+    function init3D() {
+        const container = document.getElementById('container3d');
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff); // 纯白背景
+        camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 1000);
+        camera.position.set(40, 50, 90);
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(50, 80, 50);
+        scene.add(dirLight);
+
+        animate();
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth/container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    }
+
+    function update3D(data) {
+        if (mainGroup) scene.remove(mainGroup);
+        mainGroup = new THREE.Group();
+
+        const T = data.totalThickness;
+        const cw = data.cutWidth;
+        const rem = data.remaining;
+        const W = 100; 
+        const len = 150;
+
+        // 1. 几何体
+        const shape = new THREE.Shape();
+        shape.moveTo(0, T);
+        shape.lineTo(0, T - rem); 
+        shape.lineTo(cw, 0);      
+        shape.lineTo(W, 0);
+        shape.lineTo(W, T);
+        shape.lineTo(0, T);
+
+        const geom = new THREE.ExtrudeGeometry(shape, {
+            depth: len, bevelEnabled: false, steps: 1
+        });
+
+        // 白膜材质
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0xffffff, roughness: 1.0, metalness: 0.0,
+            polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
+        });
+        // 黑色框线
+        const edges = new THREE.EdgesGeometry(geom);
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+        
+        const mesh = new THREE.Mesh(geom, mat);
+        const wireframe = new THREE.LineSegments(edges, lineMat);
+        
+        const centerX = -W/2;
+        const centerY = -T/2;
+        const centerZ = -len/2;
+        mesh.position.set(centerX, centerY, centerZ);
+        wireframe.position.set(centerX, centerY, centerZ);
+        
+        mainGroup.add(mesh);
+        mainGroup.add(wireframe);
+
+        // 2. 黑色贴边标注
+        // 标注绘制在物体的前表面 (Z = len + centerZ)
+        const zFace = len + centerZ; 
+        const zDraw = zFace + 0.2; // 稍微浮出一点点防止重叠
+
+        // 辅助函数：画黑色线和文字，紧贴边缘
+        function addDim(p1, p2, text, offsetVec) {
+            // p1, p2 是相对于 mesh 原点的 2D 坐标 (X, Y)
+            const start = new THREE.Vector3(p1.x + centerX, p1.y + centerY, zDraw);
+            const end = new THREE.Vector3(p2.x + centerX, p2.y + centerY, zDraw);
+            
+            // 应用微小的偏移，使线不直接压在模型边框上，而是贴在旁边
+            start.add(offsetVec);
+            end.add(offsetVec);
+
+            // 画黑线
+            const points = [start, end];
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const mat = new THREE.LineBasicMaterial({ color: 0x000000 });
+            mainGroup.add(new THREE.Line(geo, mat));
+
+            // 文字
+            const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+            const sprite = makeTextSprite(text);
+            sprite.position.copy(mid);
+            
+            // 根据偏移向量的方向，微调文字位置，使其不压线
+            // 简单的逻辑：如果 offset 是向上的，文字就在线上方
+            if (Math.abs(offsetVec.y) > 0.1) sprite.position.y += (offsetVec.y > 0 ? 2 : -2);
+            if (Math.abs(offsetVec.x) > 0.1) sprite.position.x += (offsetVec.x > 0 ? 4 : -4);
+            
+            mainGroup.add(sprite);
+        }
+
+        // 关键点 (局部坐标)
+        const ptTL = {x:0, y:T};
+        const ptTR = {x:W, y:T};
+        const ptBR = {x:W, y:0};
+        const ptStepTop = {x:0, y:T-rem};
+        const ptStepBot = {x:cw, y:0};
+
+        // 添加标注 (偏移量很小，紧贴)
+        const gap = 2; // 贴边间隙
+        
+        // 顶部 W
+        addDim(ptTL, ptTR, data.dimType, new THREE.Vector3(0, gap, 0));
+        
+        // 右侧 T
+        addDim(ptTR, ptBR, data.totalThickness+"T", new THREE.Vector3(gap, 0, 0));
+        
+        // 左侧 Remaining (上半段)
+        addDim(ptTL, ptStepTop, data.remaining.toString(), new THREE.Vector3(-gap, 0, 0));
+        
+        // 左侧 CutHeight (下半段垂直距离)
+        // 为了不重叠，稍微往左移一点点，或者就在切口处
+        addDim(ptStepTop, {x:0, y:0}, data.cutHeight.toString(), new THREE.Vector3(-gap, 0, 0));
+        
+        // 底部 CutWidth (水平)
+        addDim({x:0, y:0}, {x:cw, y:0}, data.cutWidth.toString(), new THREE.Vector3(0, -gap, 0));
+
+        scene.add(mainGroup);
+    }
+
+    function makeTextSprite(message) {
+        const fontsize = 40;
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        context.font = "Bold " + fontsize + "px Arial";
+        const metrics = context.measureText(message);
+        canvas.width = metrics.width + 10;
+        canvas.height = fontsize + 10;
+        context.font = "Bold " + fontsize + "px Arial";
+        context.fillStyle = "#000000"; // 黑色文字
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(message, canvas.width / 2, canvas.height / 2);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
+        const scale = 0.2; 
+        sprite.scale.set(canvas.width * scale, canvas.height * scale, 1);
+        return sprite;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    function createSvg(type, attrs, text) {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", type);
+        for (let k in attrs) el.setAttribute(k, attrs[k]);
+        if (text) el.textContent = text;
+        svgContent.appendChild(el);
+        return el;
+    }
+    function createLine(x1,y1,x2,y2) { createSvg('line', {x1,y1,x2,y2, stroke:'red', 'stroke-width':1}); }
+    function drawDim(x1,y1,x2,y2, txt, isVert, off) {
+        createSvg('line', {x1,y1,x2,y2, stroke:'red', 'stroke-width':1, 'marker-start':'url(#dot)', 'marker-end':'url(#dot)'});
+        const mx=(x1+x2)/2, my=(y1+y2)/2;
+        const tr = isVert ? `rotate(-90, ${mx}, ${my})` : '';
+        createSvg('text', {
+            x: isVert?mx:mx, y: isVert?my+off:my+off, transform:tr,
+            fill:'red', 'text-anchor':'middle', 'dominant-baseline':'middle', 'font-size':'24px'
+        }, txt);
+    }
+
+    function downloadJPG() {
+        const svg = document.getElementById('drawingSvg');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1600; canvas.height = 1000;
+        const s = new XMLSerializer().serializeToString(svg);
+        const img = new Image();
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(s)));
+        img.onload = () => {
+            ctx.fillStyle = 'white'; ctx.fillRect(0,0,1600,1000);
+            ctx.drawImage(img,0,0,1600,1000);
+            const a = document.createElement('a');
+            a.download = resultDisplay.textContent + '.jpg';
+            a.href = canvas.toDataURL('image/jpeg');
+            a.click();
+        }
+    }
+</script>
+</body>
+</html>
