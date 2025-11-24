@@ -1,422 +1,478 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Settings2, Triangle, ArrowRightFromLine, ArrowDownFromLine } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>梅兰踏板编辑器</title>
+    <!-- 引入 React 和 Tailwind CSS -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-const TreadGenerator = () => {
-  const [params, setParams] = useState({
-    totalWidth: 130,
-    thickness: 30,
-    leftMargin: 20,
-    grooveCount: 3,
-    grooveDepth: 5,
-    chamferTop: 3,
-    chamferBottom: 2,
-  });
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
 
-  // 独立管理槽宽数组和间距数组
-  const [grooveWidths, setGrooveWidths] = useState([10, 10, 10]);
-  const [gaps, setGaps] = useState([5, 5]);
-  
-  // 两个独立的基准开关
-  const [showTopDatum, setShowTopDatum] = useState(true);
-  const [showSideDatum, setShowSideDatum] = useState(true);
+        // --- 图标组件 ---
+        const IconSettings = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+        );
+        const IconImage = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+        );
+        const IconArrowDown = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 3H5"/><path d="M12 21V7"/><path d="m6 15 6 6 6-6"/></svg>
+        );
+        const IconArrowRight = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5v14"/><path d="M21 12H7"/><path d="m15 6 6 6-6 6"/></svg>
+        );
 
-  const svgRef = useRef(null);
-
-  // 当槽数量变化时，同步更新槽宽数组和间距数组
-  useEffect(() => {
-    const count = Math.max(1, params.grooveCount);
-    const gapCount = Math.max(0, count - 1);
-
-    setGrooveWidths(prev => {
-      if (prev.length === count) return prev;
-      if (prev.length < count) {
-        const newWidths = [...prev];
-        while (newWidths.length < count) {
-          // 新增的槽宽默认取前一个的值，或者默认10
-          newWidths.push(newWidths.length > 0 ? newWidths[newWidths.length - 1] : 10);
-        }
-        return newWidths;
-      } else {
-        return prev.slice(0, count);
-      }
-    });
-
-    setGaps(prev => {
-      if (prev.length === gapCount) return prev;
-      if (prev.length < gapCount) {
-        const newGaps = [...prev];
-        while (newGaps.length < gapCount) {
-          newGaps.push(newGaps.length > 0 ? newGaps[newGaps.length - 1] : 5);
-        }
-        return newGaps;
-      } else {
-        return prev.slice(0, gapCount);
-      }
-    });
-  }, [params.grooveCount]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setParams(prev => ({
-      ...prev,
-      [name]: Number(value)
-    }));
-  };
-
-  const handleGrooveWidthChange = (index, value) => {
-    const newWidths = [...grooveWidths];
-    newWidths[index] = Number(value);
-    setGrooveWidths(newWidths);
-  };
-
-  const handleGapChange = (index, value) => {
-    const newGaps = [...gaps];
-    newGaps[index] = Number(value);
-    setGaps(newGaps);
-  };
-
-  const generatePath = () => {
-    const { 
-      totalWidth: W, thickness: H, leftMargin: L1, 
-      grooveCount, grooveDepth: Gd, 
-      chamferTop: C1, chamferBottom: C2 
-    } = params;
-
-    let d = `M 0 ${C1}`; 
-    d += ` L ${C1} 0`;   
-    d += ` L ${L1} 0`;   
-
-    let currentX = L1;
-
-    for (let i = 0; i < grooveCount; i++) {
-      const gw = grooveWidths[i] || 10;
-      d += ` L ${currentX} ${Gd}`;
-      d += ` L ${currentX + gw} ${Gd}`;
-      d += ` L ${currentX + gw} 0`;
-      
-      currentX += gw;
-
-      if (i < grooveCount - 1) {
-        const currentGap = gaps[i] || 5;
-        d += ` L ${currentX + currentGap} 0`;
-        currentX += currentGap;
-      }
-    }
-
-    d += ` L ${W} 0`; 
-    d += ` L ${W} ${H}`; 
-    d += ` L ${C2} ${H}`; 
-    d += ` L 0 ${H - C2}`; 
-    d += ` Z`;
-    return d;
-  };
-
-  const downloadJpg = () => {
-    const svgElement = svgRef.current;
-    if (!svgElement) return;
-
-    const serializer = new XMLSerializer();
-    let source = serializer.serializeToString(svgElement);
-
-    if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
-        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-    }
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-
-    const viewBoxAttr = svgElement.getAttribute('viewBox').split(' ').map(Number);
-    const [vbX, vbY, vbW, vbH] = viewBoxAttr;
-
-    const scale = 3; 
-    canvas.width = vbW * scale;
-    canvas.height = vbH * scale;
-
-    const svgBlob = new Blob([source], {type: "image/svg+xml;charset=utf-8"});
-    const url = URL.createObjectURL(svgBlob);
-
-    img.onload = () => {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      
-      const jpgUrl = canvas.toDataURL('image/jpeg', 1.0);
-      const link = document.createElement("a");
-      link.href = jpgUrl;
-      link.download = `tread_section_${params.grooveCount}grooves.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
-  };
-
-  const Defs = () => (
-    <defs>
-      <marker id="dot-red" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="strokeWidth">
-        <circle cx="4" cy="4" r="2.5" fill="red" />
-      </marker>
-      <pattern id="hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
-        <line x1="0" y1="0" x2="0" y2="8" stroke="#000" strokeWidth="1" />
-      </pattern>
-    </defs>
-  );
-
-  const Dimension = ({ x1, y1, x2, y2, text, offset = 20, vertical = false, color = "red" }) => {
-    let lx1, ly1, lx2, ly2;
-    let bx1_s, by1_s, bx1_e, by1_e;
-    let bx2_s, by2_s, bx2_e, by2_e;
-    let tx, ty;
-    const ext = 3; const gap = 1; 
-
-    if (vertical) {
-      lx1 = x1 - offset; ly1 = y1;
-      lx2 = x2 - offset; ly2 = y2;
-      bx1_s = x1 - gap; by1_s = y1; bx1_e = lx1 - ext; by1_e = y1;
-      bx2_s = x2 - gap; by2_s = y2; bx2_e = lx2 - ext; by2_e = y2;
-      tx = lx1 - 4; ty = (y1 + y2) / 2;
-    } else {
-      lx1 = x1; ly1 = y1 - offset;
-      lx2 = x2; ly2 = y2 - offset;
-      bx1_s = x1; by1_s = y1 - gap; bx1_e = x1; by1_e = ly1 - ext;
-      bx2_s = x2; by2_s = y2 - gap; bx2_e = x2; by2_e = ly2 - ext;
-      tx = (x1 + x2) / 2; ty = ly1 - 4;
-    }
-
-    return (
-      <g>
-        <line x1={bx1_s} y1={by1_s} x2={bx1_e} y2={by1_e} stroke={color} strokeWidth="0.5" />
-        <line x1={bx2_s} y1={by2_s} x2={bx2_e} y2={by2_e} stroke={color} strokeWidth="0.5" />
-        <line x1={lx1} y1={ly1} x2={lx2} y2={ly2} stroke={color} strokeWidth="0.5" markerStart="url(#dot-red)" markerEnd="url(#dot-red)" />
-        <text x={tx} y={ty} fill={color} fontSize="10" textAnchor={vertical ? "end" : "middle"} alignmentBaseline={vertical ? "middle" : "baseline"}>{text}</text>
-      </g>
-    );
-  };
-
-  const ChamferLabel = ({ size, x, y, position }) => {
-    if (!size || size <= 0) return null;
-    const isTop = position === 'top-left';
-    const startX = size / 2;
-    const startY = isTop ? size / 2 : y - size / 2;
-    const endX = -25; 
-    const endY = isTop ? -15 : y + 15;
-    
-    return (
-      <g>
-        <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="red" strokeWidth="0.5" />
-        <line x1={endX} y1={endY} x2={endX - 10} y2={endY} stroke="red" strokeWidth="0.5" />
-        <text x={endX - 12} y={endY} fill="red" fontSize="10" textAnchor="end" alignmentBaseline="middle">
-          倒角{size}mm
-        </text>
-      </g>
-    );
-  };
-
-  const DatumTriangle = ({ x, y, direction }) => {
-    const size = 8;
-    const offset = 8; 
-    let points = "";
-    
-    if (direction === 'down') {
-      const tipY = y - offset;
-      points = `${x},${tipY} ${x-size/2},${tipY-size} ${x+size/2},${tipY-size}`;
-    } else {
-      const tipX = x - offset;
-      points = `${tipX},${y} ${tipX-size},${y-size/2} ${tipX-size},${y+size/2}`;
-    }
-    
-    return <polygon points={points} fill="black" />;
-  };
-
-  const paddingLeft = 80; 
-  const paddingRight = 40; 
-  const paddingTop = 80;   
-  const paddingBottom = 60; 
-  
-  const viewBoxX = -paddingLeft;
-  const viewBoxY = -paddingTop;
-  const viewBoxW = params.totalWidth + paddingLeft + paddingRight;
-  const viewBoxH = params.thickness + paddingTop + paddingBottom;
-
-  return (
-    <div className="flex flex-col lg:flex-row gap-4 p-2 w-full max-w-6xl mx-auto">
-      <Card className="w-full lg:w-1/3 h-fit">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Settings2 className="w-5 h-5" />
-            参数设置
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          
-          {/* 基准开关区域 */}
-          <div className="bg-slate-50 p-3 rounded-md border space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <ArrowDownFromLine className="w-3 h-3" />
-                顶部三角
-              </Label>
-              <Switch checked={showTopDatum} onCheckedChange={setShowTopDatum} />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <ArrowRightFromLine className="w-3 h-3" />
-                侧面三角
-              </Label>
-              <Switch checked={showSideDatum} onCheckedChange={setShowSideDatum} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>总宽度 (W)</Label><Input type="number" name="totalWidth" value={params.totalWidth} onChange={handleChange} /></div>
-            <div><Label>厚度 (T)</Label><Input type="number" name="thickness" value={params.thickness} onChange={handleChange} /></div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-             <div><Label className="text-xs text-gray-500">上倒角</Label><Input type="number" name="chamferTop" value={params.chamferTop} onChange={handleChange} /></div>
-             <div><Label className="text-xs text-gray-500">下倒角</Label><Input type="number" name="chamferBottom" value={params.chamferBottom} onChange={handleChange} /></div>
-          </div>
-
-          <div className="space-y-2 pt-2 border-t">
-            <Label className="text-blue-600 font-bold">开槽配置</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Label className="text-blue-800">凹槽数量</Label>
-                <Input type="number" name="grooveCount" value={params.grooveCount} onChange={handleChange} />
-              </div>
-              <div><Label className="text-xs text-gray-500">左边距</Label><Input type="number" name="leftMargin" value={params.leftMargin} onChange={handleChange} /></div>
-              <div><Label className="text-xs text-gray-500">槽深</Label><Input type="number" name="grooveDepth" value={params.grooveDepth} onChange={handleChange} /></div>
-            </div>
-            
-            {/* 独立槽宽设置 */}
-            <div className="mt-2 bg-blue-50 p-2 rounded border border-blue-100">
-              <Label className="text-xs font-bold text-blue-800 mb-2 block">各槽宽度设置 (从左到右)</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {grooveWidths.map((width, index) => (
-                  <div key={index}>
-                    <Label className="text-[10px] text-gray-500">槽 {index + 1}</Label>
-                    <Input 
-                      type="number" 
-                      value={width} 
-                      onChange={(e) => handleGrooveWidthChange(index, e.target.value)} 
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 独立间距设置 */}
-            {gaps.length > 0 && (
-              <div className="mt-2 bg-gray-50 p-2 rounded border">
-                <Label className="text-xs font-bold text-gray-700 mb-2 block">各槽间距设置 (从左到右)</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {gaps.map((gap, index) => (
-                    <div key={index}>
-                      <Label className="text-[10px] text-gray-500">间距 {index + 1}</Label>
-                      <Input 
-                        type="number" 
-                        value={gap} 
-                        onChange={(e) => handleGapChange(index, e.target.value)} 
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <Button className="w-full mt-4 bg-green-600 hover:bg-green-700" onClick={downloadJpg}>
-            <ImageIcon className="w-4 h-4 mr-2" />
-            下载 JPG 图片
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="w-full lg:w-2/3 bg-white">
-        <CardHeader className="pb-2">
-          <CardTitle>预览</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center p-2">
-          <div className="border rounded-md bg-white w-full overflow-hidden">
-            <svg 
-              ref={svgRef}
-              width="100%" 
-              viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxW} ${viewBoxH}`}
-              style={{ fontFamily: 'Arial, sans-serif' }}
+        // --- UI 组件 ---
+        const Card = ({ children, className }) => <div className={`bg-white rounded-lg border shadow-sm ${className}`}>{children}</div>;
+        const Label = ({ children, className }) => <label className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`}>{children}</label>;
+        const Input = ({ className, ...props }) => <input className={`flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:cursor-not-allowed disabled:opacity-50 ${className}`} {...props} />;
+        const Button = ({ children, className, onClick }) => <button onClick={onClick} className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2 text-white shadow hover:bg-opacity-90 ${className}`}>{children}</button>;
+        
+        const Switch = ({ checked, onCheckedChange }) => (
+            <button 
+                type="button" 
+                onClick={() => onCheckedChange(!checked)}
+                className={`peer inline-flex h-[20px] w-[36px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 ${checked ? 'bg-green-600' : 'bg-gray-200'}`}
             >
-              <Defs />
-              <path d={generatePath()} fill="url(#hatch)" stroke="black" strokeWidth="1.2" />
+                <span className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`}></span>
+            </button>
+        );
 
-              {/* 基准三角 */}
-              {showTopDatum && <DatumTriangle x={params.totalWidth/2} y={0} direction="down" />}
-              {showSideDatum && <DatumTriangle x={0} y={params.thickness/2} direction="right" />}
+        // --- 主程序 ---
+        const TreadGenerator = () => {
+            const [params, setParams] = useState({
+                totalWidth: 130,
+                thickness: 30,
+                leftMargin: 20,
+                grooveCount: 3,
+                grooveDepth: 5,
+                chamferTop: 3,
+                chamferBottom: 2,
+            });
 
-              <Dimension x1={0} y1={0} x2={params.leftMargin} y2={0} offset={15} text={params.leftMargin} />
+            const [fileName, setFileName] = useState("tread_section");
+            const [grooveWidths, setGrooveWidths] = useState([10, 10, 10]);
+            const [gaps, setGaps] = useState([5, 5]);
+            const [showTopDatum, setShowTopDatum] = useState(true);
+            const [showSideDatum, setShowSideDatum] = useState(true);
 
-              {Array.from({ length: params.grooveCount }).map((_, i) => {
-                // 计算当前槽的起始X坐标
-                let startX = params.leftMargin;
-                for(let j=0; j<i; j++) {
-                  startX += (grooveWidths[j] || 10);
-                  startX += (gaps[j] || 5);
+            const svgRef = useRef(null);
+
+            useEffect(() => {
+                const count = Math.max(1, params.grooveCount);
+                const gapCount = Math.max(0, count - 1);
+
+                setGrooveWidths(prev => {
+                    if (prev.length === count) return prev;
+                    if (prev.length < count) {
+                        const newWidths = [...prev];
+                        while (newWidths.length < count) {
+                            newWidths.push(newWidths.length > 0 ? newWidths[newWidths.length - 1] : 10);
+                        }
+                        return newWidths;
+                    } else {
+                        return prev.slice(0, count);
+                    }
+                });
+
+                setGaps(prev => {
+                    if (prev.length === gapCount) return prev;
+                    if (prev.length < gapCount) {
+                        const newGaps = [...prev];
+                        while (newGaps.length < gapCount) {
+                            newGaps.push(newGaps.length > 0 ? newGaps[newGaps.length - 1] : 5);
+                        }
+                        return newGaps;
+                    } else {
+                        return prev.slice(0, gapCount);
+                    }
+                });
+            }, [params.grooveCount]);
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setParams(prev => ({
+                    ...prev,
+                    [name]: Number(value)
+                }));
+            };
+
+            const handleGrooveWidthChange = (index, value) => {
+                const newWidths = [...grooveWidths];
+                newWidths[index] = Number(value);
+                setGrooveWidths(newWidths);
+            };
+
+            const handleGapChange = (index, value) => {
+                const newGaps = [...gaps];
+                newGaps[index] = Number(value);
+                setGaps(newGaps);
+            };
+
+            const generatePath = () => {
+                const { 
+                    totalWidth: W, thickness: H, leftMargin: L1, 
+                    grooveCount, grooveDepth: Gd, 
+                    chamferTop: C1, chamferBottom: C2 
+                } = params;
+
+                let d = `M 0 ${C1}`; 
+                d += ` L ${C1} 0`;   
+                d += ` L ${L1} 0`;   
+
+                let currentX = L1;
+
+                for (let i = 0; i < grooveCount; i++) {
+                    const gw = grooveWidths[i] || 10;
+                    d += ` L ${currentX} ${Gd}`;
+                    d += ` L ${currentX + gw} ${Gd}`;
+                    d += ` L ${currentX + gw} 0`;
+                    
+                    currentX += gw;
+
+                    if (i < grooveCount - 1) {
+                        const currentGap = gaps[i] || 5;
+                        d += ` L ${currentX + currentGap} 0`;
+                        currentX += currentGap;
+                    }
                 }
-                
-                const currentGw = grooveWidths[i] || 10;
-                const currentGap = gaps[i] || 5;
+
+                d += ` L ${W} 0`; 
+                d += ` L ${W} ${H}`; 
+                d += ` L ${C2} ${H}`; 
+                d += ` L 0 ${H - C2}`; 
+                d += ` Z`;
+                return d;
+            };
+
+            const downloadJpg = () => {
+                const svgElement = svgRef.current;
+                if (!svgElement) return;
+
+                const serializer = new XMLSerializer();
+                let source = serializer.serializeToString(svgElement);
+
+                if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+                    source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+
+                const viewBoxAttr = svgElement.getAttribute('viewBox').split(' ').map(Number);
+                const [vbX, vbY, vbW, vbH] = viewBoxAttr;
+
+                const scale = 3; 
+                canvas.width = vbW * scale;
+                canvas.height = vbH * scale;
+
+                const svgBlob = new Blob([source], {type: "image/svg+xml;charset=utf-8"});
+                const url = URL.createObjectURL(svgBlob);
+
+                img.onload = () => {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const safeFileName = fileName.trim() || "tread_section";
+                    const jpgUrl = canvas.toDataURL('image/jpeg', 1.0);
+                    const link = document.createElement("a");
+                    link.href = jpgUrl;
+                    link.download = `${safeFileName}.jpg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                };
+                img.src = url;
+            };
+
+            const Defs = () => (
+                <defs>
+                    <marker id="dot-red" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="strokeWidth">
+                        <circle cx="4" cy="4" r="2.5" fill="red" />
+                    </marker>
+                    <pattern id="hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                        <line x1="0" y1="0" x2="0" y2="8" stroke="#000" strokeWidth="1" />
+                    </pattern>
+                </defs>
+            );
+
+            const Dimension = ({ x1, y1, x2, y2, text, offset = 20, vertical = false, color = "red" }) => {
+                let lx1, ly1, lx2, ly2;
+                let bx1_s, by1_s, bx1_e, by1_e;
+                let bx2_s, by2_s, bx2_e, by2_e;
+                let tx, ty;
+                const ext = 3; const gap = 1; 
+
+                if (vertical) {
+                    lx1 = x1 - offset; ly1 = y1;
+                    lx2 = x2 - offset; ly2 = y2;
+                    bx1_s = x1 - gap; by1_s = y1; bx1_e = lx1 - ext; by1_e = y1;
+                    bx2_s = x2 - gap; by2_s = y2; bx2_e = lx2 - ext; by2_e = y2;
+                    tx = lx1 - 4; ty = (y1 + y2) / 2;
+                } else {
+                    lx1 = x1; ly1 = y1 - offset;
+                    lx2 = x2; ly2 = y2 - offset;
+                    bx1_s = x1; by1_s = y1 - gap; bx1_e = x1; by1_e = ly1 - ext;
+                    bx2_s = x2; by2_s = y2 - gap; bx2_e = x2; by2_e = ly2 - ext;
+                    tx = (x1 + x2) / 2; ty = ly1 - 4;
+                }
 
                 return (
-                  <React.Fragment key={i}>
-                    <Dimension x1={startX} y1={0} x2={startX + currentGw} y2={0} offset={35} text={currentGw} />
-                    {i < params.grooveCount - 1 && (
-                      <Dimension x1={startX + currentGw} y1={0} x2={startX + currentGw + currentGap} y2={0} offset={15} text={currentGap} />
-                    )}
-                  </React.Fragment>
+                    <g>
+                        <line x1={bx1_s} y1={by1_s} x2={bx1_e} y2={by1_e} stroke={color} strokeWidth="0.5" />
+                        <line x1={bx2_s} y1={by2_s} x2={bx2_e} y2={by2_e} stroke={color} strokeWidth="0.5" />
+                        <line x1={lx1} y1={ly1} x2={lx2} y2={ly2} stroke={color} strokeWidth="0.5" markerStart="url(#dot-red)" markerEnd="url(#dot-red)" />
+                        <text x={tx} y={ty} fill={color} fontSize="10" textAnchor={vertical ? "end" : "middle"} alignmentBaseline={vertical ? "middle" : "baseline"}>{text}</text>
+                    </g>
                 );
-              })}
+            };
 
-              <Dimension x1={0} y1={0} x2={params.totalWidth} y2={0} offset={60} text="W" />
-              <Dimension x1={0} y1={0} x2={0} y2={params.thickness} offset={30} vertical={true} text={`${params.thickness}T`} />
+            const ChamferLabel = ({ size, x, y, position }) => {
+                if (!size || size <= 0) return null;
+                const isTop = position === 'top-left';
+                const startX = size / 2;
+                const startY = isTop ? size / 2 : y - size / 2;
+                const endX = -25; 
+                const endY = isTop ? -15 : y + 15;
+                
+                return (
+                    <g>
+                        <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="red" strokeWidth="0.5" />
+                        <line x1={endX} y1={endY} x2={endX - 10} y2={endY} stroke="red" strokeWidth="0.5" />
+                        <text x={endX - 12} y={endY} fill="red" fontSize="10" textAnchor="end" alignmentBaseline="middle">
+                            倒角{size}mm
+                        </text>
+                    </g>
+                );
+            };
 
-              <ChamferLabel size={params.chamferTop} x={0} y={0} position="top-left" />
-              <ChamferLabel size={params.chamferBottom} x={0} y={params.thickness} position="bottom-left" />
+            const DatumTriangle = ({ x, y, direction }) => {
+                const size = 8;
+                const offset = 8; 
+                let points = "";
+                
+                if (direction === 'down') {
+                    const tipY = y - offset;
+                    points = `${x},${tipY} ${x-size/2},${tipY-size} ${x+size/2},${tipY-size}`;
+                } else {
+                    const tipX = x - offset;
+                    points = `${tipX},${y} ${tipX-size},${y-size/2} ${tipX-size},${y+size/2}`;
+                }
+                
+                return <polygon points={points} fill="black" />;
+            };
 
-              {(() => {
-                 // 计算最后一个槽的结束位置，用于标注槽深
-                 let lastGrooveX = params.leftMargin;
-                 for(let j=0; j<params.grooveCount; j++) {
-                   lastGrooveX += (grooveWidths[j] || 10);
-                   if (j < params.grooveCount - 1) {
-                     lastGrooveX += (gaps[j] || 5);
-                   }
-                 }
-                 
-                 const markX = lastGrooveX;
-                 return (
-                   <g>
-                      <line x1={markX} y1={params.grooveDepth} x2={markX + 12} y2={params.grooveDepth} stroke="red" strokeWidth="0.5" />
-                      <line x1={markX} y1={0} x2={markX + 12} y2={0} stroke="red" strokeWidth="0.5" />
-                      <line x1={markX + 8} y1={0} x2={markX + 8} y2={params.grooveDepth} stroke="red" strokeWidth="0.5" markerStart="url(#dot-red)" markerEnd="url(#dot-red)"/>
-                      <text x={markX + 15} y={params.grooveDepth/2 + 2} fill="red" fontSize="10">{params.grooveDepth}</text>
-                   </g>
-                 )
-              })()}
+            const paddingLeft = 80; 
+            const paddingRight = 40; 
+            const paddingTop = 80;   
+            const paddingBottom = 60; 
+            
+            const viewBoxX = -paddingLeft;
+            const viewBoxY = -paddingTop;
+            const viewBoxW = params.totalWidth + paddingLeft + paddingRight;
+            const viewBoxH = params.thickness + paddingTop + paddingBottom;
 
-              <text x={params.totalWidth / 2} y={params.thickness + 40} textAnchor="middle" fontSize="24" fill="black" style={{fontWeight: 'bold', letterSpacing: '4px'}}>踏板截面图</text>
-            </svg>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
+            return (
+                <div className="flex flex-col lg:flex-row gap-4 p-4 w-full max-w-6xl mx-auto">
+                    <Card className="w-full lg:w-1/3 h-fit p-4">
+                        <div className="pb-4 border-b mb-4">
+                            <h2 className="flex items-center gap-2 text-lg font-semibold">
+                                <IconSettings />
+                                参数设置
+                            </h2>
+                        </div>
+                        <div className="space-y-4">
+                            
+                            {/* 基准开关区域 */}
+                            <div className="bg-slate-50 p-3 rounded-md border space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label className="flex items-center gap-2">
+                                        <IconArrowDown />
+                                        顶部三角
+                                    </Label>
+                                    <Switch checked={showTopDatum} onCheckedChange={setShowTopDatum} />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <Label className="flex items-center gap-2">
+                                        <IconArrowRight />
+                                        侧面三角
+                                    </Label>
+                                    <Switch checked={showSideDatum} onCheckedChange={setShowSideDatum} />
+                                </div>
+                            </div>
 
-export default TreadGenerator;
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><Label className="mb-1.5 block">总宽度 (W)</Label><Input type="number" name="totalWidth" value={params.totalWidth} onChange={handleChange} /></div>
+                                <div><Label className="mb-1.5 block">厚度 (T)</Label><Input type="number" name="thickness" value={params.thickness} onChange={handleChange} /></div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                                <div><Label className="text-xs text-gray-500 mb-1 block">上倒角</Label><Input type="number" name="chamferTop" value={params.chamferTop} onChange={handleChange} /></div>
+                                <div><Label className="text-xs text-gray-500 mb-1 block">下倒角</Label><Input type="number" name="chamferBottom" value={params.chamferBottom} onChange={handleChange} /></div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t">
+                                <Label className="text-blue-600 font-bold block">开槽配置</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="col-span-2">
+                                        <Label className="text-blue-800 mb-1 block">凹槽数量</Label>
+                                        <Input type="number" name="grooveCount" value={params.grooveCount} onChange={handleChange} />
+                                    </div>
+                                    <div><Label className="text-xs text-gray-500 mb-1 block">左边距</Label><Input type="number" name="leftMargin" value={params.leftMargin} onChange={handleChange} /></div>
+                                    <div><Label className="text-xs text-gray-500 mb-1 block">槽深</Label><Input type="number" name="grooveDepth" value={params.grooveDepth} onChange={handleChange} /></div>
+                                </div>
+                                
+                                {/* 独立槽宽设置 */}
+                                <div className="mt-2 bg-blue-50 p-2 rounded border border-blue-100">
+                                    <Label className="text-xs font-bold text-blue-800 mb-2 block">各槽宽度设置 (从左到右)</Label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {grooveWidths.map((width, index) => (
+                                            <div key={index}>
+                                                <Label className="text-[10px] text-gray-500 mb-1 block">槽 {index + 1}</Label>
+                                                <Input 
+                                                    type="number" 
+                                                    value={width} 
+                                                    onChange={(e) => handleGrooveWidthChange(index, e.target.value)} 
+                                                    className="h-8 text-sm"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* 独立间距设置 */}
+                                {gaps.length > 0 && (
+                                    <div className="mt-2 bg-gray-50 p-2 rounded border">
+                                        <Label className="text-xs font-bold text-gray-700 mb-2 block">各槽间距设置 (从左到右)</Label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {gaps.map((gap, index) => (
+                                                <div key={index}>
+                                                    <Label className="text-[10px] text-gray-500 mb-1 block">间距 {index + 1}</Label>
+                                                    <Input 
+                                                        type="number" 
+                                                        value={gap} 
+                                                        onChange={(e) => handleGapChange(index, e.target.value)} 
+                                                        className="h-8 text-sm"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-4 border-t space-y-3">
+                                <div>
+                                    <Label className="mb-1.5 block">导出文件名</Label>
+                                    <Input 
+                                        type="text" 
+                                        value={fileName} 
+                                        onChange={(e) => setFileName(e.target.value)} 
+                                        placeholder="请输入文件名"
+                                    />
+                                </div>
+                                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={downloadJpg}>
+                                    <span className="mr-2"><IconImage /></span>
+                                    下载 JPG 图片
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card className="w-full lg:w-2/3 bg-white p-0 overflow-hidden flex flex-col">
+                        <div className="p-4 border-b">
+                            <h2 className="text-lg font-semibold">预览</h2>
+                        </div>
+                        <div className="flex-grow flex justify-center items-center p-4 bg-gray-50">
+                            <div className="border rounded-md bg-white w-full shadow-sm overflow-hidden">
+                                <svg 
+                                    ref={svgRef}
+                                    width="100%" 
+                                    viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxW} ${viewBoxH}`}
+                                    style={{ fontFamily: 'Arial, sans-serif' }}
+                                >
+                                    <Defs />
+                                    <path d={generatePath()} fill="url(#hatch)" stroke="black" strokeWidth="1.2" />
+
+                                    {/* 基准三角 */}
+                                    {showTopDatum && <DatumTriangle x={params.totalWidth/2} y={0} direction="down" />}
+                                    {showSideDatum && <DatumTriangle x={0} y={params.thickness/2} direction="right" />}
+
+                                    <Dimension x1={0} y1={0} x2={params.leftMargin} y2={0} offset={15} text={params.leftMargin} />
+
+                                    {Array.from({ length: params.grooveCount }).map((_, i) => {
+                                        let startX = params.leftMargin;
+                                        for(let j=0; j<i; j++) {
+                                            startX += (grooveWidths[j] || 10);
+                                            startX += (gaps[j] || 5);
+                                        }
+                                        
+                                        const currentGw = grooveWidths[i] || 10;
+                                        const currentGap = gaps[i] || 5;
+
+                                        return (
+                                            <React.Fragment key={i}>
+                                                <Dimension x1={startX} y1={0} x2={startX + currentGw} y2={0} offset={35} text={currentGw} />
+                                                {i < params.grooveCount - 1 && (
+                                                    <Dimension x1={startX + currentGw} y1={0} x2={startX + currentGw + currentGap} y2={0} offset={15} text={currentGap} />
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+
+                                    <Dimension x1={0} y1={0} x2={params.totalWidth} y2={0} offset={60} text="W" />
+                                    <Dimension x1={0} y1={0} x2={0} y2={params.thickness} offset={30} vertical={true} text={`${params.thickness}T`} />
+
+                                    <ChamferLabel size={params.chamferTop} x={0} y={0} position="top-left" />
+                                    <ChamferLabel size={params.chamferBottom} x={0} y={params.thickness} position="bottom-left" />
+
+                                    {(() => {
+                                        let lastGrooveX = params.leftMargin;
+                                        for(let j=0; j<params.grooveCount; j++) {
+                                            lastGrooveX += (grooveWidths[j] || 10);
+                                            if (j < params.grooveCount - 1) {
+                                                lastGrooveX += (gaps[j] || 5);
+                                            }
+                                        }
+                                        
+                                        const markX = lastGrooveX;
+                                        return (
+                                            <g>
+                                                <line x1={markX} y1={params.grooveDepth} x2={markX + 12} y2={params.grooveDepth} stroke="red" strokeWidth="0.5" />
+                                                <line x1={markX} y1={0} x2={markX + 12} y2={0} stroke="red" strokeWidth="0.5" />
+                                                <line x1={markX + 8} y1={0} x2={markX + 8} y2={params.grooveDepth} stroke="red" strokeWidth="0.5" markerStart="url(#dot-red)" markerEnd="url(#dot-red)"/>
+                                                <text x={markX + 15} y={params.grooveDepth/2 + 2} fill="red" fontSize="10">{params.grooveDepth}</text>
+                                            </g>
+                                        )
+                                    })()}
+
+                                    <text x={params.totalWidth / 2} y={params.thickness + 40} textAnchor="middle" fontSize="24" fill="black" style={{fontWeight: 'bold', letterSpacing: '4px'}}>踏板截面图</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TreadGenerator />);
+    </script>
+</body>
+</html>
