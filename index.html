@@ -203,7 +203,7 @@
         </div>
     </div>
 
-    <!-- Optimized Import Map: Using esm.sh for faster delivery -->
+    <!-- Optimized Import Map -->
     <script type="importmap">
         {
             "imports": {
@@ -221,9 +221,7 @@
         // Hide loader when module is parsed
         const appLoader = document.getElementById('app-loader');
         
-        // --- FIX: Use a CORS Proxy ---
-        // We prepend 'https://wsrv.nl/?url=' to the image URLs. 
-        // This service proxies the image and adds the necessary CORS headers.
+        // CORS Proxy
         const PROXY_BASE = 'https://wsrv.nl/?url=';
         
         const STONE_CONFIG = [
@@ -240,7 +238,6 @@
             const btn = document.createElement('div');
             btn.className = `stone-btn ${index === 0 ? 'active' : ''}`;
             btn.dataset.type = stone.id;
-            // Use the proxied URL for the UI preview as well
             const bgStyle = stone.url ? `background-image: url('${stone.url}&w=64&h=64&fit=cover');` : `background: #fff; border: 1px solid #ddd;`;
             btn.innerHTML = `<div class="stone-preview" style="${bgStyle}"></div>${stone.name}`;
             gridContainer.appendChild(btn);
@@ -270,21 +267,12 @@
             texLoader: document.getElementById('texture-loader')
         };
 
-        // UI Events
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-                btn.classList.add('active');
-                document.getElementById(btn.dataset.tab).classList.add('active');
-            });
-        });
-        els.toggle.addEventListener('click', () => { els.panel.classList.add('active'); els.toggle.classList.add('hidden'); });
-        els.close.addEventListener('click', () => { els.panel.classList.remove('active'); els.toggle.classList.remove('hidden'); });
-
         // Three.js Init
         const scene = new THREE.Scene(); scene.background = new THREE.Color('#f0f0f0');
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100); camera.position.set(0, 0, 0.8);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100); 
+        // Initial pos will be set by fitView
+        camera.position.set(0, 0, 1);
+
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -298,6 +286,113 @@
         const ml = new THREE.DirectionalLight(0xffffff, 2.0); ml.position.set(5, 10, 7); ml.castShadow = true; ml.shadow.mapSize.set(1024,1024); ml.shadow.bias = -0.0001; scene.add(ml);
         const fl = new THREE.DirectionalLight(0xffffff, 1.0); fl.position.set(-5, 0, 5); scene.add(fl);
 
+        // --- CAMERA ANIMATION & FIT LOGIC ---
+        let camAnim = { active: false, startPos: new THREE.Vector3(), endPos: new THREE.Vector3(), startTarget: new THREE.Vector3(), endTarget: new THREE.Vector3(), startTime: 0, duration: 600 };
+        
+        function animateCameraTo(targetPos, targetLookAt) {
+            camAnim.startPos.copy(camera.position);
+            camAnim.endPos.copy(targetPos);
+            camAnim.startTarget.copy(controls.target);
+            camAnim.endTarget.copy(targetLookAt);
+            camAnim.startTime = performance.now();
+            camAnim.active = true;
+        }
+
+        function fitView(isMenuOpen) {
+            if (!slabMesh) return;
+
+            // 1. Calculate Bounding Box of Stone + Dimensions + Highlights
+            const box = new THREE.Box3();
+            box.expandByObject(slabMesh);
+            box.expandByObject(groups.dim);
+            box.expandByObject(groups.hl);
+
+            if (box.isEmpty()) return;
+
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            // 2. Calculate Distance to Fit
+            // Get the max dimension relative to aspect ratio
+            const aspect = camera.aspect;
+            // If menu is open, the effective aspect ratio is wider (height is halved)
+            // But we handle this by adjusting the "fit" logic below.
+            
+            const fov = camera.fov * (Math.PI / 180);
+            
+            // Basic distance to fit the object vertically
+            let distanceV = size.y / (2 * Math.tan(fov / 2));
+            // Basic distance to fit the object horizontally
+            let distanceH = size.x / (2 * Math.tan(fov / 2) * aspect);
+            
+            // Use the larger distance to ensure everything fits
+            let distance = Math.max(distanceV, distanceH);
+            
+            // Add padding (1.3x)
+            distance *= 1.3;
+
+            // 3. Adjust for Menu
+            // If menu is open, we want the object to be centered in the TOP HALF of the screen.
+            // This means the camera should look at a point BELOW the object's center.
+            // Or, we shift the camera down.
+            
+            let yOffset = 0;
+            if (isMenuOpen) {
+                // When menu is open, visible height is ~50%.
+                // We need to zoom out more because the vertical FOV effectively covers less screen real estate for the object?
+                // Actually, simpler: Just ensure the distance is calculated as if the screen is half height.
+                // Half height means we need to fit the object in a smaller vertical angle? No, FOV is constant.
+                // We just need to ensure the object fits in the top half.
+                
+                // Strategy: Double the vertical required distance roughly, or add padding.
+                distance = Math.max(distanceV * 2, distanceH); // Treat height as tighter constraint
+                distance *= 1.1; // Extra padding
+
+                // Shift the target point down. 
+                // If we look at (center.y - offset), the object (center.y) appears higher on screen.
+                // Offset should be roughly 1/4 of the visible vertical frustum at that distance.
+                const visibleHeight = 2 * Math.tan(fov / 2) * distance;
+                yOffset = -visibleHeight * 0.25; 
+            }
+
+            // 4. Set Targets
+            const endTarget = new THREE.Vector3(center.x, center.y + yOffset, center.z);
+            // We keep the camera angle consistent (looking from slightly above/front)
+            // Standard view vector: (0, 0, 1) -> normalized
+            const viewDir = new THREE.Vector3(0, 0, 1).normalize(); 
+            
+            // New Camera Position
+            const endPos = endTarget.clone().add(viewDir.multiplyScalar(distance));
+
+            animateCameraTo(endPos, endTarget);
+        }
+
+        // --- UI Events with Camera Trigger ---
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+        
+        els.toggle.addEventListener('click', () => { 
+            els.panel.classList.add('active'); 
+            els.toggle.classList.add('hidden');
+            // Trigger Fit for Menu Open
+            fitView(true);
+        });
+        
+        els.close.addEventListener('click', () => { 
+            els.panel.classList.remove('active'); 
+            els.toggle.classList.remove('hidden');
+            // Trigger Fit for Menu Close (Center)
+            fitView(false);
+        });
+
         // Texture Logic
         const TEXTURE_CACHE = {};
         function makeSeamless(ctx, w, h) {
@@ -310,7 +405,6 @@
                 x.fillStyle = g; x.fillRect(0, 0, w, h);
                 return c;
             };
-            
             const blend = (src, mask, x, y) => {
                 const tc = document.createElement('canvas'); tc.width = mask.width; tc.height = mask.height;
                 const tx = tc.getContext('2d');
@@ -320,7 +414,6 @@
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.drawImage(tc, x, y);
             };
-
             const rDat = ctx.getImageData(w - bx, 0, bx, h);
             blend(rDat, createGrad(bx, h, true), 0, 0);
             const bDat = ctx.getImageData(0, h - by, w, by);
@@ -330,40 +423,19 @@
         function loadTexture(type, cb) {
             if (TEXTURE_CACHE[type]) return cb(TEXTURE_CACHE[type]);
             if (!TEXTURE_URLS[type]) return cb(null);
-            
-            const img = new Image(); 
-            img.crossOrigin = "anonymous"; 
-            img.src = TEXTURE_URLS[type];
-            
-            // --- FIX: Add error handling ---
-            img.onerror = () => {
-                console.error("Texture load failed:", type);
-                els.texLoader.classList.remove('visible');
-                alert("图片加载失败，请检查网络或源图片地址。");
-                cb(null);
-            };
-
+            const img = new Image(); img.crossOrigin = "anonymous"; img.src = TEXTURE_URLS[type];
+            img.onerror = () => { els.texLoader.classList.remove('visible'); cb(null); };
             img.onload = () => {
                 setTimeout(() => {
                     try {
                         const c = document.createElement('canvas'); const cx = c.getContext('2d');
                         c.width = img.width; c.height = img.height; cx.drawImage(img, 0, 0);
-                        // Simple crop logic for specific aspect ratios if needed
                         if (img.height > 350) cx.drawImage(c, 0, 200, 350, 150, 0, 0, 350, 150);
-                        
                         makeSeamless(cx, c.width, c.height);
-                        
                         const tex = new THREE.CanvasTexture(c);
-                        tex.colorSpace = THREE.SRGBColorSpace; 
-                        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-                        
-                        TEXTURE_CACHE[type] = tex; 
-                        cb(tex);
-                    } catch (e) {
-                        console.error("Texture processing error (CORS?):", e);
-                        els.texLoader.classList.remove('visible');
-                        cb(null);
-                    }
+                        tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                        TEXTURE_CACHE[type] = tex; cb(tex);
+                    } catch(e) { cb(null); }
                 }, 10);
             };
         }
@@ -385,40 +457,24 @@
             groups.hl.clear();
             const isNoMat = STATE.stoneType === 'none';
             const redOff = 0.0002, triOff = 0.001;
-
             const addPlane = (w, h, pos, rot) => {
                 const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mats.redPlane);
                 m.position.copy(pos); if(rot) m.rotation.set(rot.x||0, rot.y||0, rot.z||0);
                 groups.hl.add(m);
             };
-
             const addTri = (pos, rot, w, h, isFB) => {
                 const m = new THREE.Mesh(triGeom, mats.blackTri);
                 m.position.copy(pos); if(rot) m.rotation.set(rot.x||0, rot.y||0, rot.z||0);
-                
-                const limit = 0.1; 
-                const effDim = Math.min(w, h, limit);
-                let factor = 0.15;
-                if (isFB && (w < 0.5 || h < 0.5)) factor = 0.08;
-                const s = effDim * factor;
-                m.scale.set(s, s, 1);
-                groups.hl.add(m);
+                const limit = 0.1; const effDim = Math.min(w, h, limit);
+                let factor = 0.15; if (isFB && (w < 0.5 || h < 0.5)) factor = 0.08;
+                const s = effDim * factor; m.scale.set(s, s, 1); groups.hl.add(m);
             };
-
-            // Directions:
-            // Face/Back/Sides -> -Y (Down)
-            // Top/Bottom -> REVERSED from previous (Now pointing Back/Opposite)
-            
             if(STATE.edges.face) isNoMat ? addTri(new THREE.Vector3(0,0,STATE.thickness/2+triOff), {z:-Math.PI/2}, STATE.length, STATE.width, true) : addPlane(STATE.length, STATE.width, new THREE.Vector3(0,0,STATE.thickness/2+redOff));
             if(STATE.edges.back) isNoMat ? addTri(new THREE.Vector3(0,0,-STATE.thickness/2-triOff), {z:-Math.PI/2}, STATE.length, STATE.width, true) : addPlane(STATE.length, STATE.width, new THREE.Vector3(0,0,-STATE.thickness/2-redOff));
-            
-            // ★ FLIPPED Top & Bottom Directions (Maintained) ★
             if(STATE.edges.top) isNoMat ? addTri(new THREE.Vector3(0,STATE.width/2+triOff,0), {x:-Math.PI/2, z:-Math.PI/2}, STATE.length, STATE.thickness) : addPlane(STATE.length, STATE.thickness, new THREE.Vector3(0,STATE.width/2+redOff,0), {x:-Math.PI/2});
             if(STATE.edges.bottom) isNoMat ? addTri(new THREE.Vector3(0,-STATE.width/2-triOff,0), {x:Math.PI/2, z:Math.PI/2}, STATE.length, STATE.thickness) : addPlane(STATE.length, STATE.thickness, new THREE.Vector3(0,-STATE.width/2-redOff,0), {x:Math.PI/2});
-            
             if(STATE.edges.left) isNoMat ? addTri(new THREE.Vector3(-STATE.length/2-triOff,0,0), {y:-Math.PI/2, z:-Math.PI/2}, STATE.thickness, STATE.width) : addPlane(STATE.thickness, STATE.width, new THREE.Vector3(-STATE.length/2-redOff,0,0), {y:-Math.PI/2});
             if(STATE.edges.right) isNoMat ? addTri(new THREE.Vector3(STATE.length/2+triOff,0,0), {y:Math.PI/2, z:-Math.PI/2}, STATE.thickness, STATE.width) : addPlane(STATE.thickness, STATE.width, new THREE.Vector3(STATE.length/2+redOff,0,0), {y:Math.PI/2});
-
             if (isNoMat) {
                 const L=STATE.length, W=STATE.width, T=STATE.thickness;
                 const line = (x1,y1,z1, x2,y2,z2) => {
@@ -453,15 +509,12 @@
                 const m = new THREE.Mesh(new THREE.PlaneGeometry(0.2,0.05), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c), transparent:true, side:THREE.DoubleSide}));
                 m.position.copy(pos); m.rotation.z = rz; groups.dim.add(m);
             };
-            
             const ly = STATE.width/2+gap;
             addL([new THREE.Vector3(-STATE.length/2,ly,0), new THREE.Vector3(STATE.length/2,ly,0), new THREE.Vector3(-STATE.length/2,ly-tl,0), new THREE.Vector3(-STATE.length/2,ly+tl,0), new THREE.Vector3(STATE.length/2,ly-tl,0), new THREE.Vector3(STATE.length/2,ly+tl,0)]);
             addT('L='+Math.round(STATE.length*1000)+'mm', new THREE.Vector3(0,ly+0.03,0));
-
             const wx = -STATE.length/2-gap;
             addL([new THREE.Vector3(wx,-STATE.width/2,0), new THREE.Vector3(wx,STATE.width/2,0), new THREE.Vector3(wx-tl,-STATE.width/2,0), new THREE.Vector3(wx+tl,-STATE.width/2,0), new THREE.Vector3(wx-tl,STATE.width/2,0), new THREE.Vector3(wx+tl,STATE.width/2,0)]);
             addT('W='+Math.round(STATE.width*1000)+'mm', new THREE.Vector3(wx-0.04,0,0), Math.PI/2);
-
             const tx = STATE.length/2+gap, ty = -STATE.width/2;
             addL([new THREE.Vector3(tx,ty,-STATE.thickness/2), new THREE.Vector3(tx,ty,STATE.thickness/2), new THREE.Vector3(tx-tl,ty,-STATE.thickness/2), new THREE.Vector3(tx+tl,ty,-STATE.thickness/2), new THREE.Vector3(tx-tl,ty,STATE.thickness/2), new THREE.Vector3(tx+tl,ty,STATE.thickness/2)]);
             addT(Math.round(STATE.thickness*1000)+'T', new THREE.Vector3(tx+0.05,ty,0));
@@ -469,14 +522,10 @@
 
         function genSlab() {
             if (slabMesh) { scene.remove(slabMesh); slabMesh.geometry.dispose(); if(slabMesh.userData.ol) slabMesh.userData.ol.geometry.dispose(); }
-            
             const geom = STATE.stoneType === 'none' ? new THREE.BoxGeometry(STATE.length, STATE.width, STATE.thickness) : new RoundedBoxGeometry(STATE.length, STATE.width, STATE.thickness, 2, 0.003);
-            
-            // UV Mapping
             geom.computeBoundingBox();
             const pos = geom.attributes.position, norm = geom.attributes.normal, uv = geom.attributes.uv;
-            const s = 5.0; // 1/0.2
-            const v = new THREE.Vector3(), n = new THREE.Vector3();
+            const s = 5.0; const v = new THREE.Vector3(), n = new THREE.Vector3();
             for(let i=0; i<pos.count; i++){
                 v.fromBufferAttribute(pos,i); n.fromBufferAttribute(norm,i);
                 const ax=Math.abs(n.x), ay=Math.abs(n.y), az=Math.abs(n.z);
@@ -487,14 +536,12 @@
                 uv.setXY(i,u,vv);
             }
             uv.needsUpdate = true;
-
             slabMesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({color:0xffffff}));
             slabMesh.castShadow = true; slabMesh.receiveShadow = true;
             const edges = new THREE.EdgesGeometry(geom, 15);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0x000000}));
             line.visible = false; slabMesh.add(line); slabMesh.userData.ol = line;
             scene.add(slabMesh);
-
             els.texLoader.classList.add('visible');
             loadTexture(STATE.stoneType, (tex) => {
                 if(tex) {
@@ -511,15 +558,11 @@
                 updateHighlights();
                 els.texLoader.classList.remove('visible');
             });
-            
             updateHighlights();
             updateDimensions();
-            
-            // Calc
             const area = STATE.length * STATE.width;
             const vol = area * STATE.thickness;
             const sw = vol * DENSITY;
-            
             els.sArea.textContent = area.toFixed(2) + ' m²';
             els.tArea.textContent = (area * STATE.quantity).toFixed(2) + ' m²';
             els.sWeight.textContent = sw.toFixed(2) + ' kg';
@@ -534,7 +577,6 @@
         const setThk = (v) => { els.thkIn.value=v; document.querySelectorAll('.thick-btn').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.val)==v)); reqUp('thickness',v); };
         document.querySelectorAll('.thick-btn').forEach(b=>b.onclick=()=>setThk(b.dataset.val));
         els.thkIn.onchange = (e) => setThk(parseInt(e.target.value)||20);
-        
         document.getElementById('stone-grid-container').onclick = (e) => {
             const t = e.target.closest('.stone-btn');
             if(t) { document.querySelectorAll('.stone-btn').forEach(b=>b.classList.remove('active')); t.classList.add('active'); STATE.stoneType=t.dataset.type; genSlab(); }
@@ -547,9 +589,29 @@
 
         // Start
         genSlab();
-        appLoader.classList.add('hidden'); // Hide loader once ready
+        // Initial Fit (Wait for next frame to ensure geometry is ready)
+        requestAnimationFrame(() => fitView(false));
+        appLoader.classList.add('hidden');
         
-        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+        function animate() { 
+            requestAnimationFrame(animate); 
+            
+            // Camera Animation Loop
+            if (camAnim.active) {
+                const now = performance.now();
+                const progress = Math.min((now - camAnim.startTime) / camAnim.duration, 1);
+                // Ease Out Cubic
+                const ease = 1 - Math.pow(1 - progress, 3);
+                
+                camera.position.lerpVectors(camAnim.startPos, camAnim.endPos, ease);
+                controls.target.lerpVectors(camAnim.startTarget, camAnim.endTarget, ease);
+                
+                if (progress >= 1) camAnim.active = false;
+            }
+            
+            controls.update(); 
+            renderer.render(scene, camera); 
+        }
         animate();
         
         const rs = () => { camera.aspect = els.canvas.clientWidth/els.canvas.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(els.canvas.clientWidth, els.canvas.clientHeight); };
