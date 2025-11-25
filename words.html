@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>韩语建筑词汇发音表</title>
+    <title>韩语建筑词汇挑战</title>
     <style>
         :root {
             --primary: #2563eb;
+            --success: #22c55e;
+            --error: #ef4444;
             --bg: #f3f4f6;
             --card-bg: #ffffff;
             --text-main: #1f2937;
-            --text-sub: #6b7280;
         }
 
         body {
@@ -19,107 +20,153 @@
             margin: 0;
             padding: 20px;
             color: var(--text-main);
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: var(--primary);
-        }
-
-        /* 搜索框样式 */
-        .search-box {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background-color: var(--bg);
-            padding-bottom: 15px;
-        }
-
-        input#search {
-            width: 100%;
-            padding: 15px;
-            font-size: 16px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            box-sizing: border-box;
-            outline: none;
-            transition: border-color 0.3s;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        input#search:focus {
-            border-color: var(--primary);
-        }
-
-        /* 列表样式 */
-        .word-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            align-items: center;
+            min-height: 100vh;
         }
 
-        .card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 16px;
+        /* 顶部计分板 */
+        .header {
+            width: 100%;
+            max-width: 400px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            transition: transform 0.1s, background-color 0.2s;
-            -webkit-tap-highlight-color: transparent;
+            margin-bottom: 20px;
+            font-weight: bold;
         }
 
-        .card:active {
-            transform: scale(0.98);
-            background-color: #eff6ff;
-        }
-
-        .korean {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 4px;
-        }
-
-        .chinese {
-            font-size: 1rem;
-            color: var(--text-sub);
-        }
-
-        .icon-speaker {
-            font-size: 1.5rem;
+        .score-board {
+            background: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             color: var(--primary);
-            opacity: 0.8;
         }
 
-        .empty-tip {
+        /* 题目卡片 */
+        .question-card {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px 20px;
+            border-radius: 24px;
             text-align: center;
-            color: var(--text-sub);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .korean-word {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 10px;
+            line-height: 1.2;
+        }
+
+        .speaker-btn {
+            display: inline-block;
+            background: #eff6ff;
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* 选项区域 */
+        .options-grid {
+            width: 100%;
+            max-width: 400px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 2px solid transparent;
+            padding: 18px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .option-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* 状态样式 */
+        .option-btn.correct {
+            background-color: #dcfce7;
+            border-color: var(--success);
+            color: #166534;
+        }
+
+        .option-btn.wrong {
+            background-color: #fee2e2;
+            border-color: var(--error);
+            color: #991b1b;
+            opacity: 0.6;
+        }
+
+        .next-btn {
             margin-top: 30px;
-            display: none;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: none; /* 默认隐藏 */
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .anim-shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
         }
 
     </style>
 </head>
 <body>
 
-    <h1>🏗️ 建筑韩语词汇表</h1>
-
-    <div class="search-box">
-        <input type="text" id="search" placeholder="🔍 搜索中文或韩文...">
+    <div class="header">
+        <span>🏗️ 建筑韩语</span>
+        <div class="score-board">得分: <span id="score">0</span></div>
     </div>
 
-    <div class="word-list" id="list">
-        <!-- 内容由 JS 生成 -->
+    <div class="question-card" id="questionCard">
+        <div class="korean-word" id="questionText">...</div>
+        <div class="speaker-btn" onclick="playCurrentAudio()">🔊 听发音</div>
     </div>
-    <div class="empty-tip" id="emptyTip">没有找到相关词汇</div>
+
+    <div class="options-grid" id="optionsContainer">
+        <!-- 选项由 JS 生成 -->
+    </div>
+
+    <button class="next-btn" id="nextBtn" onclick="initGame()">下一题 ➡️</button>
 
     <script>
-        // 数据源 (已修正部分逻辑错误)
+        // 数据源
         const vocabulary = [
             { ko: "두겁석", cn: "顶板 (压顶石)" },
             { ko: "입면도", cn: "立面图" },
@@ -180,61 +227,103 @@
             { ko: "두께", cn: "厚度" }
         ];
 
-        const listEl = document.getElementById('list');
-        const searchInput = document.getElementById('search');
-        const emptyTip = document.getElementById('emptyTip');
+        let currentItem = null;
+        let score = 0;
+        let isAnswered = false;
 
-        // 渲染列表
-        function renderList(items) {
-            listEl.innerHTML = '';
-            if (items.length === 0) {
-                emptyTip.style.display = 'block';
-                return;
-            }
-            emptyTip.style.display = 'none';
+        const questionText = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const scoreEl = document.getElementById('score');
+        const nextBtn = document.getElementById('nextBtn');
+        const questionCard = document.getElementById('questionCard');
 
-            items.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.onclick = () => speak(item.ko);
-                
-                card.innerHTML = `
-                    <div>
-                        <div class="korean">${item.ko}</div>
-                        <div class="chinese">${item.cn}</div>
-                    </div>
-                    <div class="icon-speaker">🔊</div>
-                `;
-                listEl.appendChild(card);
-            });
+        // 随机打乱数组
+        function shuffle(array) {
+            return array.sort(() => Math.random() - 0.5);
         }
 
-        // 语音合成功能
-        function speak(text) {
-            // 如果是英文单词，用英文读，否则强行指定韩语
+        // 播放声音
+        function playCurrentAudio() {
+            if (!currentItem) return;
+            const text = currentItem.ko;
             const isEnglish = /^[A-Za-z0-9\s]+$/.test(text);
-            
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = isEnglish ? 'en-US' : 'ko-KR';
-            utterance.rate = 0.9; // 语速稍慢一点点，更清晰
-            
-            // 尝试解决部分安卓机不发音的问题
-            window.speechSynthesis.cancel(); 
+            utterance.rate = 0.9;
+            window.speechSynthesis.cancel();
             window.speechSynthesis.speak(utterance);
         }
 
-        // 搜索过滤
-        searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtered = vocabulary.filter(item => 
-                item.ko.toLowerCase().includes(term) || 
-                item.cn.toLowerCase().includes(term)
-            );
-            renderList(filtered);
-        });
+        // 初始化游戏/下一题
+        function initGame() {
+            isAnswered = false;
+            nextBtn.style.display = 'none';
+            optionsContainer.innerHTML = '';
+            questionCard.classList.remove('anim-shake');
 
-        // 初始化
-        renderList(vocabulary);
+            // 1. 随机选一个正确答案
+            const randomIndex = Math.floor(Math.random() * vocabulary.length);
+            currentItem = vocabulary[randomIndex];
+
+            // 2. 随机选3个错误答案 (去重)
+            let distractors = [];
+            while (distractors.length < 3) {
+                const r = Math.floor(Math.random() * vocabulary.length);
+                if (r !== randomIndex && !distractors.includes(vocabulary[r])) {
+                    distractors.push(vocabulary[r]);
+                }
+            }
+
+            // 3. 混合选项
+            const options = shuffle([currentItem, ...distractors]);
+
+            // 4. 渲染界面
+            questionText.textContent = currentItem.ko;
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt.cn;
+                btn.onclick = () => checkAnswer(btn, opt);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        // 检查答案
+        function checkAnswer(btn, selectedOption) {
+            if (isAnswered) return; // 防止重复点击
+            isAnswered = true;
+
+            const allBtns = document.querySelectorAll('.option-btn');
+
+            if (selectedOption === currentItem) {
+                // 答对了
+                btn.classList.add('correct');
+                score += 10;
+                scoreEl.textContent = score;
+                playCurrentAudio(); // 答对自动播放
+                
+                // 1秒后自动下一题
+                setTimeout(initGame, 1200);
+            } else {
+                // 答错了
+                btn.classList.add('wrong');
+                questionCard.classList.add('anim-shake'); // 震动效果
+                
+                // 找出正确的那个并标绿
+                allBtns.forEach(b => {
+                    if (b.textContent === currentItem.cn) {
+                        b.classList.add('correct');
+                    }
+                });
+                
+                // 显示下一题按钮
+                nextBtn.style.display = 'block';
+            }
+        }
+
+        // 开始游戏
+        initGame();
 
     </script>
 </body>
