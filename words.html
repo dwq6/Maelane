@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>韩语建筑词汇发音表</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-sub: #6b7280;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        /* 搜索框样式 */
+        .search-box {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: var(--bg);
+            padding-bottom: 15px;
+        }
+
+        input#search {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.3s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        input#search:focus {
+            border-color: var(--primary);
+        }
+
+        /* 列表样式 */
+        .word-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card:active {
+            transform: scale(0.98);
+            background-color: #eff6ff;
+        }
+
+        .korean {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .chinese {
+            font-size: 1rem;
+            color: var(--text-sub);
+        }
+
+        .icon-speaker {
+            font-size: 1.5rem;
+            color: var(--primary);
+            opacity: 0.8;
+        }
+
+        .empty-tip {
+            text-align: center;
+            color: var(--text-sub);
+            margin-top: 30px;
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>🏗️ 建筑韩语词汇表</h1>
+
+    <div class="search-box">
+        <input type="text" id="search" placeholder="🔍 搜索中文或韩文...">
+    </div>
+
+    <div class="word-list" id="list">
+        <!-- 内容由 JS 生成 -->
+    </div>
+    <div class="empty-tip" id="emptyTip">没有找到相关词汇</div>
+
+    <script>
+        // 数据源 (已修正部分逻辑错误)
+        const vocabulary = [
+            { ko: "두겁석", cn: "顶板 (压顶石)" },
+            { ko: "입면도", cn: "立面图" },
+            { ko: "입면", cn: "立面" },
+            { ko: "물갈기", cn: "磨光" },
+            { ko: "버너", cn: "火烧面" },
+            { ko: "저층부", cn: "低层部" },
+            { ko: "외벽", cn: "外墙" },
+            { ko: "부분", cn: "部分" },
+            { ko: "전개도", cn: "展开图 / 平面图" },
+            { ko: "ELEVATION", cn: "立面 (英文)" },
+            { ko: "정면도", cn: "正面图" },
+            { ko: "배면도", cn: "背面图" },
+            { ko: "주문주", cn: "主入口 (业主)" }, 
+            { ko: "기준", cn: "基准" },
+            { ko: "번호", cn: "编号" },
+            { ko: "천장도", cn: "天花板图" },
+            { ko: "지상", cn: "地上" },
+            { ko: "지하", cn: "地下" },
+            { ko: "구간", cn: "区间" },
+            { ko: "출입구", cn: "出入口" },
+            { ko: "연마", cn: "磨光 (研磨)" },
+            { ko: "홈파기", cn: "开槽" },
+            { ko: "호이스트", cn: "H部分 (施工电梯)" },
+            { ko: "몰딩석", cn: "条石 (线条石)" },
+            { ko: "정면", cn: "正面" },
+            { ko: "배면", cn: "背面" },
+            { ko: "우측", cn: "右侧" },
+            { ko: "좌측", cn: "左侧" },
+            { ko: "지정석재", cn: "指定石材" },
+            { ko: "시공", cn: "施工" },
+            { ko: "단차", cn: "跌级 (高差)" },
+            { ko: "바닥", cn: "地面" },
+            { ko: "KEY PLAN", cn: "索引图" },
+            { ko: "도면 참조", cn: "参照图纸" },
+            { ko: "도면", cn: "图纸" },
+            { ko: "참조", cn: "参考" },
+            { ko: "설치", cn: "安装" },
+            { ko: "THK30", cn: "30T (厚度)" },
+            { ko: "THK50", cn: "50T (厚度)" },
+            { ko: "안내", cn: "示意/指南" },
+            { ko: "면치기", cn: "倒角" },
+            { ko: "평면도", cn: "平面图" },
+            { ko: "두겁", cn: "压顶" },
+            { ko: "잔다듬", cn: "荔枝面" },
+            { ko: "단면", cn: "剖面" },
+            { ko: "상세도", cn: "详图" },
+            { ko: "가공", cn: "加工" },
+            { ko: "상세", cn: "细节/详细" },
+            { ko: "위", cn: "上" },
+            { ko: "아래", cn: "下" },
+            { ko: "좌", cn: "左" },
+            { ko: "우", cn: "右" },
+            { ko: "동", cn: "栋" },
+            { ko: "층", cn: "层" },
+            { ko: "폭", cn: "宽" },
+            { ko: "길이", cn: "长" },
+            { ko: "두께", cn: "厚度" }
+        ];
+
+        const listEl = document.getElementById('list');
+        const searchInput = document.getElementById('search');
+        const emptyTip = document.getElementById('emptyTip');
+
+        // 渲染列表
+        function renderList(items) {
+            listEl.innerHTML = '';
+            if (items.length === 0) {
+                emptyTip.style.display = 'block';
+                return;
+            }
+            emptyTip.style.display = 'none';
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => speak(item.ko);
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="korean">${item.ko}</div>
+                        <div class="chinese">${item.cn}</div>
+                    </div>
+                    <div class="icon-speaker">🔊</div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        // 语音合成功能
+        function speak(text) {
+            // 如果是英文单词，用英文读，否则强行指定韩语
+            const isEnglish = /^[A-Za-z0-9\s]+$/.test(text);
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = isEnglish ? 'en-US' : 'ko-KR';
+            utterance.rate = 0.9; // 语速稍慢一点点，更清晰
+            
+            // 尝试解决部分安卓机不发音的问题
+            window.speechSynthesis.cancel(); 
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 搜索过滤
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = vocabulary.filter(item => 
+                item.ko.toLowerCase().includes(term) || 
+                item.cn.toLowerCase().includes(term)
+            );
+            renderList(filtered);
+        });
+
+        // 初始化
+        renderList(vocabulary);
+
+    </script>
+</body>
+</html>
