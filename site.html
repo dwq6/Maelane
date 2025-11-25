@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>韩国现场地名特训</title>
+    <title>韩国现场地名特训 - 音标辅助版</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -39,7 +39,7 @@
             background: white;
             width: 100%;
             max-width: 600px;
-            padding: 40px 20px;
+            padding: 30px 20px;
             border-radius: 16px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             text-align: center;
@@ -52,9 +52,19 @@
             font-size: 42px;
             font-weight: 800;
             color: #2c3e50;
-            margin-bottom: 15px;
+            margin-bottom: 5px;
             display: block;
             word-break: keep-all;
+        }
+
+        /* 新增：音标样式 - 默认显示 */
+        .pronunciation {
+            font-size: 20px;
+            color: #e91e63; /* 醒目的颜色 */
+            font-family: "Courier New", Courier, monospace;
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: block;
         }
 
         .speaker-btn {
@@ -203,6 +213,9 @@
 
 <div class="word-card">
     <div class="korean-word" id="question-word">Loading...</div>
+    <!-- 音标区域 -->
+    <div class="pronunciation" id="pronunciation-text"></div>
+
     <button class="speaker-btn" onclick="playCurrentWord()">
         🔊 听发音
     </button>
@@ -224,55 +237,54 @@
 <audio id="audio-player"></audio>
 
 <script>
-    // --- 1. 现场地名/品牌词库 (含客户代码) ---
+    // --- 1. 现场地名/品牌词库 (含客户代码 + 罗马音) ---
     const wordDatabase = [
         // MKN
-        { ko: "이천", cn: "利川", client: "MKN", detail: "位于京畿道东南部。以大米、陶瓷闻名，也是SK海力士半导体工厂所在地。" },
-        { ko: "구미", cn: "龟尾", client: "MKN", detail: "位于庆尚北道西部。韩国著名的内陆工业城市，电子产业非常发达。" },
-        { ko: "김해", cn: "金海", client: "MKN", detail: "位于庆尚南道，紧邻釜山。金海国际机场所在地，古代金官伽倻首都。" },
-        { ko: "대명", cn: "大明", client: "MKN", detail: "指大明建设(Daemyung)。原始地名通常指大邱南区的大明洞。" },
-        { ko: "동탄", cn: "东滩", client: "MKN / ZW", detail: "位于京畿道华城市。韩国规模最大的新都市之一，三星电子产业聚集地。" },
-        { ko: "창원", cn: "昌原", client: "MKN", detail: "位于庆尚南道，道政府所在地。韩国代表性的机械工业城市。" },
-        { ko: "방배", cn: "方背", client: "MKN", detail: "位于首尔瑞草区。首尔著名的富人居住区之一，属于江南圈。" },
-        { ko: "천안", cn: "天安", client: "MKN", detail: "位于忠清南道东北部。连接首尔和南部的交通枢纽，大学众多。" },
+        { ko: "이천", cn: "利川", rom: "i-cheon", client: "MKN", detail: "位于京畿道东南部。以大米、陶瓷闻名，也是SK海力士半导体工厂所在地。" },
+        { ko: "구미", cn: "龟尾", rom: "gu-mi", client: "MKN", detail: "位于庆尚北道西部。韩国著名的内陆工业城市，电子产业非常发达。" },
+        { ko: "김해", cn: "金海", rom: "gim-hae", client: "MKN", detail: "位于庆尚南道，紧邻釜山。金海国际机场所在地，古代金官伽倻首都。" },
+        { ko: "대명", cn: "大明", rom: "dae-myeong", client: "MKN", detail: "指大明建设(Daemyung)。原始地名通常指大邱南区的大明洞。" },
+        { ko: "동탄", cn: "东滩", rom: "dong-tan", client: "MKN / ZW", detail: "位于京畿道华城市。韩国规模最大的新都市之一，三星电子产业聚集地。" },
+        { ko: "창원", cn: "昌原", rom: "chang-won", client: "MKN", detail: "位于庆尚南道，道政府所在地。韩国代表性的机械工业城市。" },
+        { ko: "방배", cn: "方背", rom: "bang-bae", client: "MKN", detail: "位于首尔瑞草区。首尔著名的富人居住区之一，属于江南圈。" },
+        { ko: "천안", cn: "天安", rom: "cheon-an", client: "MKN", detail: "位于忠清南道东北部。连接首尔和南部的交通枢纽，大学众多。" },
         
         // KJ
-        { ko: "군산", cn: "群山", client: "KJ", detail: "位于全罗北道西北部。著名港口城市，拥有许多近代历史建筑。" },
-        { ko: "대전", cn: "大田", client: "KJ", detail: "韩国中部广域市。韩国的科技中心，大德研究特区所在地。" },
-        { ko: "첨단", cn: "尖端", client: "KJ", detail: "位于光州广域市光山区。指“尖端地区”，高科技产业与居住复合区。" },
-        { ko: "춘천", cn: "春川", client: "KJ", detail: "位于江原道西部，道政府所在地。以湖泊和铁板鸡料理闻名。" },
-        { ko: "아산", cn: "牙山", client: "KJ", detail: "位于忠清南道北部，紧邻天安。以温阳温泉和三星显示器工厂闻名。" },
+        { ko: "군산", cn: "群山", rom: "gun-san", client: "KJ", detail: "位于全罗北道西北部。著名港口城市，拥有许多近代历史建筑。" },
+        { ko: "대전", cn: "大田", rom: "dae-jeon", client: "KJ", detail: "韩国中部广域市。韩国的科技中心，大德研究特区所在地。" },
+        { ko: "첨단", cn: "尖端", rom: "cheom-dan", client: "KJ", detail: "位于光州广域市光山区。指“尖端地区”，高科技产业与居住复合区。" },
+        { ko: "춘천", cn: "春川", rom: "chun-cheon", client: "KJ", detail: "位于江原道西部，道政府所在地。以湖泊和铁板鸡料理闻名。" },
+        { ko: "아산", cn: "牙山", rom: "a-san", client: "KJ", detail: "位于忠清南道北部，紧邻天安。以温阳温泉和三星显示器工厂闻名。" },
         
         // ZW
-        { ko: "롯데", cn: "乐天", client: "ZW", detail: "乐天建设(Lotte Castle)。韩国五大财阀之一的乐天集团旗下品牌。" },
-        // 동탄 已在 MKN 中包含，标注为 MKN / ZW
+        { ko: "롯데", cn: "乐天", rom: "lot-te", client: "ZW", detail: "乐天建设(Lotte Castle)。韩国五大财阀之一的乐天集团旗下品牌。" },
 
         // KS
-        { ko: "서한", cn: "西汉", client: "KS", detail: "(株)西汉。总部位于大邱的知名建筑公司，项目多集中在庆北地区。" },
-        { ko: "쌍용", cn: "双龙", client: "KS", detail: "双龙建设(Ssangyong)。知名建企，曾建造新加坡滨海湾金沙酒店。" },
-        { ko: "호반", cn: "湖畔", client: "KS", detail: "湖畔建设(Hoban Summit)。韩国排名前十的大型建筑公司。" },
+        { ko: "서한", cn: "西汉", rom: "seo-han", client: "KS", detail: "(株)西汉。总部位于大邱的知名建筑公司，项目多集中在庆北地区。" },
+        { ko: "쌍용", cn: "双龙", rom: "ssang-yong", client: "KS", detail: "双龙建设(Ssangyong)。知名建企，曾建造新加坡滨海湾金沙酒店。" },
+        { ko: "호반", cn: "湖畔", rom: "ho-ban", client: "KS", detail: "湖畔建设(Hoban Summit)。韩国排名前十的大型建筑公司。" },
 
         // KW
-        { ko: "하월곡", cn: "下月谷", client: "KW", detail: "位于首尔城北区。典型的居住密集区，旧称月谷洞。" },
-        { ko: "봉천", cn: "奉天", client: "KW", detail: "位于首尔冠岳区。靠近首尔大学，人口非常密集的居住区。" },
-        { ko: "독산", cn: "秃山", client: "KW", detail: "位于首尔衿川区。过去是工业区，现转型为知识产业中心聚集地。" },
+        { ko: "하월곡", cn: "下月谷", rom: "ha-wol-gok", client: "KW", detail: "位于首尔城北区。典型的居住密集区，旧称月谷洞。" },
+        { ko: "봉천", cn: "奉天", rom: "bong-cheon", client: "KW", detail: "位于首尔冠岳区。靠近首尔大学，人口非常密集的居住区。" },
+        { ko: "독산", cn: "秃山", rom: "dok-san", client: "KW", detail: "位于首尔衿川区。过去是工业区，现转型为知识产业中心聚集地。" },
 
         // DK
-        { ko: "본리", cn: "本里", client: "DK", detail: "通常指大邱广域市达西区本里洞。主要居住和商业混合区。" },
+        { ko: "본리", cn: "本里", rom: "bon-ri", client: "DK", detail: "通常指大邱广域市达西区本里洞。主要居住和商业混合区。" },
 
         // TF
-        { ko: "포항", cn: "浦项", client: "TF", detail: "位于庆尚北道东海岸。世界著名的钢铁城市，浦项制铁(POSCO)总部。" },
+        { ko: "포항", cn: "浦项", rom: "po-hang", client: "TF", detail: "位于庆尚北道东海岸。世界著名的钢铁城市，浦项制铁(POSCO)总部。" },
 
         // QMD
-        { ko: "원주", cn: "原州", client: "QMD", detail: "位于江原道西南部。江原道人口最多的城市，革新都市。" },
-        { ko: "대우", cn: "大宇", client: "QMD", detail: "大宇建设(Prugio)。韩国顶级建筑公司之一。" },
+        { ko: "원주", cn: "原州", rom: "won-ju", client: "QMD", detail: "位于江原道西南部。江原道人口最多的城市，革新都市。" },
+        { ko: "대우", cn: "大宇", rom: "dae-u", client: "QMD", detail: "大宇建设(Prugio)。韩国顶级建筑公司之一。" },
 
         // BS
-        { ko: "안계", cn: "安溪", client: "BS", detail: "通常指庆尚北道义城郡安溪面。典型的农村中心地区。" },
+        { ko: "안계", cn: "安溪", rom: "an-gye", client: "BS", detail: "通常指庆尚北道义城郡安溪面。典型的农村中心地区。" },
 
         // SQ
-        { ko: "경산", cn: "庆山", client: "SQ", detail: "位于庆尚北道南部，紧邻大邱。大邱的卫星城，大学非常多。" },
-        { ko: "칠곡", cn: "漆谷", client: "SQ", detail: "指庆北漆谷郡或大邱北区漆谷地区。重要的交通要道。" }
+        { ko: "경산", cn: "庆山", rom: "gyeong-san", client: "SQ", detail: "位于庆尚北道南部，紧邻大邱。大邱的卫星城，大学非常多。" },
+        { ko: "칠곡", cn: "漆谷", rom: "chil-gok", client: "SQ", detail: "指庆北漆谷郡或大邱北区漆谷地区。重要的交通要道。" }
     ];
 
     // --- 2. 游戏逻辑 ---
@@ -285,7 +297,6 @@
         if (!currentQuestion.ko) return;
         const text = currentQuestion.ko;
         const audio = document.getElementById('audio-player');
-        // 网易有道接口
         const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=ko&_t=${new Date().getTime()}`;
         audio.src = url;
         audio.play().catch(e => {});
@@ -300,7 +311,7 @@
         questionCount++;
         document.getElementById('progress').textContent = `第 ${questionCount} 题`;
         document.getElementById('next-btn').style.display = 'none';
-        document.getElementById('explanation-area').style.display = 'none'; // 隐藏解释
+        document.getElementById('explanation-area').style.display = 'none'; 
         
         // 随机选题
         const randomIndex = Math.floor(Math.random() * wordDatabase.length);
@@ -308,12 +319,13 @@
         
         document.getElementById('question-word').textContent = currentQuestion.ko;
         
-        // 生成选项：1个正确 + 3个干扰
+        // 核心修改：直接显示音标
+        document.getElementById('pronunciation-text').textContent = `[ ${currentQuestion.rom} ]`;
+        
+        // 生成选项
         let options = [currentQuestion];
         while (options.length < 4) {
             const randomDistractor = wordDatabase[Math.floor(Math.random() * wordDatabase.length)];
-            
-            // 核心逻辑：确保干扰项的“韩文”和当前题目的“韩文”不一样
             if (randomDistractor.ko !== currentQuestion.ko && !options.includes(randomDistractor)) {
                 options.push(randomDistractor);
             }
@@ -357,15 +369,12 @@
             });
         }
 
-        // 显示详细信息和客户代号
+        // 显示详细信息
         const expArea = document.getElementById('explanation-area');
         const expText = document.getElementById('explanation-text');
         const clientTag = document.getElementById('client-tag');
         
-        // 设置客户代号
         clientTag.textContent = currentQuestion.client;
-        
-        // 组合显示内容：意思 + 详细信息
         expText.innerHTML = `<span class="word-meaning">${currentQuestion.cn}</span>${currentQuestion.detail}`;
         expArea.style.display = 'block';
 
