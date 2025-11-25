@@ -338,4 +338,36 @@
             });
         }
 
-        function checkAnswer(btn
+        function checkAnswer(btn, selectedOption) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const allBtns = document.querySelectorAll('.option-btn');
+
+            if (selectedOption === currentItem) {
+                btn.classList.add('correct');
+                score += 10;
+                scoreEl.textContent = score;
+                
+                // 答对播放声音
+                playCurrentAudio(); 
+                
+                setTimeout(initGame, 1200);
+            } else {
+                btn.classList.add('wrong');
+                questionCard.classList.add('anim-shake');
+                
+                allBtns.forEach(b => {
+                    if (b.textContent === currentItem.cn) {
+                        b.classList.add('correct');
+                    }
+                });
+                nextBtn.style.display = 'block';
+            }
+        }
+
+        initGame();
+
+    </script>
+</body>
+</html>
