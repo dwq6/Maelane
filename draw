@@ -1,0 +1,263 @@
+import React, { useState, useRef } from 'react';
+import { Download, Copy, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Check, Circle } from 'lucide-react';
+
+const GrindingGenerator = () => {
+  // 内部默认尺寸
+  const CANVAS_W = 600;
+  const CANVAS_H = 500;
+  const RECT_W = 300;
+  const RECT_H = 180;
+  const CX = CANVAS_W / 2;
+  const CY = CANVAS_H / 2 - 20; 
+  const RECT_X = CX - RECT_W / 2;
+  const RECT_Y = CY - RECT_H / 2;
+  const DIM_OFFSET = 50; 
+  const TRIANGLE_GAP = 2; 
+  
+  // 颜色定义
+  const COLOR_ACTIVE_LINE = "#dc2626"; // 选中时的线条颜色（红）
+  const COLOR_DEFAULT_LINE = "black";  // 默认线条颜色（黑）
+  const COLOR_INDICATOR = "black";     // 指示符颜色（始终黑）
+  const COLOR_DIM = "#e11d48";         // 尺寸标注颜色
+
+  // 状态
+  const [sides, setSides] = useState({
+    top: false,
+    bottom: false,
+    left: false,
+    right: false,
+    center: true
+  });
+  const [topChamfer, setTopChamfer] = useState('');
+  const [bottomChamfer, setBottomChamfer] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const svgRef = useRef(null);
+
+  const toggleSide = (side) => {
+    setSides(prev => ({ ...prev, [side]: !prev[side] }));
+  };
+
+  const generateLabel = () => {
+    let parts = [];
+    // 磨边部分
+    if (sides.top && sides.bottom) parts.push("2L");
+    else if (sides.top) parts.push("1L");
+    else if (sides.bottom) parts.push("下L");
+
+    if (sides.left && sides.right) parts.push("2W");
+    else {
+      if (sides.left) parts.push("1W");
+      if (sides.right) parts.push("右W");
+    }
+
+    let baseText = parts.length > 0 ? parts.join("+") + "侧磨" : "无侧磨";
+
+    // 倒角部分
+    let chamferText = "";
+    const tVal = topChamfer.trim();
+    const bVal = bottomChamfer.trim();
+    const isBottomZero = !bVal || bVal === '0';
+
+    if (tVal && tVal !== '0') {
+      if (isBottomZero) chamferText = `倒角${tVal}mm`;
+      else chamferText = `上倒${tVal}mm下倒${bVal}mm`;
+    } else if (bVal && bVal !== '0') {
+      chamferText = `下倒${bVal}mm`;
+    }
+
+    return baseText + chamferText;
+  };
+
+  const fullLabel = generateLabel();
+
+  const copyText = () => {
+    navigator.clipboard.writeText(fullLabel);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadImage = () => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const img = new Image();
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      canvas.width = 1200; 
+      canvas.height = 1000;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(2, 2); 
+      ctx.drawImage(img, 0, 0);
+      const pngUrl = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.href = pngUrl;
+      downloadLink.download = `${fullLabel}.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    };
+    img.src = url;
+  };
+
+  // 按钮样式组件
+  const MiniBtn = ({ active, onClick, children, title }) => (
+    <button 
+      onClick={onClick}
+      title={title}
+      className={`w-8 h-8 rounded flex items-center justify-center border transition-all ${
+        active 
+          ? 'bg-red-600 border-red-600 text-white' 
+          : 'bg-white border-gray-200 text-gray-400 hover:border-gray-400 hover:bg-gray-50'
+      }`}
+    >
+      {children}
+    </button>
+  );
+
+  return (
+    <div className="flex flex-col items-center p-4 bg-gray-50 min-h-screen font-sans text-gray-800">
+      
+      {/* 顶部极简工具栏 */}
+      <div className="w-full max-w-3xl bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200 mb-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
+        
+        {/* 区域1：磨边控制 */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider select-none">磨边</span>
+          <div className="flex items-center gap-1">
+            {/* 上下组 */}
+            <div className="flex gap-1 mr-1">
+              <MiniBtn active={sides.top} onClick={() => toggleSide('top')} title="上边"><ArrowUp size={14} /></MiniBtn>
+              <MiniBtn active={sides.bottom} onClick={() => toggleSide('bottom')} title="下边"><ArrowDown size={14} /></MiniBtn>
+            </div>
+            
+            {/* 左右组 */}
+            <div className="flex gap-1 mr-1">
+              <MiniBtn active={sides.left} onClick={() => toggleSide('left')} title="左边"><ArrowLeft size={14} /></MiniBtn>
+              <MiniBtn active={sides.right} onClick={() => toggleSide('right')} title="右边"><ArrowRight size={14} /></MiniBtn>
+            </div>
+
+            {/* 中心 */}
+            <MiniBtn active={sides.center} onClick={() => toggleSide('center')} title="中心标记"><Circle size={10} className="fill-current" /></MiniBtn>
+          </div>
+        </div>
+
+        {/* 分割线 */}
+        <div className="h-6 w-px bg-gray-200 hidden sm:block" />
+
+        {/* 区域2：倒角输入 */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider select-none">倒角</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs font-medium text-gray-500 select-none">上</label>
+              <input 
+                type="number" 
+                value={topChamfer}
+                onChange={(e) => setTopChamfer(e.target.value)}
+                placeholder="0"
+                className="w-12 h-8 border border-gray-200 rounded text-center text-sm focus:border-black focus:outline-none transition-colors"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs font-medium text-gray-500 select-none">下</label>
+              <input 
+                type="number" 
+                value={bottomChamfer}
+                onChange={(e) => setBottomChamfer(e.target.value)}
+                placeholder="0"
+                className="w-12 h-8 border border-gray-200 rounded text-center text-sm focus:border-black focus:outline-none transition-colors"
+              />
+              <span className="text-xs text-gray-400 select-none">mm</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 预览区域 */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4">
+        <svg ref={svgRef} width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} className="max-w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#000" /></marker>
+          </defs>
+          <rect x="0" y="0" width={CANVAS_W} height={CANVAS_H} fill="white" />
+          
+          {/* 
+             矩形边框 - 选中变红
+          */}
+          <line x1={RECT_X} y1={RECT_Y} x2={RECT_X + RECT_W} y2={RECT_Y} 
+                stroke={sides.top ? COLOR_ACTIVE_LINE : COLOR_DEFAULT_LINE} strokeWidth="3" />
+          <line x1={RECT_X} y1={RECT_Y + RECT_H} x2={RECT_X + RECT_W} y2={RECT_Y + RECT_H} 
+                stroke={sides.bottom ? COLOR_ACTIVE_LINE : COLOR_DEFAULT_LINE} strokeWidth="3" />
+          <line x1={RECT_X} y1={RECT_Y} x2={RECT_X} y2={RECT_Y + RECT_H} 
+                stroke={sides.left ? COLOR_ACTIVE_LINE : COLOR_DEFAULT_LINE} strokeWidth="3" />
+          <line x1={RECT_X + RECT_W} y1={RECT_Y} x2={RECT_X + RECT_W} y2={RECT_Y + RECT_H} 
+                stroke={sides.right ? COLOR_ACTIVE_LINE : COLOR_DEFAULT_LINE} strokeWidth="3" />
+
+
+          {/* 尺寸线 */}
+          <line x1={RECT_X} y1={RECT_Y - DIM_OFFSET} x2={RECT_X + RECT_W} y2={RECT_Y - DIM_OFFSET} stroke={COLOR_DIM} strokeWidth="1" />
+          <circle cx={RECT_X} cy={RECT_Y - DIM_OFFSET} r="2" fill={COLOR_DIM} />
+          <circle cx={RECT_X + RECT_W} cy={RECT_Y - DIM_OFFSET} r="2" fill={COLOR_DIM} />
+          <line x1={RECT_X} y1={RECT_Y - 5} x2={RECT_X} y2={RECT_Y - DIM_OFFSET - 10} stroke={COLOR_DIM} strokeWidth="0.5" />
+          <line x1={RECT_X + RECT_W} y1={RECT_Y - 5} x2={RECT_X + RECT_W} y2={RECT_Y - DIM_OFFSET - 10} stroke={COLOR_DIM} strokeWidth="0.5" />
+          <text x={CX} y={RECT_Y - DIM_OFFSET - 5} textAnchor="middle" fill={COLOR_DIM} fontSize="16" fontFamily="serif">L</text>
+
+          <line x1={RECT_X - DIM_OFFSET} y1={RECT_Y} x2={RECT_X - DIM_OFFSET} y2={RECT_Y + RECT_H} stroke={COLOR_DIM} strokeWidth="1" />
+          <circle cx={RECT_X - DIM_OFFSET} cy={RECT_Y} r="2" fill={COLOR_DIM} />
+          <circle cx={RECT_X - DIM_OFFSET} cy={RECT_Y + RECT_H} r="2" fill={COLOR_DIM} />
+          <line x1={RECT_X - 5} y1={RECT_Y} x2={RECT_X - DIM_OFFSET - 10} y2={RECT_Y} stroke={COLOR_DIM} strokeWidth="0.5" />
+          <line x1={RECT_X - 5} y1={RECT_Y + RECT_H} x2={RECT_X - DIM_OFFSET - 10} y2={RECT_Y + RECT_H} stroke={COLOR_DIM} strokeWidth="0.5" />
+          <text x={RECT_X - DIM_OFFSET - 10} y={CY} textAnchor="end" dominantBaseline="middle" fill={COLOR_DIM} fontSize="16" fontFamily="serif">W</text>
+
+          {/* 磨边指示符 - 始终黑色 */}
+          {sides.top && <path d={`M${CX},${RECT_Y - TRIANGLE_GAP} L${CX - 6},${RECT_Y - TRIANGLE_GAP - 12} L${CX + 6},${RECT_Y - TRIANGLE_GAP - 12} Z`} fill={COLOR_INDICATOR} />}
+          {sides.bottom && <path d={`M${CX},${RECT_Y + RECT_H + TRIANGLE_GAP} L${CX - 6},${RECT_Y + RECT_H + TRIANGLE_GAP + 12} L${CX + 6},${RECT_Y + RECT_H + TRIANGLE_GAP + 12} Z`} fill={COLOR_INDICATOR} />}
+          {sides.left && <path d={`M${RECT_X - TRIANGLE_GAP},${CY} L${RECT_X - TRIANGLE_GAP - 12},${CY - 6} L${RECT_X - TRIANGLE_GAP - 12},${CY + 6} Z`} fill={COLOR_INDICATOR} />}
+          {sides.right && <path d={`M${RECT_X + RECT_W + TRIANGLE_GAP},${CY} L${RECT_X + RECT_W + TRIANGLE_GAP + 12},${CY - 6} L${RECT_X + RECT_W + TRIANGLE_GAP + 12},${CY + 6} Z`} fill={COLOR_INDICATOR} />}
+          
+          {/* 中心标记 - 始终黑色 */}
+          {sides.center && <path d={`M${CX - 6},${CY - 6} L${CX + 6},${CY - 6} L${CX},${CY + 6} Z`} fill={COLOR_INDICATOR} />}
+
+          {/* 底部文字 */}
+          <text x={CX} y={RECT_Y + RECT_H + 80} textAnchor="middle" fill="black" fontSize="28" fontWeight="normal" fontFamily="serif">{fullLabel}</text>
+        </svg>
+      </div>
+
+      {/* 底部操作栏 */}
+      <div className="flex flex-row gap-2 w-full max-w-3xl">
+        {/* 文本显示与复制 */}
+        <div className="flex-1 flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex-1 font-mono text-base truncate text-gray-700">
+            {fullLabel}
+          </div>
+          <button 
+            onClick={copyText}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm transition-all ${copied ? 'bg-green-100 text-green-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            <span>{copied ? '已复制' : '复制'}</span>
+          </button>
+        </div>
+
+        {/* 下载按钮 */}
+        <button 
+          onClick={downloadImage} 
+          className="flex items-center justify-center gap-2 px-6 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-medium"
+        >
+          <Download size={16} />
+          <span>下载</span>
+        </button>
+      </div>
+
+    </div>
+  );
+};
+
+export default GrindingGenerator;
