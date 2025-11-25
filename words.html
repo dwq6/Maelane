@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>建筑韩语特训 - 词源版</title>
+    <title>建筑韩语特训 - 词源+音标版</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -36,7 +36,7 @@
         .word-card {
             background: white;
             width: 100%;
-            padding: 40px 20px;
+            padding: 30px 20px;
             border-radius: 16px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             text-align: center;
@@ -49,9 +49,24 @@
             font-size: 36px;
             font-weight: 800;
             color: #2c3e50;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             display: block;
             word-break: keep-all;
+        }
+
+        /* 新增：音标样式 */
+        .pronunciation {
+            font-size: 18px;
+            color: #888;
+            font-family: "Courier New", Courier, monospace; /* 等宽字体看起来更像音标 */
+            margin-bottom: 15px;
+            min-height: 24px; /* 占位，防止抖动 */
+            opacity: 0; /* 默认隐藏 */
+            transition: opacity 0.3s ease;
+        }
+        
+        .pronunciation.show {
+            opacity: 1;
         }
 
         .speaker-btn {
@@ -89,7 +104,7 @@
             transition: all 0.1s;
             font-weight: 500;
             display: flex;
-            flex-direction: column; /* 改为垂直排列，以便显示词源 */
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 70px;
@@ -100,7 +115,7 @@
 
         /* 词源小字样式 */
         .origin-text {
-            display: none; /* 默认隐藏 */
+            display: none;
             font-size: 12px;
             margin-top: 4px;
             font-weight: normal;
@@ -120,10 +135,9 @@
             animation: shake 0.4s;
         }
 
-        /* 选中后显示词源 */
         .correct .origin-text, .wrong .origin-text {
             display: block;
-            color: #e8f5e9; /* 浅色字 */
+            color: #e8f5e9;
         }
 
         /* 下一题按钮 */
@@ -160,6 +174,9 @@
 
 <div class="word-card">
     <div class="korean-word" id="question-word">Loading...</div>
+    <!-- 新增音标显示区域 -->
+    <div class="pronunciation" id="pronunciation-text"></div>
+    
     <button class="speaker-btn" onclick="playCurrentWord()">
         🔊 听发音
     </button>
@@ -172,61 +189,60 @@
 <audio id="audio-player"></audio>
 
 <script>
-    // --- 1. 建筑/图纸专用词库 (已添加 origin 词源) ---
-    // [汉] = 汉字词, [韩] = 固有词, [外] = 外来语, [混] = 混合词
+    // --- 1. 建筑/图纸专用词库 (含 词源 + 罗马音) ---
     const wordDatabase = [
-        { ko: "두겁석", cn: "顶板/压顶石", origin: "[混] 두겁(盖) + 石" },
-        { ko: "입면도", cn: "立面图", origin: "[汉] 立面圖" },
-        { ko: "입면", cn: "立面", origin: "[汉] 立面" },
-        { ko: "물갈기", cn: "磨光", origin: "[韩] 물(水) + 갈기(磨)" },
-        { ko: "버너", cn: "火烧面", origin: "[外] Burner" },
-        { ko: "저층부", cn: "低层部", origin: "[汉] 低層部" },
-        { ko: "외벽", cn: "外墙", origin: "[汉] 外壁" },
-        { ko: "부분", cn: "部分", origin: "[汉] 部分" },
-        { ko: "전개도", cn: "展开图", origin: "[汉] 展開圖" },
-        { ko: "정면도", cn: "正面图", origin: "[汉] 正面圖" },
-        { ko: "배면도", cn: "背面图", origin: "[汉] 背面圖" },
-        { ko: "주문주", cn: "主入口", origin: "[汉] 主門柱(推测)或误写" }, // 注：通常主入口是 주출입구
-        { ko: "기준", cn: "基准", origin: "[汉] 基準" },
-        { ko: "번호", cn: "编号", origin: "[汉] 番號" },
-        { ko: "천장도", cn: "天花板图", origin: "[汉] 天障圖" },
-        { ko: "지상", cn: "地上", origin: "[汉] 地上" },
-        { ko: "지하", cn: "地下", origin: "[汉] 地下" },
-        { ko: "구간", cn: "区间", origin: "[汉] 區間" },
-        { ko: "출입구", cn: "出入口", origin: "[汉] 出入口" },
-        { ko: "연마", cn: "研磨/磨光", origin: "[汉] 硏磨" },
-        { ko: "홈파기", cn: "开槽", origin: "[韩] 홈(槽) + 파기(挖)" },
-        { ko: "호이스트", cn: "H部分/升降机", origin: "[外] Hoist" },
-        { ko: "몰딩석", cn: "线条石", origin: "[混] Molding + 石" },
-        { ko: "정면", cn: "正面", origin: "[汉] 正面" },
-        { ko: "배면", cn: "背面", origin: "[汉] 背面" },
-        { ko: "우측", cn: "右侧", origin: "[汉] 右側" },
-        { ko: "좌측", cn: "左侧", origin: "[汉] 左側" },
-        { ko: "지정석재", cn: "指定石材", origin: "[汉] 指定石材" },
-        { ko: "시공", cn: "施工", origin: "[汉] 施工" },
-        { ko: "단차", cn: "跌级/高低差", origin: "[汉] 段差" },
-        { ko: "바닥", cn: "地面", origin: "[韩] 바닥" },
-        { ko: "도면", cn: "图纸", origin: "[汉] 圖面" },
-        { ko: "참조", cn: "参照", origin: "[汉] 參照" },
-        { ko: "설치", cn: "安装/设置", origin: "[汉] 設置" },
-        { ko: "안내", cn: "示意/向导", origin: "[汉] 案內" },
-        { ko: "면치기", cn: "倒角", origin: "[韩] 면(面) + 치기(打/削)" },
-        { ko: "평면도", cn: "平面图", origin: "[汉] 平面圖" },
-        { ko: "두겁", cn: "压顶", origin: "[韩] 두겁(套/盖)" },
-        { ko: "잔다듬", cn: "荔枝面", origin: "[韩] 잔(细) + 다듬(修整)" },
-        { ko: "단면", cn: "剖面", origin: "[汉] 斷面" },
-        { ko: "상세도", cn: "详图", origin: "[汉] 詳細圖" },
-        { ko: "가공", cn: "加工", origin: "[汉] 加工" },
-        { ko: "상세", cn: "细节/详细", origin: "[汉] 詳細" },
-        { ko: "위", cn: "上", origin: "[韩] 위" },
-        { ko: "아래", cn: "下", origin: "[韩] 아래" },
-        { ko: "좌", cn: "左", origin: "[汉] 左" },
-        { ko: "우", cn: "右", origin: "[汉] 右" },
-        { ko: "동", cn: "栋", origin: "[汉] 棟" },
-        { ko: "층", cn: "层", origin: "[汉] 層" },
-        { ko: "폭", cn: "宽", origin: "[汉] 幅" },
-        { ko: "길이", cn: "长", origin: "[韩] 길이" },
-        { ko: "두께", cn: "厚度", origin: "[韩] 두께" }
+        { ko: "두겁석", cn: "顶板/压顶石", origin: "[混] 두겁 + 石", rom: "du-geop-seok" },
+        { ko: "입면도", cn: "立面图", origin: "[汉] 立面圖", rom: "im-myeon-do" }, // 鼻音化
+        { ko: "입면", cn: "立面", origin: "[汉] 立面", rom: "im-myeon" },
+        { ko: "물갈기", cn: "磨光", origin: "[韩] 물(水) + 갈기", rom: "mul-gal-gi" },
+        { ko: "버너", cn: "火烧面", origin: "[外] Burner", rom: "beo-neo" },
+        { ko: "저층부", cn: "低层部", origin: "[汉] 低層部", rom: "jeo-cheung-bu" },
+        { ko: "외벽", cn: "外墙", origin: "[汉] 外壁", rom: "oe-byeok" },
+        { ko: "부분", cn: "部分", origin: "[汉] 部分", rom: "bu-bun" },
+        { ko: "전개도", cn: "展开图", origin: "[汉] 展開圖", rom: "jeon-gae-do" },
+        { ko: "정면도", cn: "正面图", origin: "[汉] 正面圖", rom: "jeong-myeon-do" },
+        { ko: "배면도", cn: "背面图", origin: "[汉] 背面圖", rom: "bae-myeon-do" },
+        { ko: "주문주", cn: "主入口", origin: "[汉] 主門柱(推测)", rom: "ju-mun-ju" },
+        { ko: "기준", cn: "基准", origin: "[汉] 基準", rom: "gi-jun" },
+        { ko: "번호", cn: "编号", origin: "[汉] 番號", rom: "beon-ho" },
+        { ko: "천장도", cn: "天花板图", origin: "[汉] 天障圖", rom: "cheon-jang-do" },
+        { ko: "지상", cn: "地上", origin: "[汉] 地上", rom: "ji-sang" },
+        { ko: "지하", cn: "地下", origin: "[汉] 地下", rom: "ji-ha" },
+        { ko: "구간", cn: "区间", origin: "[汉] 區間", rom: "gu-gan" },
+        { ko: "출입구", cn: "出入口", origin: "[汉] 出入口", rom: "chu-rip-gu" }, // 连音
+        { ko: "연마", cn: "研磨/磨光", origin: "[汉] 硏磨", rom: "yeon-ma" },
+        { ko: "홈파기", cn: "开槽", origin: "[韩] 홈 + 파기", rom: "hom-pa-gi" },
+        { ko: "호이스트", cn: "H部分/升降机", origin: "[外] Hoist", rom: "ho-i-seu-teu" },
+        { ko: "몰딩석", cn: "线条石", origin: "[混] Molding + 石", rom: "mol-ding-seok" },
+        { ko: "정면", cn: "正面", origin: "[汉] 正面", rom: "jeong-myeon" },
+        { ko: "배면", cn: "背面", origin: "[汉] 背面", rom: "bae-myeon" },
+        { ko: "우측", cn: "右侧", origin: "[汉] 右側", rom: "u-cheuk" },
+        { ko: "좌측", cn: "左侧", origin: "[汉] 左側", rom: "jwa-cheuk" },
+        { ko: "지정석재", cn: "指定石材", origin: "[汉] 指定石材", rom: "ji-jeong-seok-jae" },
+        { ko: "시공", cn: "施工", origin: "[汉] 施工", rom: "si-gong" },
+        { ko: "단차", cn: "跌级/高低差", origin: "[汉] 段差", rom: "dan-cha" },
+        { ko: "바닥", cn: "地面", origin: "[韩] 바닥", rom: "ba-dak" },
+        { ko: "도면", cn: "图纸", origin: "[汉] 圖面", rom: "do-myeon" },
+        { ko: "참조", cn: "参照", origin: "[汉] 參照", rom: "cham-jo" },
+        { ko: "설치", cn: "安装/设置", origin: "[汉] 設置", rom: "seol-chi" },
+        { ko: "안내", cn: "示意/向导", origin: "[汉] 案內", rom: "an-nae" },
+        { ko: "면치기", cn: "倒角", origin: "[韩] 면 + 치기", rom: "myeon-chi-gi" },
+        { ko: "평면도", cn: "平面图", origin: "[汉] 平面圖", rom: "pyeong-myeon-do" },
+        { ko: "두겁", cn: "压顶", origin: "[韩] 두겁", rom: "du-geop" },
+        { ko: "잔다듬", cn: "荔枝面", origin: "[韩] 잔 + 다듬", rom: "jan-da-deum" },
+        { ko: "단면", cn: "剖面", origin: "[汉] 斷面", rom: "dan-myeon" },
+        { ko: "상세도", cn: "详图", origin: "[汉] 詳細圖", rom: "sang-se-do" },
+        { ko: "가공", cn: "加工", origin: "[汉] 加工", rom: "ga-gong" },
+        { ko: "상세", cn: "细节/详细", origin: "[汉] 詳細", rom: "sang-se" },
+        { ko: "위", cn: "上", origin: "[韩] 위", rom: "wi" },
+        { ko: "아래", cn: "下", origin: "[韩] 아래", rom: "a-rae" },
+        { ko: "좌", cn: "左", origin: "[汉] 左", rom: "jwa" },
+        { ko: "우", cn: "右", origin: "[汉] 右", rom: "u" },
+        { ko: "동", cn: "栋", origin: "[汉] 棟", rom: "dong" },
+        { ko: "층", cn: "层", origin: "[汉] 層", rom: "cheung" },
+        { ko: "폭", cn: "宽", origin: "[汉] 幅", rom: "pok" },
+        { ko: "길이", cn: "长", origin: "[韩] 길이", rom: "gi-ri" },
+        { ko: "두께", cn: "厚度", origin: "[韩] 두께", rom: "du-kke" }
     ];
 
     // --- 2. 游戏逻辑 ---
@@ -254,11 +270,18 @@
         document.getElementById('progress').textContent = `第 ${questionCount} 题`;
         document.getElementById('next-btn').style.display = 'none';
         
+        // 隐藏音标
+        const pronDiv = document.getElementById('pronunciation-text');
+        pronDiv.classList.remove('show');
+        pronDiv.textContent = ''; // 先清空，防止看到上一个
+        
         // 随机选题
         const randomIndex = Math.floor(Math.random() * wordDatabase.length);
         currentQuestion = wordDatabase[randomIndex];
         
         document.getElementById('question-word').textContent = currentQuestion.ko;
+        // 设置音标文本，但暂时不显示（通过CSS控制）
+        pronDiv.textContent = `[ ${currentQuestion.rom} ]`;
         
         // 生成选项
         let options = [currentQuestion];
@@ -284,9 +307,7 @@
                 <span class="origin-text">${opt.origin}</span>
             `;
             
-            // 将数据绑定到按钮上，方便checkAnswer调用
             btn.dataset.ko = opt.ko; 
-            
             btn.onclick = () => checkAnswer(btn, opt);
             container.appendChild(btn);
         });
@@ -295,6 +316,9 @@
     function checkAnswer(btn, selectedOption) {
         if (isAnswered) return;
         isAnswered = true;
+
+        // 显示音标
+        document.getElementById('pronunciation-text').classList.add('show');
 
         const allBtns = document.querySelectorAll('.option-btn');
 
