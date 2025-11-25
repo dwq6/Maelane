@@ -65,6 +65,7 @@
             color: var(--text-main);
             margin-bottom: 10px;
             line-height: 1.2;
+            word-break: keep-all;
         }
 
         .speaker-btn {
@@ -76,7 +77,9 @@
             font-size: 0.9rem;
             cursor: pointer;
             margin-top: 10px;
-            user-select: none; /* 防止双击选中文本 */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            border: 1px solid transparent;
         }
         
         .speaker-btn:active {
@@ -105,7 +108,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             text-align: center;
             font-weight: 500;
-            -webkit-tap-highlight-color: transparent; /* 去除手机点击高亮 */
+            -webkit-tap-highlight-color: transparent;
         }
 
         .option-btn:active {
@@ -136,7 +139,7 @@
             font-size: 1.1rem;
             font-weight: bold;
             cursor: pointer;
-            display: none; /* 默认隐藏 */
+            display: none;
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
@@ -163,7 +166,7 @@
 
     <div class="question-card" id="questionCard">
         <div class="korean-word" id="questionText">...</div>
-        <div class="speaker-btn" onclick="playCurrentAudio()">🔊 听发音</div>
+        <div class="speaker-btn" onclick="playCurrentAudio(true)">🔊 听发音</div>
     </div>
 
     <div class="options-grid" id="optionsContainer">
@@ -171,9 +174,6 @@
     </div>
 
     <button class="next-btn" id="nextBtn" onclick="initGame()">下一题 ➡️</button>
-
-    <!-- 隐藏的音频播放器 -->
-    <audio id="audioPlayer"></audio>
 
     <script>
         // 数据源
@@ -240,47 +240,83 @@
         let currentItem = null;
         let score = 0;
         let isAnswered = false;
+        let audioObj = new Audio();
 
         const questionText = document.getElementById('questionText');
         const optionsContainer = document.getElementById('optionsContainer');
         const scoreEl = document.getElementById('score');
         const nextBtn = document.getElementById('nextBtn');
         const questionCard = document.getElementById('questionCard');
-        const audioPlayer = document.getElementById('audioPlayer');
 
-        // 随机打乱数组
         function shuffle(array) {
             return array.sort(() => Math.random() - 0.5);
         }
 
-        // 播放声音 (修改版：使用有道词典在线接口)
-        function playCurrentAudio() {
+        // --- 核心音频播放逻辑 (三级备选) ---
+        function playCurrentAudio(isManualClick = false) {
             if (!currentItem) return;
+            
             const text = currentItem.ko;
+            const isEnglish = /^[A-Za-z0-9\s]+$/.test(text);
             
-            // 使用有道词典的语音接口，le=ko 代表韩语
-            // 加上 encodeURIComponent 是为了处理特殊字符
-            const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=ko`;
+            // 1. 尝试搜狗接口 (通常最稳)
+            // 韩语: ko, 英语: en
+            const langSogou = isEnglish ? 'en' : 'ko';
+            const urlSogou = `https://fanyi.sogou.com/reventondc/synthesis?text=${encodeURIComponent(text)}&speed=1&lang=${langSogou}&from=translateweb`;
             
-            audioPlayer.src = audioUrl;
-            audioPlayer.play().catch(e => {
-                console.error("播放失败:", e);
-                alert("播放失败，请检查网络或手机静音设置");
+            // 2. 尝试有道接口 (备选)
+            const langYoudao = isEnglish ? 'en' : 'ko';
+            const urlYoudao = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=${langYoudao}`;
+
+            // 播放尝试链
+            tryPlay(urlSogou)
+                .catch(() => {
+                    console.log('搜狗接口失败，尝试有道...');
+                    return tryPlay(urlYoudao);
+                })
+                .catch(() => {
+                    console.log('网络接口都失败，尝试系统自带...');
+                    speakSystem(text, isEnglish);
+                });
+        }
+
+        function tryPlay(url) {
+            return new Promise((resolve, reject) => {
+                audioObj.src = url;
+                // 监听加载错误
+                audioObj.onerror = () => reject('Load Error');
+                
+                const playPromise = audioObj.play();
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => resolve())
+                        .catch(error => reject(error));
+                } else {
+                    resolve(); // 某些旧浏览器
+                }
             });
         }
 
-        // 初始化游戏/下一题
+        function speakSystem(text, isEnglish) {
+            // 最后的倔强：系统自带 TTS
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = isEnglish ? 'en-US' : 'ko-KR';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // 初始化游戏
         function initGame() {
             isAnswered = false;
             nextBtn.style.display = 'none';
             optionsContainer.innerHTML = '';
             questionCard.classList.remove('anim-shake');
 
-            // 1. 随机选一个正确答案
             const randomIndex = Math.floor(Math.random() * vocabulary.length);
             currentItem = vocabulary[randomIndex];
 
-            // 2. 随机选3个错误答案 (去重)
             let distractors = [];
             while (distractors.length < 3) {
                 const r = Math.floor(Math.random() * vocabulary.length);
@@ -289,10 +325,8 @@
                 }
             }
 
-            // 3. 混合选项
             const options = shuffle([currentItem, ...distractors]);
 
-            // 4. 渲染界面
             questionText.textContent = currentItem.ko;
 
             options.forEach(opt => {
@@ -304,42 +338,4 @@
             });
         }
 
-        // 检查答案
-        function checkAnswer(btn, selectedOption) {
-            if (isAnswered) return; // 防止重复点击
-            isAnswered = true;
-
-            const allBtns = document.querySelectorAll('.option-btn');
-
-            if (selectedOption === currentItem) {
-                // 答对了
-                btn.classList.add('correct');
-                score += 10;
-                scoreEl.textContent = score;
-                playCurrentAudio(); // 答对自动播放
-                
-                // 1.2秒后自动下一题
-                setTimeout(initGame, 1200);
-            } else {
-                // 答错了
-                btn.classList.add('wrong');
-                questionCard.classList.add('anim-shake'); // 震动效果
-                
-                // 找出正确的那个并标绿
-                allBtns.forEach(b => {
-                    if (b.textContent === currentItem.cn) {
-                        b.classList.add('correct');
-                    }
-                });
-                
-                // 显示下一题按钮
-                nextBtn.style.display = 'block';
-            }
-        }
-
-        // 开始游戏
-        initGame();
-
-    </script>
-</body>
-</html>
+        function checkAnswer(btn
