@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>建筑韩语特训</title>
+    <title>建筑韩语特训 - 词源版</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -73,14 +73,14 @@
         .options-grid {
             width: 100%;
             display: grid;
-            grid-template-columns: 1fr 1fr; /* 两列布局更适合短词 */
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
         }
 
         .option-btn {
             background: white;
             border: none;
-            padding: 20px 10px;
+            padding: 15px 5px;
             border-radius: 12px;
             font-size: 16px;
             color: #333;
@@ -89,12 +89,23 @@
             transition: all 0.1s;
             font-weight: 500;
             display: flex;
+            flex-direction: column; /* 改为垂直排列，以便显示词源 */
             align-items: center;
             justify-content: center;
-            min-height: 60px;
+            min-height: 70px;
+            line-height: 1.4;
         }
 
         .option-btn:active { transform: scale(0.96); background: #f5f5f5; }
+
+        /* 词源小字样式 */
+        .origin-text {
+            display: none; /* 默认隐藏 */
+            font-size: 12px;
+            margin-top: 4px;
+            font-weight: normal;
+            opacity: 0.9;
+        }
 
         /* 正确/错误样式 */
         .correct {
@@ -107,6 +118,12 @@
             background-color: #ff5252 !important;
             color: white !important;
             animation: shake 0.4s;
+        }
+
+        /* 选中后显示词源 */
+        .correct .origin-text, .wrong .origin-text {
+            display: block;
+            color: #e8f5e9; /* 浅色字 */
         }
 
         /* 下一题按钮 */
@@ -155,62 +172,61 @@
 <audio id="audio-player"></audio>
 
 <script>
-    // --- 1. 建筑/图纸专用词库 ---
+    // --- 1. 建筑/图纸专用词库 (已添加 origin 词源) ---
+    // [汉] = 汉字词, [韩] = 固有词, [外] = 外来语, [混] = 混合词
     const wordDatabase = [
-        { ko: "두겁석", cn: "顶板" },
-        { ko: "입면도", cn: "立面图" },
-        { ko: "입면", cn: "立面" },
-        { ko: "물갈기", cn: "磨光" },
-        { ko: "버너", cn: "火烧" },
-        { ko: "저층부", cn: "低层" },
-        { ko: "외벽", cn: "外墙" },
-        { ko: "부분", cn: "部分" },
-        { ko: "전개도", cn: "平面图" },
-        { ko: "전개도", cn: "展开图" },
-        { ko: "정면도", cn: "正面图" },
-        { ko: "배면도", cn: "背面图" },
-        { ko: "주문주", cn: "主入口" },
-        { ko: "기준", cn: "基准" },
-        { ko: "번호", cn: "编号" },
-        { ko: "천장도", cn: "天花板图" },
-        { ko: "지상", cn: "地上" },
-        { ko: "지하", cn: "地下" },
-        { ko: "구간", cn: "区间" },
-        { ko: "출입구", cn: "出入口" },
-        { ko: "연마", cn: "磨光" },
-        { ko: "홈파기", cn: "开槽" },
-        { ko: "호이스트", cn: "H部分" },
-        { ko: "몰딩석", cn: "条石" },
-        { ko: "정면", cn: "正面" },
-        { ko: "배면", cn: "背面" },
-        { ko: "우측", cn: "右侧" },
-        { ko: "좌측", cn: "左侧" },
-        { ko: "지정석재", cn: "指定石材" },
-        { ko: "시공", cn: "施工" },
-        { ko: "단차", cn: "跌级" },
-        { ko: "바닥", cn: "地面" },
-        { ko: "도면", cn: "图纸" },
-        { ko: "참조", cn: "参照" },
-        { ko: "설치", cn: "安装" },
-        { ko: "참조", cn: "参考" },
-        { ko: "안내", cn: "示意" },
-        { ko: "면치기", cn: "倒角" },
-        { ko: "평면도", cn: "平面图" },
-        { ko: "두겁", cn: "压顶" },
-        { ko: "잔다듬", cn: "荔枝面" },
-        { ko: "단면", cn: "剖面" },
-        { ko: "상세도", cn: "详图" },
-        { ko: "가공", cn: "加工" },
-        { ko: "상세", cn: "细节" },
-        { ko: "위", cn: "上" },
-        { ko: "아래", cn: "下" },
-        { ko: "좌", cn: "左" },
-        { ko: "우", cn: "右" },
-        { ko: "동", cn: "栋" },
-        { ko: "층", cn: "层" },
-        { ko: "폭", cn: "宽" },
-        { ko: "길이", cn: "长" },
-        { ko: "두께", cn: "厚度" }
+        { ko: "두겁석", cn: "顶板/压顶石", origin: "[混] 두겁(盖) + 石" },
+        { ko: "입면도", cn: "立面图", origin: "[汉] 立面圖" },
+        { ko: "입면", cn: "立面", origin: "[汉] 立面" },
+        { ko: "물갈기", cn: "磨光", origin: "[韩] 물(水) + 갈기(磨)" },
+        { ko: "버너", cn: "火烧面", origin: "[外] Burner" },
+        { ko: "저층부", cn: "低层部", origin: "[汉] 低層部" },
+        { ko: "외벽", cn: "外墙", origin: "[汉] 外壁" },
+        { ko: "부분", cn: "部分", origin: "[汉] 部分" },
+        { ko: "전개도", cn: "展开图", origin: "[汉] 展開圖" },
+        { ko: "정면도", cn: "正面图", origin: "[汉] 正面圖" },
+        { ko: "배면도", cn: "背面图", origin: "[汉] 背面圖" },
+        { ko: "주문주", cn: "主入口", origin: "[汉] 主門柱(推测)或误写" }, // 注：通常主入口是 주출입구
+        { ko: "기준", cn: "基准", origin: "[汉] 基準" },
+        { ko: "번호", cn: "编号", origin: "[汉] 番號" },
+        { ko: "천장도", cn: "天花板图", origin: "[汉] 天障圖" },
+        { ko: "지상", cn: "地上", origin: "[汉] 地上" },
+        { ko: "지하", cn: "地下", origin: "[汉] 地下" },
+        { ko: "구간", cn: "区间", origin: "[汉] 區間" },
+        { ko: "출입구", cn: "出入口", origin: "[汉] 出入口" },
+        { ko: "연마", cn: "研磨/磨光", origin: "[汉] 硏磨" },
+        { ko: "홈파기", cn: "开槽", origin: "[韩] 홈(槽) + 파기(挖)" },
+        { ko: "호이스트", cn: "H部分/升降机", origin: "[外] Hoist" },
+        { ko: "몰딩석", cn: "线条石", origin: "[混] Molding + 石" },
+        { ko: "정면", cn: "正面", origin: "[汉] 正面" },
+        { ko: "배면", cn: "背面", origin: "[汉] 背面" },
+        { ko: "우측", cn: "右侧", origin: "[汉] 右側" },
+        { ko: "좌측", cn: "左侧", origin: "[汉] 左側" },
+        { ko: "지정석재", cn: "指定石材", origin: "[汉] 指定石材" },
+        { ko: "시공", cn: "施工", origin: "[汉] 施工" },
+        { ko: "단차", cn: "跌级/高低差", origin: "[汉] 段差" },
+        { ko: "바닥", cn: "地面", origin: "[韩] 바닥" },
+        { ko: "도면", cn: "图纸", origin: "[汉] 圖面" },
+        { ko: "참조", cn: "参照", origin: "[汉] 參照" },
+        { ko: "설치", cn: "安装/设置", origin: "[汉] 設置" },
+        { ko: "안내", cn: "示意/向导", origin: "[汉] 案內" },
+        { ko: "면치기", cn: "倒角", origin: "[韩] 면(面) + 치기(打/削)" },
+        { ko: "평면도", cn: "平面图", origin: "[汉] 平面圖" },
+        { ko: "두겁", cn: "压顶", origin: "[韩] 두겁(套/盖)" },
+        { ko: "잔다듬", cn: "荔枝面", origin: "[韩] 잔(细) + 다듬(修整)" },
+        { ko: "단면", cn: "剖面", origin: "[汉] 斷面" },
+        { ko: "상세도", cn: "详图", origin: "[汉] 詳細圖" },
+        { ko: "가공", cn: "加工", origin: "[汉] 加工" },
+        { ko: "상세", cn: "细节/详细", origin: "[汉] 詳細" },
+        { ko: "위", cn: "上", origin: "[韩] 위" },
+        { ko: "아래", cn: "下", origin: "[韩] 아래" },
+        { ko: "좌", cn: "左", origin: "[汉] 左" },
+        { ko: "우", cn: "右", origin: "[汉] 右" },
+        { ko: "동", cn: "栋", origin: "[汉] 棟" },
+        { ko: "층", cn: "层", origin: "[汉] 層" },
+        { ko: "폭", cn: "宽", origin: "[汉] 幅" },
+        { ko: "길이", cn: "长", origin: "[韩] 길이" },
+        { ko: "두께", cn: "厚度", origin: "[韩] 두께" }
     ];
 
     // --- 2. 游戏逻辑 ---
@@ -223,7 +239,6 @@
         if (!currentQuestion.ko) return;
         const text = currentQuestion.ko;
         const audio = document.getElementById('audio-player');
-        // 网易有道接口
         const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=ko&_t=${new Date().getTime()}`;
         audio.src = url;
         audio.play().catch(e => {});
@@ -245,13 +260,10 @@
         
         document.getElementById('question-word').textContent = currentQuestion.ko;
         
-        // 生成选项：1个正确 + 3个干扰
+        // 生成选项
         let options = [currentQuestion];
         while (options.length < 4) {
             const randomDistractor = wordDatabase[Math.floor(Math.random() * wordDatabase.length)];
-            
-            // 核心逻辑：确保干扰项的“韩文”和当前题目的“韩文”不一样
-            // 这样即使中文意思相近（如参照/参考），也不会作为错误选项出现
             if (randomDistractor.ko !== currentQuestion.ko && !options.includes(randomDistractor)) {
                 options.push(randomDistractor);
             }
@@ -265,7 +277,16 @@
         options.forEach(opt => {
             const btn = document.createElement('button');
             btn.className = 'option-btn';
-            btn.textContent = opt.cn;
+            
+            // 结构：上面是中文，下面是隐藏的词源span
+            btn.innerHTML = `
+                <span>${opt.cn}</span>
+                <span class="origin-text">${opt.origin}</span>
+            `;
+            
+            // 将数据绑定到按钮上，方便checkAnswer调用
+            btn.dataset.ko = opt.ko; 
+            
             btn.onclick = () => checkAnswer(btn, opt);
             container.appendChild(btn);
         });
@@ -277,7 +298,7 @@
 
         const allBtns = document.querySelectorAll('.option-btn');
 
-        // 判断是否正确 (对比韩文原文，确保唯一性)
+        // 判断是否正确
         if (selectedOption.ko === currentQuestion.ko) {
             btn.classList.add('correct');
             score += 10;
@@ -289,10 +310,7 @@
             
             // 标出正确答案
             allBtns.forEach(b => {
-                // 这里需要反向查找哪个按钮对应的是正确答案
-                // 因为可能有重复的中文意思，我们通过点击事件绑定的对象来判断太复杂
-                // 简单方法：直接对比中文文本（虽然有风险，但在当前列表下是安全的）
-                if (b.textContent === currentQuestion.cn) {
+                if (b.dataset.ko === currentQuestion.ko) {
                     b.classList.add('correct');
                 }
             });
