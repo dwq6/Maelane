@@ -76,6 +76,12 @@
             font-size: 0.9rem;
             cursor: pointer;
             margin-top: 10px;
+            user-select: none; /* 防止双击选中文本 */
+        }
+        
+        .speaker-btn:active {
+            background: #dbeafe;
+            transform: scale(0.95);
         }
 
         /* 选项区域 */
@@ -99,6 +105,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             text-align: center;
             font-weight: 500;
+            -webkit-tap-highlight-color: transparent; /* 去除手机点击高亮 */
         }
 
         .option-btn:active {
@@ -164,6 +171,9 @@
     </div>
 
     <button class="next-btn" id="nextBtn" onclick="initGame()">下一题 ➡️</button>
+
+    <!-- 隐藏的音频播放器 -->
+    <audio id="audioPlayer"></audio>
 
     <script>
         // 数据源
@@ -236,22 +246,27 @@
         const scoreEl = document.getElementById('score');
         const nextBtn = document.getElementById('nextBtn');
         const questionCard = document.getElementById('questionCard');
+        const audioPlayer = document.getElementById('audioPlayer');
 
         // 随机打乱数组
         function shuffle(array) {
             return array.sort(() => Math.random() - 0.5);
         }
 
-        // 播放声音
+        // 播放声音 (修改版：使用有道词典在线接口)
         function playCurrentAudio() {
             if (!currentItem) return;
             const text = currentItem.ko;
-            const isEnglish = /^[A-Za-z0-9\s]+$/.test(text);
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = isEnglish ? 'en-US' : 'ko-KR';
-            utterance.rate = 0.9;
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utterance);
+            
+            // 使用有道词典的语音接口，le=ko 代表韩语
+            // 加上 encodeURIComponent 是为了处理特殊字符
+            const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=ko`;
+            
+            audioPlayer.src = audioUrl;
+            audioPlayer.play().catch(e => {
+                console.error("播放失败:", e);
+                alert("播放失败，请检查网络或手机静音设置");
+            });
         }
 
         // 初始化游戏/下一题
@@ -303,7 +318,7 @@
                 scoreEl.textContent = score;
                 playCurrentAudio(); // 答对自动播放
                 
-                // 1秒后自动下一题
+                // 1.2秒后自动下一题
                 setTimeout(initGame, 1200);
             } else {
                 // 答错了
