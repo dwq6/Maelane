@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>韩国现场地名特训</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 顶部数据栏 */
+        .header {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            color: #555;
+            font-size: 14px;
+            font-weight: bold;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-sizing: border-box;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* 单词卡片 */
+        .word-card {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            padding: 40px 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            text-align: center;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            border-bottom: 4px solid #e0e0e0;
+        }
+
+        .korean-word {
+            font-size: 42px;
+            font-weight: 800;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: block;
+            word-break: keep-all;
+        }
+
+        .speaker-btn {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: none;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+        .speaker-btn:active { background: #bbdefb; }
+
+        /* 选项网格 */
+        .options-grid {
+            width: 100%;
+            max-width: 600px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: white;
+            border: none;
+            padding: 15px 10px;
+            border-radius: 12px;
+            font-size: 18px;
+            color: #333;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.1s;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 60px;
+        }
+
+        .option-btn:active { transform: scale(0.98); background: #f5f5f5; }
+
+        /* 正确/错误样式 */
+        .correct {
+            background-color: #4caf50 !important;
+            color: white !important;
+            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+        }
+        
+        .wrong {
+            background-color: #ff5252 !important;
+            color: white !important;
+            animation: shake 0.4s;
+        }
+
+        /* 详细解释区域 (新增) */
+        .explanation-card {
+            display: none; /* 默认隐藏 */
+            width: 100%;
+            max-width: 600px;
+            background: #fff8e1; /* 浅黄色背景 */
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-sizing: border-box;
+            text-align: left;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .explanation-title {
+            font-weight: bold;
+            color: #d35400;
+            margin-bottom: 8px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .explanation-content {
+            color: #555;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        /* 下一题按钮 */
+        .next-btn {
+            margin-top: 25px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            width: 80%;
+            max-width: 300px;
+            padding: 14px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+            cursor: pointer;
+            display: none; 
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #audio-player { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <span id="score">得分: 0</span>
+    <span id="progress">第 1 题</span>
+</div>
+
+<div class="word-card">
+    <div class="korean-word" id="question-word">Loading...</div>
+    <button class="speaker-btn" onclick="playCurrentWord()">
+        🔊 听发音
+    </button>
+</div>
+
+<div class="options-grid" id="options-container"></div>
+
+<!-- 新增：详细解释区域 -->
+<div class="explanation-card" id="explanation-area">
+    <div class="explanation-title">💡 详细信息</div>
+    <div class="explanation-content" id="explanation-text"></div>
+</div>
+
+<button class="next-btn" id="next-btn" onclick="nextQuestion()">下一题 ➜</button>
+
+<audio id="audio-player"></audio>
+
+<script>
+    // --- 1. 现场地名/品牌词库 ---
+    const wordDatabase = [
+        // MKN
+        { ko: "이천", cn: "利川", detail: "位于京畿道东南部。以大米、陶瓷闻名，也是SK海力士半导体工厂所在地。" },
+        { ko: "구미", cn: "龟尾", detail: "位于庆尚北道西部。韩国著名的内陆工业城市，电子产业非常发达。" },
+        { ko: "김해", cn: "金海", detail: "位于庆尚南道，紧邻釜山。金海国际机场所在地，古代金官伽倻首都。" },
+        { ko: "대명", cn: "大明", detail: "指大明建设(Daemyung)。原始地名通常指大邱南区的大明洞。" },
+        { ko: "동탄", cn: "东滩", detail: "位于京畿道华城市。韩国规模最大的新都市之一，三星电子产业聚集地。" },
+        { ko: "창원", cn: "昌原", detail: "位于庆尚南道，道政府所在地。韩国代表性的机械工业城市。" },
+        { ko: "방배", cn: "方背", detail: "位于首尔瑞草区。首尔著名的富人居住区之一，属于江南圈。" },
+        { ko: "천안", cn: "天安", detail: "位于忠清南道东北部。连接首尔和南部的交通枢纽，大学众多。" },
+        
+        // KJ
+        { ko: "군산", cn: "群山", detail: "位于全罗北道西北部。著名港口城市，拥有许多近代历史建筑。" },
+        { ko: "대전", cn: "大田", detail: "韩国中部广域市。韩国的科技中心，大德研究特区所在地。" },
+        { ko: "첨단", cn: "尖端", detail: "位于光州广域市光山区。指“尖端地区”，高科技产业与居住复合区。" },
+        { ko: "춘천", cn: "春川", detail: "位于江原道西部，道政府所在地。以湖泊和铁板鸡料理闻名。" },
+        { ko: "아산", cn: "牙山", detail: "位于忠清南道北部，紧邻天安。以温阳温泉和三星显示器工厂闻名。" },
+        
+        // ZW
+        { ko: "롯데", cn: "乐天", detail: "乐天建设(Lotte Castle)。韩国五大财阀之一的乐天集团旗下品牌。" },
+        // 동탄 已在 MKN 中包含，此处不重复添加以防混淆
+
+        // KS
+        { ko: "서한", cn: "西汉", detail: "(株)西汉。总部位于大邱的知名建筑公司，项目多集中在庆北地区。" },
+        { ko: "쌍용", cn: "双龙", detail: "双龙建设(Ssangyong)。知名建企，曾建造新加坡滨海湾金沙酒店。" },
+        { ko: "호반", cn: "湖畔", detail: "湖畔建设(Hoban Summit)。韩国排名前十的大型建筑公司。" },
+
+        // KW
+        { ko: "하월곡", cn: "下月谷", detail: "位于首尔城北区。典型的居住密集区，旧称月谷洞。" },
+        { ko: "봉천", cn: "奉天", detail: "位于首尔冠岳区。靠近首尔大学，人口非常密集的居住区。" },
+        { ko: "독산", cn: "秃山", detail: "位于首尔衿川区。过去是工业区，现转型为知识产业中心聚集地。" },
+
+        // DK
+        { ko: "본리", cn: "本里", detail: "通常指大邱广域市达西区本里洞。主要居住和商业混合区。" },
+
+        // TF
+        { ko: "포항", cn: "浦项", detail: "位于庆尚北道东海岸。世界著名的钢铁城市，浦项制铁(POSCO)总部。" },
+
+        // QMD
+        { ko: "원주", cn: "原州", detail: "位于江原道西南部。江原道人口最多的城市，革新都市。" },
+        { ko: "대우", cn: "大宇", detail: "大宇建设(Prugio)。韩国顶级建筑公司之一。" },
+
+        // BS
+        { ko: "안계", cn: "安溪", detail: "通常指庆尚北道义城郡安溪面。典型的农村中心地区。" },
+
+        // SQ
+        { ko: "경산", cn: "庆山", detail: "位于庆尚北道南部，紧邻大邱。大邱的卫星城，大学非常多。" },
+        { ko: "칠곡", cn: "漆谷", detail: "指庆北漆谷郡或大邱北区漆谷地区。重要的交通要道。" }
+    ];
+
+    // --- 2. 游戏逻辑 ---
+    let currentQuestion = {};
+    let score = 0;
+    let questionCount = 0;
+    let isAnswered = false;
+
+    function playCurrentWord() {
+        if (!currentQuestion.ko) return;
+        const text = currentQuestion.ko;
+        const audio = document.getElementById('audio-player');
+        // 网易有道接口
+        const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=ko&_t=${new Date().getTime()}`;
+        audio.src = url;
+        audio.play().catch(e => {});
+    }
+
+    function initGame() {
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        isAnswered = false;
+        questionCount++;
+        document.getElementById('progress').textContent = `第 ${questionCount} 题`;
+        document.getElementById('next-btn').style.display = 'none';
+        document.getElementById('explanation-area').style.display = 'none'; // 隐藏解释
+        
+        // 随机选题
+        const randomIndex = Math.floor(Math.random() * wordDatabase.length);
+        currentQuestion = wordDatabase[randomIndex];
+        
+        document.getElementById('question-word').textContent = currentQuestion.ko;
+        
+        // 生成选项：1个正确 + 3个干扰
+        let options = [currentQuestion];
+        while (options.length < 4) {
+            const randomDistractor = wordDatabase[Math.floor(Math.random() * wordDatabase.length)];
+            
+            // 核心逻辑：确保干扰项的“韩文”和当前题目的“韩文”不一样
+            if (randomDistractor.ko !== currentQuestion.ko && !options.includes(randomDistractor)) {
+                options.push(randomDistractor);
+            }
+        }
+        
+        options.sort(() => Math.random() - 0.5);
+        
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = opt.cn;
+            btn.onclick = () => checkAnswer(btn, opt);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(btn, selectedOption) {
+        if (isAnswered) return;
+        isAnswered = true;
+
+        const allBtns = document.querySelectorAll('.option-btn');
+
+        // 判断是否正确
+        if (selectedOption.ko === currentQuestion.ko) {
+            btn.classList.add('correct');
+            score += 10;
+            document.getElementById('score').textContent = `得分: ${score}`;
+            playCurrentWord(); 
+        } else {
+            btn.classList.add('wrong');
+            if (navigator.vibrate) navigator.vibrate(200);
+            
+            // 标出正确答案
+            allBtns.forEach(b => {
+                if (b.textContent === currentQuestion.cn) {
+                    b.classList.add('correct');
+                }
+            });
+        }
+
+        // 显示详细信息
+        const expArea = document.getElementById('explanation-area');
+        const expText = document.getElementById('explanation-text');
+        
+        // 组合显示内容：意思 + 详细信息
+        expText.innerHTML = `<strong>${currentQuestion.cn}</strong><br/>${currentQuestion.detail}`;
+        expArea.style.display = 'block';
+
+        document.getElementById('next-btn').style.display = 'block';
+    }
+
+    initGame();
+</script>
+</body>
+</html>
