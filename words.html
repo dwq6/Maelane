@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>建筑韩语特训 - 词源+音标版</title>
+    <title>建筑韩语特训 - 音标辅助版</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -49,24 +49,19 @@
             font-size: 36px;
             font-weight: 800;
             color: #2c3e50;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             display: block;
             word-break: keep-all;
         }
 
-        /* 新增：音标样式 */
+        /* 修改：音标样式 - 默认直接显示 */
         .pronunciation {
             font-size: 18px;
-            color: #888;
-            font-family: "Courier New", Courier, monospace; /* 等宽字体看起来更像音标 */
+            color: #e91e63; /* 改个醒目的颜色，提示这是发音 */
+            font-family: "Courier New", Courier, monospace;
             margin-bottom: 15px;
-            min-height: 24px; /* 占位，防止抖动 */
-            opacity: 0; /* 默认隐藏 */
-            transition: opacity 0.3s ease;
-        }
-        
-        .pronunciation.show {
-            opacity: 1;
+            font-weight: 600;
+            display: block; /* 确保显示 */
         }
 
         .speaker-btn {
@@ -113,7 +108,7 @@
 
         .option-btn:active { transform: scale(0.96); background: #f5f5f5; }
 
-        /* 词源小字样式 */
+        /* 词源小字样式 - 依然保持隐藏，点选后显示 */
         .origin-text {
             display: none;
             font-size: 12px;
@@ -174,7 +169,7 @@
 
 <div class="word-card">
     <div class="korean-word" id="question-word">Loading...</div>
-    <!-- 新增音标显示区域 -->
+    <!-- 音标区域 -->
     <div class="pronunciation" id="pronunciation-text"></div>
     
     <button class="speaker-btn" onclick="playCurrentWord()">
@@ -192,7 +187,7 @@
     // --- 1. 建筑/图纸专用词库 (含 词源 + 罗马音) ---
     const wordDatabase = [
         { ko: "두겁석", cn: "顶板/压顶石", origin: "[混] 두겁 + 石", rom: "du-geop-seok" },
-        { ko: "입면도", cn: "立面图", origin: "[汉] 立面圖", rom: "im-myeon-do" }, // 鼻音化
+        { ko: "입면도", cn: "立面图", origin: "[汉] 立面圖", rom: "im-myeon-do" },
         { ko: "입면", cn: "立面", origin: "[汉] 立面", rom: "im-myeon" },
         { ko: "물갈기", cn: "磨光", origin: "[韩] 물(水) + 갈기", rom: "mul-gal-gi" },
         { ko: "버너", cn: "火烧面", origin: "[外] Burner", rom: "beo-neo" },
@@ -209,7 +204,7 @@
         { ko: "지상", cn: "地上", origin: "[汉] 地上", rom: "ji-sang" },
         { ko: "지하", cn: "地下", origin: "[汉] 地下", rom: "ji-ha" },
         { ko: "구간", cn: "区间", origin: "[汉] 區間", rom: "gu-gan" },
-        { ko: "출입구", cn: "出入口", origin: "[汉] 出入口", rom: "chu-rip-gu" }, // 连音
+        { ko: "출입구", cn: "出入口", origin: "[汉] 出入口", rom: "chu-rip-gu" },
         { ko: "연마", cn: "研磨/磨光", origin: "[汉] 硏磨", rom: "yeon-ma" },
         { ko: "홈파기", cn: "开槽", origin: "[韩] 홈 + 파기", rom: "hom-pa-gi" },
         { ko: "호이스트", cn: "H部分/升降机", origin: "[外] Hoist", rom: "ho-i-seu-teu" },
@@ -270,18 +265,14 @@
         document.getElementById('progress').textContent = `第 ${questionCount} 题`;
         document.getElementById('next-btn').style.display = 'none';
         
-        // 隐藏音标
-        const pronDiv = document.getElementById('pronunciation-text');
-        pronDiv.classList.remove('show');
-        pronDiv.textContent = ''; // 先清空，防止看到上一个
-        
         // 随机选题
         const randomIndex = Math.floor(Math.random() * wordDatabase.length);
         currentQuestion = wordDatabase[randomIndex];
         
         document.getElementById('question-word').textContent = currentQuestion.ko;
-        // 设置音标文本，但暂时不显示（通过CSS控制）
-        pronDiv.textContent = `[ ${currentQuestion.rom} ]`;
+        
+        // 直接显示音标
+        document.getElementById('pronunciation-text').textContent = `[ ${currentQuestion.rom} ]`;
         
         // 生成选项
         let options = [currentQuestion];
@@ -316,9 +307,6 @@
     function checkAnswer(btn, selectedOption) {
         if (isAnswered) return;
         isAnswered = true;
-
-        // 显示音标
-        document.getElementById('pronunciation-text').classList.add('show');
 
         const allBtns = document.querySelectorAll('.option-btn');
 
