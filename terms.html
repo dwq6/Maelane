@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>韩语建筑术语全集</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        
+        /* 卡片基础样式 */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            height: 100%;
+        }
+        
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-color: #3b82f6;
+        }
+
+        /* 图标区域 */
+        .icon-area {
+            height: 100px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            background: #f1f5f9;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .icon-area svg {
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover .icon-area svg {
+            transform: scale(1.05);
+        }
+
+        /* 文本样式 */
+        .term-kr { font-size: 1.05rem; font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; text-align: center; line-height: 1.3; }
+        .term-cn { font-size: 0.9rem; color: #475569; text-align: center; margin-bottom: 0.5rem; font-weight: 500; }
+        
+        /* 额外信息 - 强制显示 (手机端可见) */
+        .meta-info {
+            display: block;
+            width: 100%;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px dashed #e2e8f0;
+            text-align: left;
+            font-size: 0.75rem;
+        }
+
+        .meta-row { display: flex; flex-direction: column; margin-bottom: 4px; }
+        .meta-label { color: #94a3b8; font-size: 0.7rem; margin-bottom: 1px; }
+        .meta-val { color: #64748b; font-family: monospace; font-size: 0.75rem; line-height: 1.2; }
+        
+        /* 标签样式 */
+        .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; position: absolute; top: 10px; right: 10px; z-index: 10; }
+        .badge-window { background-color: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; } 
+        .badge-detail { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; } 
+        .badge-site { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; } 
+        .badge-facility { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; } 
+
+        /* 筛选按钮 */
+        .filter-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        /* 隐藏类 */
+        .hidden { display: none; }
+
+        /* 动画 */
+        .highlight-stroke {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: draw 1.5s forwards;
+        }
+        @keyframes draw { to { stroke-dashoffset: 0; } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- 头部 -->
+        <div class="mb-8 text-center space-y-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800">🏗️ 韩国建筑现场术语交互图例</h1>
+            
+            <!-- 搜索 -->
+            <div class="max-w-md mx-auto relative">
+                <input type="text" id="searchInput" placeholder="搜索..." 
+                       class="w-full px-4 py-2.5 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm">
+                <div class="absolute right-4 top-3 text-gray-400">🔍</div>
+            </div>
+
+            <!-- 筛选 -->
+            <div class="flex flex-wrap justify-center gap-2" id="filterContainer">
+                <button class="filter-btn active px-4 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium" data-filter="all">全部</button>
+                <button class="filter-btn px-4 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium" data-filter="window">🪟 窗周围</button>
+                <button class="filter-btn px-4 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium" data-filter="detail">施工细部</button>
+                <button class="filter-btn px-4 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium" data-filter="structure">建筑形态</button>
+                <button class="filter-btn px-4 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium" data-filter="facility">配套设施</button>
+                <button class="filter-btn px-4 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium" data-filter="site">总图规划</button>
+            </div>
+        </div>
+
+        <!-- 网格 -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" id="cardGrid">
+            
+            <!-- === 1. 总图规划 (Site) === -->
+            
+            <!-- 停车坡道 -->
+            <div class="card" data-category="site" data-keywords="주차램프 坡道">
+                <span class="badge badge-site">总图</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 100 80" width="100%" height="100%">
+                        <rect x="10" y="20" width="80" height="50" fill="#cbd5e1"/>
+                        <rect x="20" y="35" width="60" height="35" fill="#334155"/>
+                        <path d="M20 70 L30 50" stroke="#64748b" stroke-width="1"/>
+                        <path d="M80 70 L70 50" stroke="#64748b" stroke-width="1"/>
+                        <path d="M50 65 L50 50" stroke="white" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M47 60 L50 65 L53 60" fill="white"/>
+                        <circle cx="50" cy="28" r="6" fill="#ef4444"/>
+                        <text x="48" y="30" font-size="6" fill="white" font-weight="bold">P</text>
+                    </svg>
+                </div>
+                <div class="term-kr">주차램프</div>
+                <div class="term-cn">地库坡道</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Jucha Ramp</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字(停车) + 英语(Ramp)</span></div>
+                </div>
+            </div>
+
+            <!-- === 2. 配套设施 (Facility) === -->
+            
+            <!-- 小型图书馆 -->
+            <div class="card" data-category="facility" data-keywords="작은도서관 图书馆 library">
+                <span class="badge badge-facility">设施</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 100 80" width="100%" height="100%">
+                        <path d="M15 30 L50 10 L85 30 V75 H15 Z" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+                        <rect x="42" y="55" width="16" height="20" fill="#cbd5e1" stroke="#334155"/>
+                        <rect x="25" y="35" width="50" height="15" fill="#bfdbfe" stroke="#334155"/>
+                        <line x1="25" y1="40" x2="75" y2="40" stroke="#334155" stroke-width="0.5"/>
+                        <line x1="25" y1="45" x2="75" y2="45" stroke="#334155" stroke-width="0.5"/>
+                        <path d="M28 40 V45 M32 40 V45 M35 40 V45 M40 40 V45 M50 40 V45 M60 40 V45" stroke="#334155" stroke-width="1"/>
+                        <circle cx="50" cy="22" r="5" fill="white" stroke="#334155"/>
+                        <text x="48" y="24" font-size="6">📚</text>
+                    </svg>
+                </div>
+                <div class="term-kr">작은도서관</div>
+                <div class="term-cn">小型图书馆</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Jageun Doseogwan</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">纯韩(小) + 汉字(图书馆)</span></div>
+                </div>
+            </div>
+
+            <!-- === 3. 建筑形态 (Structure) === -->
+            
+            <!-- 楼栋入口 (独立型) -->
+            <div class="card" data-category="structure" data-keywords="동출입구 독립형 楼栋入口 独立型">
+                <span class="badge badge-site">结构</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 100 80" width="100%" height="100%">
+                        <rect x="10" y="10" width="80" height="60" fill="#cbd5e1"/>
+                        <rect x="30" y="20" width="40" height="50" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+                        <rect x="25" y="15" width="50" height="5" fill="#e2e8f0" stroke="#475569" stroke-width="1.5"/>
+                        <rect x="40" y="45" width="20" height="25" fill="#94a3b8" opacity="0.5" stroke="#475569"/>
+                        <line x1="50" y1="45" x2="50" y2="70" stroke="#475569"/>
+                        <line x1="30" y1="35" x2="70" y2="35" stroke="#cbd5e1"/>
+                    </svg>
+                </div>
+                <div class="term-kr">동출입구(독립형)</div>
+                <div class="term-cn">楼栋入口 (独立型)</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Dong-chulipgu</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (栋出入口)</span></div>
+                </div>
+            </div>
+
+            <!-- 楼栋入口 (架空型) -->
+            <div class="card" data-category="structure" data-keywords="동출입구 필로티형 楼栋入口 架空型">
+                <span class="badge badge-site">结构</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 100 80" width="100%" height="100%">
+                        <rect x="10" y="10" width="80" height="60" fill="#cbd5e1"/>
+                        <rect x="20" y="35" width="60" height="8" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+                        <rect x="20" y="43" width="8" height="27" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+                        <rect x="72" y="43" width="8" height="27" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+                        <rect x="42" y="45" width="16" height="25" fill="#475569"/>
+                        <rect x="45" y="50" width="10" height="20" fill="#94a3b8"/>
+                    </svg>
+                </div>
+                <div class="term-kr">동출입구(필로티형)</div>
+                <div class="term-cn">楼栋入口 (架空型)</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Dong-chulipgu</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (栋出入口)</span></div>
+                </div>
+            </div>
+
+            <!-- === 4. 其他 === -->
+            
+            <div class="card" data-category="facility" data-keywords="주민공동시설 피트니스센터 健身房 gym">
+                <span class="badge badge-facility">设施</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <rect x="10" y="15" width="60" height="35" fill="#e2e8f0" stroke="#334155"/>
+                        <path d="M25 35 L55 35" stroke="#334155" stroke-width="4"/>
+                        <rect x="20" y="30" width="5" height="10" fill="#334155"/>
+                        <rect x="55" y="30" width="5" height="10" fill="#334155"/>
+                        <text x="30" y="25" font-size="8" fill="#ef4444">GYM</text>
+                    </svg>
+                </div>
+                <div class="term-kr">주민공동시설<br><span class="text-sm font-normal">(피트니스센터)</span></div>
+                <div class="term-cn">居民会所 (健身中心)</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Fitness Center</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">英语 (Fitness Center)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="facility" data-keywords="어린이집 幼儿园">
+                <span class="badge badge-facility">设施</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <path d="M40 10 L15 30 L65 30 Z" fill="#fca5a5"/>
+                        <rect x="20" y="30" width="40" height="20" fill="#fecaca"/>
+                        <circle cx="40" cy="20" r="3" fill="white"/>
+                    </svg>
+                </div>
+                <div class="term-kr">어린이집</div>
+                <div class="term-cn">幼儿园</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Eorinijip</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">纯韩语 (儿童之家)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="facility" data-keywords="경로당 老年中心">
+                <span class="badge badge-facility">设施</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <path d="M15 25 Q40 10 65 25" fill="none" stroke="#334155" stroke-width="2"/>
+                        <rect x="20" y="25" width="40" height="25" fill="#cbd5e1"/>
+                        <text x="35" y="45" font-size="16">👴</text>
+                    </svg>
+                </div>
+                <div class="term-kr">경로당</div>
+                <div class="term-cn">老年活动中心</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Gyeongrodang</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (敬老堂)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="facility" data-keywords="근린생활시설 商铺 商店">
+                <span class="badge badge-facility">设施</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <rect x="15" y="20" width="50" height="30" fill="#cbd5e1"/>
+                        <rect x="20" y="12" width="40" height="6" fill="#ef4444"/>
+                        <text x="35" y="45" font-size="16">🛒</text>
+                    </svg>
+                </div>
+                <div class="term-kr">근린생활시설</div>
+                <div class="term-cn">社区商铺/配套</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Geullin Saenghwal</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (近邻生活)</span></div>
+                </div>
+            </div>
+            
+            <div class="card" data-category="facility" data-keywords="관리사무소 物业 管理室">
+                <span class="badge badge-facility">设施</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <rect x="20" y="20" width="40" height="30" fill="#94a3b8"/>
+                        <rect x="35" y="35" width="10" height="15" fill="white"/>
+                        <text x="25" y="30" font-size="8" fill="white">OFFICE</text>
+                    </svg>
+                </div>
+                <div class="term-kr">관리사무소</div>
+                <div class="term-cn">物业管理处</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Gwalli Samuso</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (管理事务所)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="facility" data-keywords="송수구 消防送水口 fire hydrant">
+                <span class="badge badge-facility">消防设施</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <rect x="10" y="20" width="60" height="30" fill="#e2e8f0" stroke="#94a3b8"/>
+                        <rect x="15" y="25" width="50" height="15" fill="white" stroke="#cbd5e1"/>
+                        <circle cx="25" cy="32" r="3" fill="#ef4444"/>
+                        <circle cx="35" cy="32" r="3" fill="#ef4444"/>
+                        <circle cx="45" cy="32" r="3" fill="#ef4444"/>
+                        <circle cx="55" cy="32" r="3" fill="#ef4444"/>
+                    </svg>
+                </div>
+                <div class="term-kr">연결송수구</div>
+                <div class="term-cn">消防送水口</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Yeongyeol Songsu-gu</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (连结送水口)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="window" data-keywords="창대석 窗台石 window">
+                <span class="badge badge-window">窗周围</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 100 80" width="80" height="64">
+                        <rect x="20" y="10" width="60" height="60" fill="#f1f5f9"/>
+                        <rect x="30" y="20" width="40" height="30" fill="#fff" stroke="#cbd5e1"/>
+                        <rect x="25" y="50" width="50" height="6" fill="#7e22ce"/>
+                    </svg>
+                </div>
+                <div class="term-kr">창대석</div>
+                <div class="term-cn">窗台石</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Changdaeseok</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (窗台石)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="window" data-keywords="요꼬 창마구리 窗楣 侧收口 yoko window">
+                <span class="badge badge-window">窗周围</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 100 80" width="80" height="64">
+                        <path d="M20 40 L80 40 L80 20 L20 20 Z" fill="#f1f5f9" stroke="#cbd5e1"/>
+                        <rect x="75" y="20" width="5" height="20" fill="#7e22ce"/>
+                        <path d="M65 30 L72 30" stroke="#7e22ce" marker-end="url(#arrow)"/>
+                    </svg>
+                </div>
+                <div class="term-kr">요꼬 창마구리</div>
+                <div class="term-cn">窗楣侧收口(横)</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Yoko Changmaguri</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">日(Yoko/横)+韩(Maguri/堵头)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="window" data-keywords="치받이 시다바 梁底 顶面 shitaba 窗楣底 window">
+                <span class="badge badge-window">窗周围</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 100 80" width="80" height="64">
+                        <rect x="10" y="10" width="80" height="60" fill="#f1f5f9" stroke="none"/>
+                        <rect x="25" y="35" width="50" height="35" fill="white" stroke="#cbd5e1"/>
+                        <path d="M20 35 L80 35 L80 15 L20 15 Z" fill="#e2e8f0" stroke="#94a3b8"/>
+                        <line x1="20" y1="35" x2="80" y2="35" stroke="#7e22ce" stroke-width="4" class="highlight-stroke"/>
+                        <path d="M50 55 L50 40" stroke="#7e22ce" stroke-width="1.5" marker-end="url(#arrow)"/>
+                        <path d="M47 43 L50 38 L53 43" fill="#7e22ce"/>
+                        <text x="35" y="65" font-size="9" fill="#7e22ce">梁底/顶面</text>
+                    </svg>
+                </div>
+                <div class="term-kr">치받이 / 시다바</div>
+                <div class="term-cn">梁底 / 顶面抹灰</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Shitaba</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">日语 (下場/底面)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="site" data-keywords="문주 경비실 大门 门卫">
+                <span class="badge badge-site">总图</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <path d="M10 50 L10 15 L70 15 L70 50" stroke="#334155" fill="none" stroke-width="2"/>
+                        <rect x="5" y="10" width="70" height="5" fill="#334155"/>
+                        <rect x="55" y="35" width="15" height="15" fill="#94a3b8"/>
+                    </svg>
+                </div>
+                <div class="term-kr">문주 + 경비실</div>
+                <div class="term-cn">小区大门 + 门卫室</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Munju</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (门柱)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="site" data-keywords="옹벽 挡土墙">
+                <span class="badge badge-site">总图</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <path d="M10 20 L40 20 L40 50 L10 50 Z" fill="#e2e8f0"/>
+                        <rect x="38" y="20" width="4" height="30" fill="#334155"/>
+                        <line x1="42" y1="50" x2="75" y2="50" stroke="#334155"/>
+                    </svg>
+                </div>
+                <div class="term-kr">옹벽</div>
+                <div class="term-cn">挡土墙</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Ongbyeok</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字词 (拥壁)</span></div>
+                </div>
+            </div>
+            
+            <div class="card" data-category="site" data-keywords="외부EV 电梯">
+                <span class="badge badge-site">总图</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 80 60" width="80" height="60">
+                        <rect x="30" y="10" width="20" height="40" stroke="#334155" fill="none"/>
+                        <rect x="35" y="20" width="10" height="20" fill="#cbd5e1"/>
+                        <text x="32" y="8" font-size="8" fill="#334155" font-weight="bold">EV</text>
+                    </svg>
+                </div>
+                <div class="term-kr">외부 E.V</div>
+                <div class="term-cn">室外电梯</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Oebu EV</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字(外部) + 英(EV)</span></div>
+                </div>
+            </div>
+
+            <div class="card" data-category="detail" data-keywords="계단 물막이 楼梯 挡水">
+                <span class="badge badge-detail">细部</span>
+                <div class="icon-area">
+                    <svg viewBox="0 0 100 80" width="80" height="64">
+                        <path d="M10 70 L30 70 L30 50 L50 50 L50 30 L70 30" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+                        <path d="M10 65 L30 65 L30 45 L50 45 L50 25 L70 25" fill="none" stroke="#ef4444" stroke-width="3" class="highlight-stroke"/>
+                    </svg>
+                </div>
+                <div class="term-kr">계단 물막이</div>
+                <div class="term-cn">楼梯挡水沿</div>
+                <div class="meta-info">
+                    <div class="meta-row"><span class="meta-label">发音:</span><span class="meta-val">Gyedan Mulmagi</span></div>
+                    <div class="meta-row"><span class="meta-label">词源:</span><span class="meta-val">汉字(阶段) + 纯韩(挡水)</span></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="noResults" class="hidden text-center py-12 text-gray-400">
+            <p class="text-lg">🤔 没有找到匹配的术语</p>
+            <p class="text-sm mt-2">请尝试搜索中文或韩文关键词</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            const cards = document.querySelectorAll('.card');
+            const searchInput = document.getElementById('searchInput');
+            const noResults = document.getElementById('noResults');
+
+            // 筛选功能
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const filterValue = btn.dataset.filter;
+                    filterCards(filterValue, searchInput.value);
+                });
+            });
+
+            // 搜索功能
+            searchInput.addEventListener('input', (e) => {
+                const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+                filterCards(activeFilter, e.target.value);
+            });
+
+            function filterCards(category, searchText) {
+                let visibleCount = 0;
+                const searchLower = searchText.toLowerCase().trim();
+
+                cards.forEach(card => {
+                    const cardCategory = card.dataset.category;
+                    const keywords = card.dataset.keywords.toLowerCase();
+                    
+                    const matchesCategory = category === 'all' || cardCategory === category;
+                    const matchesSearch = keywords.includes(searchLower);
+
+                    if (matchesCategory && matchesSearch) {
+                        card.classList.remove('hidden');
+                        visibleCount++;
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+
+                if (visibleCount === 0) {
+                    noResults.classList.remove('hidden');
+                } else {
+                    noResults.classList.add('hidden');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
