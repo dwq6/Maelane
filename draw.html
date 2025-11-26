@@ -117,7 +117,6 @@
             const half = size / 2;
             const height = size; 
 
-            // 增加 left 方向支持，确保所有方向大小一致
             if (direction === 'down') points = `${x},${y} ${x - half},${y - height} ${x + half},${y - height}`;
             else if (direction === 'up') points = `${x},${y} ${x - half},${y + height} ${x + half},${y + height}`;
             else if (direction === 'right') points = `${x},${y} ${x - height},${y - half} ${x - height},${y + half}`;
@@ -253,13 +252,15 @@
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
+                // --- 4倍高清导出设置 ---
+                const scale = 4; 
                 const totalWidth = 800; 
                 const totalHeight = 1000; 
-                canvas.width = totalWidth;
-                canvas.height = totalHeight;
+                canvas.width = totalWidth * scale;
+                canvas.height = totalHeight * scale;
                 
                 ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, totalWidth, totalHeight);
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 const loadSvg = (svg, x, y, w, h) => {
                 return new Promise((resolve, reject) => {
@@ -268,6 +269,7 @@
                     if (!data.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
                         data = data.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
                     }
+                    // 关键：将 SVG 内部尺寸也放大，确保栅格化清晰
                     data = data.replace(/^<svg/, `<svg width="${w}" height="${h}"`);
 
                     const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
@@ -290,15 +292,17 @@
                 };
 
                 await Promise.all([
-                loadSvg(svg1, 100, 50, 600, 400),      
-                loadSvg(svg2, 100, 500, 600, 400)      
+                loadSvg(svg1, 100 * scale, 50 * scale, 600 * scale, 400 * scale),      
+                loadSvg(svg2, 100 * scale, 500 * scale, 600 * scale, 400 * scale)      
                 ]);
 
                 ctx.fillStyle = 'black';
-                ctx.font = 'bold 32px Arial, "Microsoft YaHei", sans-serif';
+                // 字体大小也乘以 scale
+                ctx.font = `bold ${32 * scale}px Arial, "Microsoft YaHei", sans-serif`;
                 ctx.textAlign = 'center';
                 
-                ctx.fillText(displayLabel, totalWidth / 2, totalHeight - 40);
+                // 坐标乘以 scale
+                ctx.fillText(displayLabel, (totalWidth / 2) * scale, (totalHeight - 40) * scale);
 
                 let fileName = '板材加工图.png';
                 if (drawingNo) {
@@ -369,7 +373,6 @@
                 {sides.top && <Triangle x={cx} y={ry - 3} direction="down" />}
                 {sides.bottom && <Triangle x={cx} y={ry + RH + 3} direction="up" />}
                 {sides.left && <Triangle x={rx - 3} y={cy} direction="right" />}
-                {/* 修改：右侧也使用 Triangle 组件，方向为 left (指向左侧边缘) */}
                 {sides.right && <Triangle x={rx + RW + 3} y={cy} direction="left" />}
                 
                 <Triangle x={cx} y={cy + 5} direction="down" />
@@ -463,13 +466,13 @@
             return (
                 <svg ref={sectionRef} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-full">
                 <defs>
-                    <pattern id="hatch_thin_fix_v44" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <pattern id="hatch_thin_fix_v45" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
                     <line x1="0" y1="0" x2="0" y2="10" style={{stroke:'black', strokeWidth:0.5}} />
                     </pattern>
                 </defs>
 
                 {/* 1. 填充层 */}
-                <path d={fillPath} fill="url(#hatch_thin_fix_v44)" stroke="none" />
+                <path d={fillPath} fill="url(#hatch_thin_fix_v45)" stroke="none" />
                 
                 {/* 2. 轮廓绘制层 */}
                 <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={sides.center ? COLOR_RED : COLOR_BLACK} strokeWidth={sides.center ? "1" : "0.8"} strokeLinecap="butt" />
