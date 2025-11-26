@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>梅兰开槽编辑器 v2.4</title>
+    <title>梅兰开槽编辑器 v2.5</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -241,7 +241,8 @@
 
             if (currentY > 0.1) {
                 drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), currentY, true, -15);
-                createLine(-5, toY(currentY), drawL, toY(currentY), 'black', 1);
+                // 修正：x1 从 -5 改为 0，防止黑线超出左边界
+                createLine(0, toY(currentY), drawL, toY(currentY), 'black', 1);
                 createLine(extLineStart, 0, 0, 0, 'red', 0.5); 
                 createLine(extLineStart, toY(currentY), 0, toY(currentY), 'red', 0.5);
                 drawAdaptiveTriangle(0, currentY, false);
@@ -278,7 +279,8 @@
 
             if (currentX > 0.1) {
                 drawDimLine(0, dimY_Gap, toX(currentX), dimY_Gap, currentX, false, -15);
-                createLine(toX(currentX), -5, toX(currentX), drawW, 'black', 1);
+                // 修正：y1 从 -5 改为 0，防止黑线超出上边界
+                createLine(toX(currentX), 0, toX(currentX), drawW, 'black', 1);
                 createLine(0, extLineStart, 0, 0, 'red', 0.5);
                 createLine(toX(currentX), extLineStart, toX(currentX), 0, 'red', 0.5);
                 drawAdaptiveTriangle(0, currentX, true);
