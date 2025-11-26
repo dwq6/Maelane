@@ -67,7 +67,7 @@
             </button>
         );
 
-        // --- 组件：数字步进器 ---
+        // --- 组件：数字步进器 (修复：disabled 只影响输入框，不影响 header) ---
         const NumberControl = ({ value, onChange, label, step = 1, min = 0, disabled = false, rightElement = null }) => {
             const handleMinus = () => {
             const newVal = Math.max(min, (parseFloat(value) || 0) - step);
@@ -79,12 +79,12 @@
             };
 
             return (
-            <div className={`flex flex-col ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
+            <div className="flex flex-col">
                 <div className="flex justify-between items-center mb-1 h-[15px]">
                     {label && <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">{label}</span>}
                     {rightElement}
                 </div>
-                <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden h-10 w-full shadow-sm hover:border-gray-300 transition-colors">
+                <div className={`flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden h-10 w-full shadow-sm hover:border-gray-300 transition-colors ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
                 <button 
                     onClick={handleMinus} 
                     disabled={disabled}
@@ -142,7 +142,7 @@
             });
             const [topChamfer, setTopChamfer] = useState('3');
             const [bottomChamfer, setBottomChamfer] = useState('2');
-            const [thicknesses, setThicknesses] = useState(['20']); // 默认选中 20
+            const [thicknesses, setThicknesses] = useState(['20']); 
             const [bottomPolish, setBottomPolish] = useState('15'); 
             const [isFullPolish, setIsFullPolish] = useState(false); 
             const [drawingNo, setDrawingNo] = useState('');
@@ -231,7 +231,7 @@
 
             const fullLabel = generateLabel();
             
-            // 修改：图号和描述之间使用 英文冒号，无空格
+            // 格式：图XX:内容 (无空格)
             const displayLabel = drawingNo ? `图${drawingNo}:${fullLabel}` : fullLabel;
 
             const copyText = () => {
@@ -294,9 +294,12 @@
                 ]);
 
                 ctx.fillStyle = 'black';
-                ctx.font = 'bold 32px sans-serif';
+                // 修改：使用更好的字体栈，并设置基线居中
+                ctx.font = 'bold 32px "Microsoft YaHei", "Heiti SC", "SimHei", sans-serif';
                 ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle'; // 确保垂直居中
                 
+                // 绘制位置稍微上移一点点，因为 textBaseline='middle'
                 ctx.fillText(displayLabel, totalWidth / 2, totalHeight - 50);
 
                 let fileName = '板材加工图.png';
@@ -387,7 +390,6 @@
             const VIEW_H = 160; 
 
             const baseThickness = parseFloat(thicknesses[0]) || 30;
-            // 修改：使用英文逗号连接，不带空格
             const thicknessLabel = thicknesses.length > 0 ? thicknesses.join(',') + "T" : "";
 
             const realTopC = parseFloat(topChamfer) || 0;
@@ -462,13 +464,13 @@
             return (
                 <svg ref={sectionRef} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-full">
                 <defs>
-                    <pattern id="hatch_thin_fix_v40" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <pattern id="hatch_thin_fix_v42" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
                     <line x1="0" y1="0" x2="0" y2="10" style={{stroke:'black', strokeWidth:0.5}} />
                     </pattern>
                 </defs>
 
                 {/* 1. 填充层 */}
-                <path d={fillPath} fill="url(#hatch_thin_fix_v40)" stroke="none" />
+                <path d={fillPath} fill="url(#hatch_thin_fix_v42)" stroke="none" />
                 
                 {/* 2. 轮廓绘制层 */}
                 <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={sides.center ? COLOR_RED : COLOR_BLACK} strokeWidth={sides.center ? "1" : "0.8"} strokeLinecap="butt" />
