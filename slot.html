@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>梅兰开槽编辑器 v2.1</title>
+    <title>梅兰开槽编辑器 v2.3</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -200,7 +200,6 @@
             const h = end - start;
             if (h <= 0.1) return; 
 
-            // 计算半径 r
             const pixelSize = isVert ? toX(h) : toY(h);
             const maxR = (pixelSize / 2) - 2; 
             const r = Math.min(6, Math.max(1, maxR)); 
@@ -210,11 +209,9 @@
             let centerX, centerY;
             
             if (isVert) {
-                // 竖向模式：区间在水平方向变化，中心X变，中心Y固定
                 centerX = toX(start + h / 2);
                 centerY = drawW / 2;
             } else {
-                // 横向模式：区间在垂直方向变化，中心Y变，中心X固定
                 centerY = toY(start + h / 2);
                 centerX = drawL / 2;
             }
@@ -235,7 +232,7 @@
         const maxLoops = 300;
 
         if (!isVertical) {
-            // ================= 横向模式 (原有逻辑) =================
+            // ================= 横向模式 =================
             const dimX_Gap = -15;
             const dimX_Slot = -45;
             const extLineStart = -50;
@@ -272,7 +269,7 @@
                 }
             }
         } else {
-            // ================= 竖向模式 (新逻辑) =================
+            // ================= 竖向模式 =================
             const dimY_Gap = -15;
             const dimY_Slot = -45;
             const extLineStart = -50;
@@ -325,15 +322,14 @@
         if (lMode === 'l_val') lLabel = `L=${L}`;
         if (lMode === 'l_only') lLabel = 'L';
 
-        const dimTopY = isVertical ? -100 : -50;
+        const dimTopY = isVertical ? -110 : -60;
         
         drawArrowDimLine(0, dimTopY, drawL, dimTopY, lLabel, false, -15, true);
         createLine(0, dimTopY - 10, 0, isVertical ? -55 : 0, 'red', 0.5);
         createLine(drawL, dimTopY - 10, drawL, isVertical ? -55 : 0, 'red', 0.5);
 
-        // 7. 底部文字
-        const dirText = isVertical ? "竖向" : "横向";
-        const bottomText = `${prefix} ${dirText}开槽 ${sw}*${depth}`;
+        // 7. 底部文字 (已修改：去掉方向词)
+        const bottomText = `${prefix} 开槽 ${sw}*${depth}`;
         createSvgElement('text', {
             x: drawL / 2,
             y: drawW + 80,
@@ -343,9 +339,18 @@
             fill: 'red'
         }, bottomText);
         
-        const vbW = drawL + 300;
-        const vbH = drawW + 250;
-        svg.setAttribute('viewBox', `-180 -120 ${vbW} ${vbH}`);
+        // ================= 自动调整画布大小 =================
+        const paddingLeft = 250; 
+        const paddingRight = 150;
+        const paddingTop = isVertical ? 220 : 150; 
+        const paddingBottom = 150;
+
+        const vbX = -paddingLeft;
+        const vbY = -paddingTop;
+        const vbW = drawL + paddingLeft + paddingRight;
+        const vbH = drawW + paddingTop + paddingBottom;
+
+        svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
     }
 
     function createSvgElement(type, attrs, textContent) {
@@ -436,6 +441,8 @@
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+        const vbX = vb[0];
+        const vbY = vb[1];
         const vbW = vb[2];
         const vbH = vb[3];
         const scaleFactor = 2; 
@@ -456,8 +463,8 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.save();
             ctx.scale(scaleFactor, scaleFactor);
-            ctx.translate(-vb[0], -vb[1]); 
-            ctx.drawImage(img, vb[0], vb[1], vbW, vbH);
+            ctx.translate(-vbX, -vbY); 
+            ctx.drawImage(img, vbX, vbY, vbW, vbH);
             ctx.restore();
             
             const a = document.createElement('a');
