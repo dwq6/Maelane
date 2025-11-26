@@ -148,6 +148,8 @@
             const [isFullPolish, setIsFullPolish] = useState(false); 
             const [drawingNo, setDrawingNo] = useState('');
             const [showTopChamferTriangle, setShowTopChamferTriangle] = useState(false); 
+            // 新增：下倒角磨光状态
+            const [showBottomChamferTriangle, setShowBottomChamferTriangle] = useState(false);
             
             const [copied, setCopied] = useState(false);
             const [isDownloading, setIsDownloading] = useState(false);
@@ -252,7 +254,6 @@
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // --- 4倍高清导出设置 ---
                 const scale = 4; 
                 const totalWidth = 800; 
                 const totalHeight = 1000; 
@@ -269,7 +270,6 @@
                     if (!data.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
                         data = data.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
                     }
-                    // 关键：将 SVG 内部尺寸也放大，确保栅格化清晰
                     data = data.replace(/^<svg/, `<svg width="${w}" height="${h}"`);
 
                     const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
@@ -297,11 +297,9 @@
                 ]);
 
                 ctx.fillStyle = 'black';
-                // 字体大小也乘以 scale
                 ctx.font = `bold ${32 * scale}px Arial, "Microsoft YaHei", sans-serif`;
                 ctx.textAlign = 'center';
                 
-                // 坐标乘以 scale
                 ctx.fillText(displayLabel, (totalWidth / 2) * scale, (totalHeight - 40) * scale);
 
                 let fileName = '板材加工图.png';
@@ -460,19 +458,24 @@
             // 计算上倒角三角位置
             const chamferMidX = sx + C_Top / 2;
             const chamferMidY = sy + C_Top / 2;
+            
+            // 计算下倒角三角位置
+            const chamferBottomMidX = sx + C_Bottom / 2;
+            const chamferBottomMidY = sy + T - C_Bottom / 2;
+
             // 三角偏移量 2px
             const triangleOffset = 2;
 
             return (
                 <svg ref={sectionRef} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-full">
                 <defs>
-                    <pattern id="hatch_thin_fix_v45" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <pattern id="hatch_thin_fix_v46" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
                     <line x1="0" y1="0" x2="0" y2="10" style={{stroke:'black', strokeWidth:0.5}} />
                     </pattern>
                 </defs>
 
                 {/* 1. 填充层 */}
-                <path d={fillPath} fill="url(#hatch_thin_fix_v45)" stroke="none" />
+                <path d={fillPath} fill="url(#hatch_thin_fix_v46)" stroke="none" />
                 
                 {/* 2. 轮廓绘制层 */}
                 <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={sides.center ? COLOR_RED : COLOR_BLACK} strokeWidth={sides.center ? "1" : "0.8"} strokeLinecap="butt" />
@@ -505,6 +508,11 @@
                 {/* 上倒角磨光三角 (垂直于倒角边，带偏移) */}
                 {showTopChamferTriangle && C_Top > 0 && (
                     <Triangle x={chamferMidX - triangleOffset} y={chamferMidY - triangleOffset} direction="down" rotate={-45} />
+                )}
+
+                {/* 下倒角磨光三角 (垂直于倒角边，带偏移) */}
+                {showBottomChamferTriangle && C_Bottom > 0 && (
+                    <Triangle x={chamferBottomMidX - triangleOffset} y={chamferBottomMidY + triangleOffset} direction="up" rotate={45} />
                 )}
 
                 {/* 厚度标注 (只有当选择了厚度时才显示) */}
@@ -603,7 +611,18 @@
                                 </label>
                             }
                         />
-                        <NumberControl label="下倒角" value={bottomChamfer} onChange={setBottomChamfer} step={0.5} />
+                        <NumberControl 
+                            label="下倒角" 
+                            value={bottomChamfer} 
+                            onChange={setBottomChamfer} 
+                            step={0.5} 
+                            rightElement={
+                                <label className="flex items-center gap-1 text-[10px] cursor-pointer bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 transition-colors" title="显示倒角磨光三角">
+                                    <input type="checkbox" checked={showBottomChamferTriangle} onChange={(e) => setShowBottomChamferTriangle(e.target.checked)} className="w-3 h-3" />
+                                    磨光
+                                </label>
+                            }
+                        />
                         </div>
                         
                         {/* 厚度选择 (多选) */}
