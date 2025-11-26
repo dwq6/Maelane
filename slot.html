@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>梅兰开槽编辑器</title>
+    <title>梅兰开槽编辑器 v2.1</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -53,6 +53,8 @@
         }
         button:hover { opacity: 0.9; }
         button.secondary { background-color: #52c41a; }
+        
+        .highlight-option { border: 2px solid #1890ff !important; background-color: #e6f7ff !important; color: #1890ff; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -78,11 +80,18 @@
     <div class="controls-area">
         <div class="control-grid">
             <div class="input-group">
-                <label>总宽 W (左侧高度)</label>
+                <label style="color:#1890ff">开槽方向</label>
+                <select id="slotDirection" class="highlight-option">
+                    <option value="horizontal">横向 (层板/侧板)</option>
+                    <option value="vertical">竖向 (背板/立柱)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>总宽 W (高度)</label>
                 <input type="number" id="totalW" value="618">
             </div>
             <div class="input-group">
-                <label>总长 L (顶部宽度)</label>
+                <label>总长 L (宽度)</label>
                 <input type="number" id="totalL" value="1400">
             </div>
             <div class="input-group">
@@ -94,11 +103,11 @@
                 <input type="number" id="slotGap" value="114">
             </div>
             <div class="input-group">
-                <label>首槽起始数值 (自动计算)</label>
+                <label>首槽起始 (自动)</label>
                 <input type="number" id="startOffset" value="0" disabled>
             </div>
             <div class="input-group">
-                <label>槽深 (仅用于文字)</label>
+                <label>槽深 (仅文字)</label>
                 <input type="number" id="slotDepth" value="5">
             </div>
             <div class="input-group">
@@ -142,6 +151,9 @@
 
     function draw() {
         // 1. 获取数据
+        const direction = document.getElementById('slotDirection').value; // 'horizontal' or 'vertical'
+        const isVertical = direction === 'vertical';
+
         const W = parseFloat(document.getElementById('totalW').value) || 618;
         const L = parseFloat(document.getElementById('totalL').value) || 1400;
         const sw = parseFloat(document.getElementById('slotWidth').value) || 6;
@@ -153,8 +165,9 @@
         const wMode = document.getElementById('wDisplayMode').value;
 
         // 自动计算起始数值
+        const calcBase = isVertical ? L : W;
         const unit = sw + gap;
-        let calculatedStart = W % unit;
+        let calculatedStart = calcBase % unit;
         calculatedStart = Math.round(calculatedStart * 100) / 100;
         
         startOffsetInput.value = calculatedStart;
@@ -176,11 +189,6 @@
         const drawL = toX(L);
         const drawW = toY(W);
 
-        // 定义标注线位置 (X坐标)
-        const dimX_Gap = -15;   // 间隔和余量的标注线位置
-        const dimX_Slot = -45;  // 槽的标注线位置 (更靠外，避免重叠)
-        const extLineStart = -50; // 红色辅助延伸线的起始X
-
         // 3. 绘制外框
         createSvgElement('rect', {
             x: 0, y: 0, width: drawL, height: drawW,
@@ -188,19 +196,30 @@
         });
 
         // 辅助函数：绘制自适应三角
-        function drawAdaptiveTriangle(yStart, yEnd) {
-            const h = yEnd - yStart;
+        function drawAdaptiveTriangle(start, end, isVert) {
+            const h = end - start;
             if (h <= 0.1) return; 
 
-            const centerY = toY(yStart + h / 2);
-            const centerX = drawL / 2;
-            
-            const pixelH = toY(h);
-            const maxR = (pixelH / 2) - 2; 
+            // 计算半径 r
+            const pixelSize = isVert ? toX(h) : toY(h);
+            const maxR = (pixelSize / 2) - 2; 
             const r = Math.min(6, Math.max(1, maxR)); 
             
             if (r < 0.5) return; 
 
+            let centerX, centerY;
+            
+            if (isVert) {
+                // 竖向模式：区间在水平方向变化，中心X变，中心Y固定
+                centerX = toX(start + h / 2);
+                centerY = drawW / 2;
+            } else {
+                // 横向模式：区间在垂直方向变化，中心Y变，中心X固定
+                centerY = toY(start + h / 2);
+                centerX = drawL / 2;
+            }
+            
+            // 统一绘制倒三角 (▼)
             const p1 = `${centerX - r},${centerY - r}`;
             const p2 = `${centerX + r},${centerY - r}`;
             const p3 = `${centerX},${centerY + r}`;
@@ -212,83 +231,109 @@
         }
 
         // 4. 绘制内部结构
-        let currentY = startOff;
-        const dimTotalX = -120; // 总宽标注更靠外
-
-        // --- 起始部分 (Start Offset) ---
-        if (currentY > 0.1) {
-            // 标注在内层 (Gap层)
-            drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), currentY, true, -15);
-            
-            createLine(-5, toY(currentY), drawL, toY(currentY), 'black', 1);
-            
-            // 延伸线
-            createLine(extLineStart, 0, 0, 0, 'red', 0.5); 
-            createLine(extLineStart, toY(currentY), 0, toY(currentY), 'red', 0.5);
-            
-            drawAdaptiveTriangle(0, currentY);
-        } else {
-            // 即使没有起始偏移，第一条红线也要画
-            createLine(extLineStart, 0, 0, 0, 'red', 0.5);
-        }
-
         let loopCount = 0;
-        const maxLoops = 200;
+        const maxLoops = 300;
 
-        while (currentY + sw <= W + 0.01 && loopCount < maxLoops) {
-            loopCount++;
-            
-            // --- 槽 (Slot) ---
-            const slotBottomY = currentY + sw;
-            createLine(0, toY(slotBottomY), drawL, toY(slotBottomY), 'black', 1);
-            
-            // 标注在外层 (Slot层) - 错开显示
-            drawDimLine(dimX_Slot, toY(currentY), dimX_Slot, toY(slotBottomY), sw, true, -15);
-            
-            // 延伸线
-            createLine(extLineStart, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
+        if (!isVertical) {
+            // ================= 横向模式 (原有逻辑) =================
+            const dimX_Gap = -15;
+            const dimX_Slot = -45;
+            const extLineStart = -50;
 
-            currentY = slotBottomY;
+            let currentY = startOff;
 
-            // --- 间隔 (Gap) ---
-            if (currentY < W - 0.1) {
-                let nextY = currentY + gap;
-                if (nextY > W) nextY = W;
-                
-                const dist = Math.round((nextY - currentY)*100)/100;
-                
-                // 标注在内层 (Gap层)
-                drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), dist, true, -15);
-                
-                createLine(extLineStart, toY(nextY), 0, toY(nextY), 'red', 0.5);
-                createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
+            if (currentY > 0.1) {
+                drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), currentY, true, -15);
+                createLine(-5, toY(currentY), drawL, toY(currentY), 'black', 1);
+                createLine(extLineStart, 0, 0, 0, 'red', 0.5); 
+                createLine(extLineStart, toY(currentY), 0, toY(currentY), 'red', 0.5);
+                drawAdaptiveTriangle(0, currentY, false);
+            } else {
+                createLine(extLineStart, 0, 0, 0, 'red', 0.5);
+            }
 
-                drawAdaptiveTriangle(currentY, nextY);
+            while (currentY + sw <= W + 0.01 && loopCount < maxLoops) {
+                loopCount++;
+                const slotBottomY = currentY + sw;
+                createLine(0, toY(slotBottomY), drawL, toY(slotBottomY), 'black', 1);
+                drawDimLine(dimX_Slot, toY(currentY), dimX_Slot, toY(slotBottomY), sw, true, -15);
+                createLine(extLineStart, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
+                currentY = slotBottomY;
                 
-                currentY = nextY;
+                if (currentY < W - 0.1) {
+                    let nextY = currentY + gap;
+                    if (nextY > W) nextY = W;
+                    const dist = Math.round((nextY - currentY)*100)/100;
+                    drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), dist, true, -15);
+                    createLine(extLineStart, toY(nextY), 0, toY(nextY), 'red', 0.5);
+                    createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
+                    drawAdaptiveTriangle(currentY, nextY, false);
+                    currentY = nextY;
+                }
+            }
+        } else {
+            // ================= 竖向模式 (新逻辑) =================
+            const dimY_Gap = -15;
+            const dimY_Slot = -45;
+            const extLineStart = -50;
+
+            let currentX = startOff;
+
+            if (currentX > 0.1) {
+                drawDimLine(0, dimY_Gap, toX(currentX), dimY_Gap, currentX, false, -15);
+                createLine(toX(currentX), -5, toX(currentX), drawW, 'black', 1);
+                createLine(0, extLineStart, 0, 0, 'red', 0.5);
+                createLine(toX(currentX), extLineStart, toX(currentX), 0, 'red', 0.5);
+                drawAdaptiveTriangle(0, currentX, true);
+            } else {
+                 createLine(0, extLineStart, 0, 0, 'red', 0.5);
+            }
+
+            while (currentX + sw <= L + 0.01 && loopCount < maxLoops) {
+                loopCount++;
+                const slotRightX = currentX + sw;
+                createLine(toX(slotRightX), 0, toX(slotRightX), drawW, 'black', 1);
+                drawDimLine(toX(currentX), dimY_Slot, toX(slotRightX), dimY_Slot, sw, false, -15);
+                createLine(toX(slotRightX), extLineStart, toX(slotRightX), 0, 'red', 0.5);
+                currentX = slotRightX;
+
+                if (currentX < L - 0.1) {
+                    let nextX = currentX + gap;
+                    if (nextX > L) nextX = L;
+                    const dist = Math.round((nextX - currentX)*100)/100;
+                    
+                    drawDimLine(toX(currentX), dimY_Gap, toX(nextX), dimY_Gap, dist, false, -15);
+                    createLine(toX(nextX), extLineStart, toX(nextX), 0, 'red', 0.5);
+                    createLine(toX(nextX), 0, toX(nextX), drawW, 'black', 1);
+                    
+                    drawAdaptiveTriangle(currentX, nextX, true);
+                    currentX = nextX;
+                }
             }
         }
 
         // 5. 总尺寸 W
         let wLabel = W;
         if (wMode === 'w_val') wLabel = `W=${W}`;
+        const dimTotalX = -120; 
         drawArrowDimLine(dimTotalX, 0, dimTotalX, drawW, wLabel, true, -20, true);
-        // 总尺寸的延伸线
-        createLine(dimTotalX - 10, 0, extLineStart, 0, 'red', 0.5);
-        createLine(dimTotalX - 10, drawW, extLineStart, drawW, 'red', 0.5);
+        createLine(dimTotalX - 10, 0, -5, 0, 'red', 0.5);
+        createLine(dimTotalX - 10, drawW, -5, drawW, 'red', 0.5);
 
         // 6. 总尺寸 L
         let lLabel = L;
         if (lMode === 'l_val') lLabel = `L=${L}`;
         if (lMode === 'l_only') lLabel = 'L';
 
-        const dimTopY = -50;
+        const dimTopY = isVertical ? -100 : -50;
+        
         drawArrowDimLine(0, dimTopY, drawL, dimTopY, lLabel, false, -15, true);
-        createLine(0, dimTopY - 10, 0, 0, 'red', 0.5);
-        createLine(drawL, dimTopY - 10, drawL, 0, 'red', 0.5);
+        createLine(0, dimTopY - 10, 0, isVertical ? -55 : 0, 'red', 0.5);
+        createLine(drawL, dimTopY - 10, drawL, isVertical ? -55 : 0, 'red', 0.5);
 
         // 7. 底部文字
-        const bottomText = `${prefix}加工 开槽${sw}*${depth}`;
+        const dirText = isVertical ? "竖向" : "横向";
+        const bottomText = `${prefix} ${dirText}开槽 ${sw}*${depth}`;
         createSvgElement('text', {
             x: drawL / 2,
             y: drawW + 80,
@@ -300,7 +345,7 @@
         
         const vbW = drawL + 300;
         const vbH = drawW + 250;
-        svg.setAttribute('viewBox', `-180 -100 ${vbW} ${vbH}`);
+        svg.setAttribute('viewBox', `-180 -120 ${vbW} ${vbH}`);
     }
 
     function createSvgElement(type, attrs, textContent) {
@@ -417,7 +462,8 @@
             
             const a = document.createElement('a');
             const prefix = document.getElementById('textPrefix').value;
-            a.download = `${prefix}_开槽图.jpg`;
+            const dir = document.getElementById('slotDirection').value === 'vertical' ? '竖向' : '横向';
+            a.download = `${prefix}_${dir}开槽图.jpg`;
             a.href = canvas.toDataURL('image/jpeg', 0.9);
             document.body.appendChild(a);
             a.click();
