@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>梅兰清口编辑器</title>
+    <title>梅兰清口编辑器 v2.2</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -38,7 +38,16 @@
                 </div>
             </div>
         );
-        const Button = ({ children, className, onClick }) => <button onClick={onClick} className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2 text-white shadow hover:bg-opacity-90 ${className}`}>{children}</button>;
+        const Button = ({ children, className, onClick, variant = "primary" }) => {
+            const variants = {
+                primary: "bg-green-600 hover:bg-green-700 text-white",
+                outline: "border border-gray-300 bg-white hover:bg-gray-100 text-gray-700",
+                blue: "bg-blue-600 hover:bg-blue-700 text-white"
+            };
+            return (
+                <button onClick={onClick} className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2 shadow hover:bg-opacity-90 ${variants[variant]} ${className}`}>{children}</button>
+            );
+        };
         const Switch = ({ checked, onCheckedChange }) => (
             <button type="button" onClick={() => onCheckedChange(!checked)} className={`peer inline-flex h-[20px] w-[36px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 ${checked ? 'bg-green-600' : 'bg-gray-200'}`}>
                 <span className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`}></span>
@@ -55,11 +64,13 @@
                 widthLabel: "W", // W 或 L
             });
 
+            const [isBackCleat, setIsBackCleat] = useState(false);
+
             const [toggles, setToggles] = useState({
-                leftFace: true,    // 左端面
-                stepFace: true,    // 清口平面
-                stepRiser: true,   // 清口立面
-                topFace: true      // 顶面
+                leftFace: true,
+                stepFace: true,
+                stepRiser: true,
+                topFace: true
             });
 
             const [fileName, setFileName] = useState("清口截面图");
@@ -74,10 +85,13 @@
                 setToggles(prev => ({ ...prev, [key]: !prev[key] }));
             };
 
-            // 生成路径 - 不闭合右侧
             const generatePath = () => {
                 const { totalWidth: W, totalThickness: H, stepWidth: Sw, stepDepth: Sd } = params;
-                return `M ${W} 0 L ${Sw} 0 L ${Sw} ${Sd} L 0 ${Sd} L 0 ${H} L ${W} ${H}`;
+                if (isBackCleat) {
+                    return `M ${W} 0 L 0 0 L 0 ${H - Sd} L ${Sw} ${H - Sd} L ${Sw} ${H} L ${W} ${H} Z`;
+                } else {
+                    return `M ${W} 0 L ${Sw} 0 L ${Sw} ${Sd} L 0 ${Sd} L 0 ${H} L ${W} ${H} Z`;
+                }
             };
 
             const downloadJpg = () => {
@@ -104,7 +118,8 @@
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     const link = document.createElement("a");
                     link.href = canvas.toDataURL('image/jpeg', 1.0);
-                    link.download = `${fileName.trim() || "section"}.jpg`;
+                    const prefix = isBackCleat ? "背面_" : "";
+                    link.download = `${prefix}${fileName.trim() || "section"}.jpg`;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -113,7 +128,6 @@
                 img.src = url;
             };
 
-            // 辅助组件
             const Defs = () => (
                 <defs>
                     <marker id="dot-red" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="strokeWidth">
@@ -125,28 +139,56 @@
                 </defs>
             );
 
+            // --- 修复后的 Dimension 组件 ---
             const Dimension = ({ x1, y1, x2, y2, text, offset = 20, vertical = false, color = "red", noExtLines = false }) => {
-                const gap = 2;
-                const ext = 5;
+                const gap = 2; // 延伸线起点距离物体的间隙
+                const ext = 5; // 延伸线超过尺寸线的长度
+                
                 let lx1, ly1, lx2, ly2; 
                 let tx, ty; 
                 
+                // 延伸线坐标
+                let extLine1 = { x1: 0, y1: 0, x2: 0, y2: 0 };
+                let extLine2 = { x1: 0, y1: 0, x2: 0, y2: 0 };
+
                 if (vertical) {
+                    // 垂直标注逻辑 (假设 offset > 0 向左)
                     lx1 = x1 - offset; ly1 = y1;
                     lx2 = x2 - offset; ly2 = y2;
                     tx = lx1 - 4; ty = (y1 + y2) / 2;
+                    
+                    // 垂直延伸线 (水平方向)
+                    const dir = offset > 0 ? -1 : 1; // 向左为负方向
+                    extLine1 = { x1: x1 + (gap * dir), y1: y1, x2: lx1 + (ext * dir), y2: y1 };
+                    extLine2 = { x1: x2 + (gap * dir), y1: y2, x2: lx2 + (ext * dir), y2: y2 };
+
                 } else {
+                    // 水平标注逻辑
                     lx1 = x1; ly1 = y1 - offset;
                     lx2 = x2; ly2 = y2 - offset;
-                    tx = (x1 + x2) / 2; ty = ly1 - 4;
+                    tx = (x1 + x2) / 2; 
+
+                    if (offset > 0) {
+                        // 标注在上方
+                        ty = ly1 - 4;
+                        // 延伸线向上
+                        extLine1 = { x1: x1, y1: y1 - gap, x2: x1, y2: ly1 - ext };
+                        extLine2 = { x1: x2, y1: y2 - gap, x2: x2, y2: ly2 - ext };
+                    } else {
+                        // 标注在下方 (offset 为负)
+                        ty = ly1 + 14;
+                        // 延伸线向下：起点是 y + gap，终点是 ly + ext (注意 ly 已经是 y - offset，即 y + abs(offset))
+                        extLine1 = { x1: x1, y1: y1 + gap, x2: x1, y2: ly1 + ext };
+                        extLine2 = { x1: x2, y1: y2 + gap, x2: x2, y2: ly2 + ext };
+                    }
                 }
 
                 return (
                     <g>
                         {!noExtLines && (
                             <>
-                                <line x1={vertical ? x1-gap : x1} y1={vertical ? y1 : y1-gap} x2={vertical ? lx1-ext : x1} y2={vertical ? y1 : ly1-ext} stroke={color} strokeWidth="0.5" />
-                                <line x1={vertical ? x2-gap : x2} y1={vertical ? y2 : y2-gap} x2={vertical ? lx2-ext : x2} y2={vertical ? y2 : ly2-ext} stroke={color} strokeWidth="0.5" />
+                                <line {...extLine1} stroke={color} strokeWidth="0.5" />
+                                <line {...extLine2} stroke={color} strokeWidth="0.5" />
                             </>
                         )}
                         <line x1={lx1} y1={ly1} x2={lx2} y2={ly2} stroke={color} strokeWidth="0.5" markerStart="url(#dot-red)" markerEnd="url(#dot-red)" />
@@ -156,13 +198,16 @@
             };
 
             const DatumTriangle = ({ x, y, direction }) => {
-                const size = 6; // 缩小尺寸
-                const gap = 3;  // 拉近距离
+                const size = 6; 
+                const gap = 2;  
                 let points = "";
                 
                 if (direction === 'down') {
                     const tipY = y - gap;
                     points = `${x},${tipY} ${x-size/2},${tipY-size} ${x+size/2},${tipY-size}`;
+                } else if (direction === 'up') {
+                    const tipY = y + gap;
+                    points = `${x},${tipY} ${x-size/2},${tipY+size} ${x+size/2},${tipY+size}`;
                 } else if (direction === 'right') {
                     const tipX = x - gap;
                     points = `${tipX},${y} ${tipX-size},${y-size/2} ${tipX-size},${y+size/2}`;
@@ -170,10 +215,10 @@
                 return <polygon points={points} fill="black" />;
             };
 
-            // 绘图参数
-            const padding = { top: 80, right: 60, bottom: 60, left: 80 };
+            const padding = { top: 60, right: 60, bottom: 50, left: 80 }; 
             const viewBoxW = params.totalWidth + padding.left + padding.right;
             const viewBoxH = params.totalThickness + padding.top + padding.bottom;
+            const remThickness = params.totalThickness - params.stepDepth;
 
             return (
                 <div className="flex flex-col lg:flex-row gap-4 p-4 w-full max-w-6xl mx-auto">
@@ -183,7 +228,18 @@
                             <h2 className="flex items-center gap-2 text-lg font-semibold"><IconSettings /> 参数设置</h2>
                         </div>
                         <div className="space-y-5">
-                            {/* 尺寸输入 */}
+                            <div className="bg-indigo-50 p-3 rounded border border-indigo-100 flex items-center justify-between">
+                                <div className="flex flex-col">
+                                    <Label className="text-indigo-900 font-bold">清口位置</Label>
+                                    <span className="text-xs text-indigo-600">{isBackCleat ? "背面 (底部)" : "正面 (顶部)"}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-sm ${!isBackCleat ? 'font-bold text-indigo-700' : 'text-gray-400'}`}>正面</span>
+                                    <Switch checked={isBackCleat} onCheckedChange={setIsBackCleat} />
+                                    <span className={`text-sm ${isBackCleat ? 'font-bold text-indigo-700' : 'text-gray-400'}`}>背面</span>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div><Label className="mb-1.5 block">总宽度</Label><Input type="number" name="totalWidth" value={params.totalWidth} onChange={handleChange} /></div>
                                 <div><Label className="mb-1.5 block">总厚度 (T)</Label><Input type="number" name="totalThickness" value={params.totalThickness} onChange={handleChange} /></div>
@@ -191,7 +247,6 @@
                                 <div><Label className="mb-1.5 block">清口深 (Step D)</Label><Input type="number" name="stepDepth" value={params.stepDepth} onChange={handleChange} /></div>
                             </div>
 
-                            {/* 标注文字选择 */}
                             <div className="bg-blue-50 p-3 rounded border border-blue-100">
                                 <Label className="mb-2 block text-blue-800">总宽标注文字</Label>
                                 <Select 
@@ -201,7 +256,6 @@
                                 />
                             </div>
 
-                            {/* 三角开关 */}
                             <div className="bg-gray-50 p-3 rounded border space-y-3">
                                 <Label className="block font-bold text-gray-700 mb-2">加工符号(三角)开关</Label>
                                 <div className="grid grid-cols-2 gap-y-3 gap-x-4">
@@ -210,7 +264,7 @@
                                         <Switch checked={toggles.leftFace} onCheckedChange={() => handleToggle('leftFace')} />
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-xs">清口底面</Label>
+                                        <Label className="text-xs">清口平面</Label>
                                         <Switch checked={toggles.stepFace} onCheckedChange={() => handleToggle('stepFace')} />
                                     </div>
                                     <div className="flex items-center justify-between">
@@ -224,13 +278,12 @@
                                 </div>
                             </div>
 
-                            {/* 导出 */}
                             <div className="pt-4 border-t space-y-3">
                                 <div>
                                     <Label className="mb-1.5 block">导出文件名</Label>
                                     <Input type="text" value={fileName} onChange={(e) => setFileName(e.target.value)} />
                                 </div>
-                                <Button className="w-full bg-green-600 hover:bg-green-700" onClick={downloadJpg}>
+                                <Button className="w-full" onClick={downloadJpg}>
                                     <span className="mr-2"><IconImage /></span> 下载 JPG
                                 </Button>
                             </div>
@@ -239,7 +292,12 @@
 
                     {/* 预览区域 */}
                     <Card className="w-full lg:w-2/3 bg-white p-0 overflow-hidden flex flex-col min-h-[500px]">
-                        <div className="p-4 border-b"><h2 className="text-lg font-semibold">预览</h2></div>
+                        <div className="p-4 border-b flex justify-between items-center">
+                            <h2 className="text-lg font-semibold">预览</h2>
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                {isBackCleat ? "背面清口模式" : "正面清口模式"}
+                            </span>
+                        </div>
                         <div className="flex-grow flex justify-center items-center p-4 bg-gray-50">
                             <div className="border rounded-md bg-white w-full shadow-sm overflow-hidden">
                                 <svg 
@@ -249,21 +307,29 @@
                                     style={{ fontFamily: 'Arial, sans-serif' }}
                                 >
                                     <Defs />
-                                    
-                                    {/* 主体形状 */}
                                     <path d={generatePath()} fill="url(#hatch)" stroke="black" strokeWidth="1.5" />
 
-                                    {/* 尺寸标注 */}
-                                    {/* 总宽 W/L */}
-                                    <Dimension x1={0} y1={0} x2={params.totalWidth} y2={0} offset={60} text={params.widthLabel} />
+                                    {/* 1. 总宽 W/L */}
+                                    {/* 调整：背面模式下，Offset 减小到 20 (W太往上) */}
+                                    <Dimension x1={0} y1={0} x2={params.totalWidth} y2={0} offset={isBackCleat ? 20 : 35} text={params.widthLabel} />
                                     
-                                    {/* 清口宽 50 */}
-                                    <Dimension x1={0} y1={0} x2={params.stepWidth} y2={0} offset={30} text={params.stepWidth} />
+                                    {/* 2. 清口宽 50 */}
+                                    {isBackCleat ? (
+                                        // 背面模式：标注在底部，Offset -15
+                                        <Dimension x1={0} y1={params.totalThickness} x2={params.stepWidth} y2={params.totalThickness} offset={-15} text={params.stepWidth} />
+                                    ) : (
+                                        // 正面模式：标注在顶部，Offset 减小到 15 (50太往上)
+                                        <Dimension x1={0} y1={0} x2={params.stepWidth} y2={0} offset={15} text={params.stepWidth} />
+                                    )}
 
-                                    {/* 左侧厚 20 (计算值: 总厚 - 清口深) */}
-                                    <Dimension x1={0} y1={params.stepDepth} x2={0} y2={params.totalThickness} offset={30} vertical={true} text={params.totalThickness - params.stepDepth} />
+                                    {/* 3. 左侧厚度 */}
+                                    {isBackCleat ? (
+                                        <Dimension x1={0} y1={0} x2={0} y2={remThickness} offset={30} vertical={true} text={remThickness} />
+                                    ) : (
+                                        <Dimension x1={0} y1={params.stepDepth} x2={0} y2={params.totalThickness} offset={30} vertical={true} text={remThickness} />
+                                    )}
 
-                                    {/* 右侧总厚度 */}
+                                    {/* 4. 右侧总厚度 */}
                                     <g>
                                         <line x1={params.totalWidth} y1={0} x2={params.totalWidth + 35} y2={0} stroke="red" strokeWidth="0.5" />
                                         <line x1={params.totalWidth} y1={params.totalThickness} x2={params.totalWidth + 35} y2={params.totalThickness} stroke="red" strokeWidth="0.5" />
@@ -271,40 +337,66 @@
                                         <text x={params.totalWidth + 45} y={params.totalThickness/2} fill="red" fontSize="12" textAnchor="middle" alignmentBaseline="middle" transform={`rotate(-90, ${params.totalWidth + 45}, ${params.totalThickness/2})`}>{params.totalThickness}T</text>
                                     </g>
 
-                                    {/* 清口深 10 - 内部标注 (修复居中) */}
+                                    {/* 5. 清口深 10 */}
                                     <g>
-                                        <line x1={params.stepWidth} y1={0} x2={params.stepWidth + 20} y2={0} stroke="red" strokeWidth="0.5" />
-                                        <line x1={params.stepWidth} y1={params.stepDepth} x2={params.stepWidth + 20} y2={params.stepDepth} stroke="red" strokeWidth="0.5" />
-                                        <line x1={params.stepWidth + 15} y1={0} x2={params.stepWidth + 15} y2={params.stepDepth} stroke="red" strokeWidth="0.5" markerStart="url(#dot-red)" markerEnd="url(#dot-red)" />
-                                        {/* 调整位置：x距离线更近(22)，y为线段中点，使用 middle/middle 对齐 */}
-                                        <text 
-                                            x={params.stepWidth + 22} 
-                                            y={params.stepDepth/2} 
-                                            fill="red" 
-                                            fontSize="10" 
-                                            textAnchor="middle" 
-                                            alignmentBaseline="middle"
-                                            transform={`rotate(-90, ${params.stepWidth + 22}, ${params.stepDepth/2})`}
-                                        >
-                                            {params.stepDepth}
-                                        </text>
+                                        {isBackCleat ? (
+                                            <>
+                                                <line x1={params.stepWidth} y1={remThickness} x2={params.stepWidth + 20} y2={remThickness} stroke="red" strokeWidth="0.5" />
+                                                <line x1={params.stepWidth} y1={params.totalThickness} x2={params.stepWidth + 20} y2={params.totalThickness} stroke="red" strokeWidth="0.5" />
+                                                <line x1={params.stepWidth + 15} y1={remThickness} x2={params.stepWidth + 15} y2={params.totalThickness} stroke="red" strokeWidth="0.5" markerStart="url(#dot-red)" markerEnd="url(#dot-red)" />
+                                                <text 
+                                                    x={params.stepWidth + 22} 
+                                                    y={(remThickness + params.totalThickness)/2} 
+                                                    fill="red" 
+                                                    fontSize="10" 
+                                                    textAnchor="middle" 
+                                                    alignmentBaseline="middle"
+                                                    transform={`rotate(-90, ${params.stepWidth + 22}, ${(remThickness + params.totalThickness)/2})`}
+                                                >
+                                                    {params.stepDepth}
+                                                </text>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <line x1={params.stepWidth} y1={0} x2={params.stepWidth + 20} y2={0} stroke="red" strokeWidth="0.5" />
+                                                <line x1={params.stepWidth} y1={params.stepDepth} x2={params.stepWidth + 20} y2={params.stepDepth} stroke="red" strokeWidth="0.5" />
+                                                <line x1={params.stepWidth + 15} y1={0} x2={params.stepWidth + 15} y2={params.stepDepth} stroke="red" strokeWidth="0.5" markerStart="url(#dot-red)" markerEnd="url(#dot-red)" />
+                                                <text 
+                                                    x={params.stepWidth + 22} 
+                                                    y={params.stepDepth/2} 
+                                                    fill="red" 
+                                                    fontSize="10" 
+                                                    textAnchor="middle" 
+                                                    alignmentBaseline="middle"
+                                                    transform={`rotate(-90, ${params.stepWidth + 22}, ${params.stepDepth/2})`}
+                                                >
+                                                    {params.stepDepth}
+                                                </text>
+                                            </>
+                                        )}
                                     </g>
 
-                                    {/* 加工三角符号 */}
-                                    {/* 左端面 */}
-                                    {toggles.leftFace && <DatumTriangle x={0} y={(params.stepDepth + params.totalThickness)/2} direction="right" />}
-                                    
-                                    {/* 清口底面 (左侧台阶面) */}
-                                    {toggles.stepFace && <DatumTriangle x={params.stepWidth/2} y={params.stepDepth} direction="down" />}
-                                    
-                                    {/* 清口立面 */}
-                                    {toggles.stepRiser && <DatumTriangle x={params.stepWidth} y={params.stepDepth/2} direction="right" />}
-                                    
-                                    {/* 顶面 (右侧主面) */}
-                                    {toggles.topFace && <DatumTriangle x={(params.stepWidth + params.totalWidth)/2} y={0} direction="down" />}
-
-                                    {/* 标题 */}
-                                    <text x={params.totalWidth / 2} y={params.totalThickness + 50} textAnchor="middle" fontSize="28" fill="black" style={{fontFamily: 'STSong, serif', fontWeight: 'bold'}}>清口截面图</text>
+                                    {/* 加工符号 */}
+                                    {toggles.leftFace && (
+                                        isBackCleat 
+                                        ? <DatumTriangle x={0} y={remThickness/2} direction="right" />
+                                        : <DatumTriangle x={0} y={(params.stepDepth + params.totalThickness)/2} direction="right" />
+                                    )}
+                                    {toggles.stepFace && (
+                                        isBackCleat
+                                        ? <DatumTriangle x={params.stepWidth/2} y={remThickness} direction="up" />
+                                        : <DatumTriangle x={params.stepWidth/2} y={params.stepDepth} direction="down" />
+                                    )}
+                                    {toggles.stepRiser && (
+                                        isBackCleat
+                                        ? <DatumTriangle x={params.stepWidth} y={remThickness + params.stepDepth/2} direction="right" />
+                                        : <DatumTriangle x={params.stepWidth} y={params.stepDepth/2} direction="right" />
+                                    )}
+                                    {toggles.topFace && (
+                                        isBackCleat
+                                        ? <DatumTriangle x={params.totalWidth/2} y={0} direction="down" />
+                                        : <DatumTriangle x={(params.stepWidth + params.totalWidth)/2} y={0} direction="down" />
+                                    )}
                                 </svg>
                             </div>
                         </div>
