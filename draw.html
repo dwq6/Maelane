@@ -67,7 +67,7 @@
             </button>
         );
 
-        // --- 组件：数字步进器 (修复：disabled 只影响输入框，不影响 header) ---
+        // --- 组件：数字步进器 ---
         const NumberControl = ({ value, onChange, label, step = 1, min = 0, disabled = false, rightElement = null }) => {
             const handleMinus = () => {
             const newVal = Math.max(min, (parseFloat(value) || 0) - step);
@@ -117,9 +117,11 @@
             const half = size / 2;
             const height = size; 
 
+            // 增加 left 方向支持，确保所有方向大小一致
             if (direction === 'down') points = `${x},${y} ${x - half},${y - height} ${x + half},${y - height}`;
             else if (direction === 'up') points = `${x},${y} ${x - half},${y + height} ${x + half},${y + height}`;
             else if (direction === 'right') points = `${x},${y} ${x - height},${y - half} ${x - height},${y + half}`;
+            else if (direction === 'left') points = `${x},${y} ${x + height},${y - half} ${x + height},${y + half}`;
             else points = `${x},${y} ${x - half},${y - height} ${x + half},${y - height}`; 
 
             return <polygon points={points} fill="black" transform={rotate ? `rotate(${rotate} ${x} ${y})` : undefined} />;
@@ -231,8 +233,7 @@
 
             const fullLabel = generateLabel();
             
-            // 格式：图XX:内容 (无空格)
-            const displayLabel = drawingNo ? `图${drawingNo}:${fullLabel}` : fullLabel;
+            const displayLabel = drawingNo ? `图${drawingNo}: ${fullLabel}` : fullLabel;
 
             const copyText = () => {
             navigator.clipboard.writeText(displayLabel); 
@@ -294,13 +295,10 @@
                 ]);
 
                 ctx.fillStyle = 'black';
-                // 修改：使用更好的字体栈，并设置基线居中
-                ctx.font = 'bold 32px "Microsoft YaHei", "Heiti SC", "SimHei", sans-serif';
+                ctx.font = 'bold 32px Arial, "Microsoft YaHei", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle'; // 确保垂直居中
                 
-                // 绘制位置稍微上移一点点，因为 textBaseline='middle'
-                ctx.fillText(displayLabel, totalWidth / 2, totalHeight - 50);
+                ctx.fillText(displayLabel, totalWidth / 2, totalHeight - 40);
 
                 let fileName = '板材加工图.png';
                 if (drawingNo) {
@@ -371,7 +369,8 @@
                 {sides.top && <Triangle x={cx} y={ry - 3} direction="down" />}
                 {sides.bottom && <Triangle x={cx} y={ry + RH + 3} direction="up" />}
                 {sides.left && <Triangle x={rx - 3} y={cy} direction="right" />}
-                {sides.right && <polygon points={`${rx + RW + 3},${cy} ${rx + RW + 3 + 8},${cy - 4} ${rx + RW + 3 + 8},${cy + 4}`} fill="black" />}
+                {/* 修改：右侧也使用 Triangle 组件，方向为 left (指向左侧边缘) */}
+                {sides.right && <Triangle x={rx + RW + 3} y={cy} direction="left" />}
                 
                 <Triangle x={cx} y={cy + 5} direction="down" />
                 </svg>
@@ -464,13 +463,13 @@
             return (
                 <svg ref={sectionRef} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-full">
                 <defs>
-                    <pattern id="hatch_thin_fix_v42" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <pattern id="hatch_thin_fix_v44" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
                     <line x1="0" y1="0" x2="0" y2="10" style={{stroke:'black', strokeWidth:0.5}} />
                     </pattern>
                 </defs>
 
                 {/* 1. 填充层 */}
-                <path d={fillPath} fill="url(#hatch_thin_fix_v42)" stroke="none" />
+                <path d={fillPath} fill="url(#hatch_thin_fix_v44)" stroke="none" />
                 
                 {/* 2. 轮廓绘制层 */}
                 <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={sides.center ? COLOR_RED : COLOR_BLACK} strokeWidth={sides.center ? "1" : "0.8"} strokeLinecap="butt" />
