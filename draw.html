@@ -68,7 +68,7 @@
         );
 
         // --- 组件：数字步进器 ---
-        const NumberControl = ({ value, onChange, label, step = 1, min = 0, disabled = false }) => {
+        const NumberControl = ({ value, onChange, label, step = 1, min = 0, disabled = false, rightElement = null }) => {
             const handleMinus = () => {
             const newVal = Math.max(min, (parseFloat(value) || 0) - step);
             onChange(newVal.toString());
@@ -80,7 +80,10 @@
 
             return (
             <div className={`flex flex-col ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
-                <span className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">{label}</span>
+                <div className="flex justify-between items-center mb-1 h-[15px]">
+                    {label && <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">{label}</span>}
+                    {rightElement}
+                </div>
                 <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden h-10 w-full shadow-sm hover:border-gray-300 transition-colors">
                 <button 
                     onClick={handleMinus} 
@@ -108,7 +111,7 @@
             );
         };
 
-        const Triangle = ({ x, y, direction }) => {
+        const Triangle = ({ x, y, direction, rotate }) => {
             let points = "";
             const size = 10; 
             const half = size / 2;
@@ -117,8 +120,9 @@
             if (direction === 'down') points = `${x},${y} ${x - half},${y - height} ${x + half},${y - height}`;
             else if (direction === 'up') points = `${x},${y} ${x - half},${y + height} ${x + half},${y + height}`;
             else if (direction === 'right') points = `${x},${y} ${x - height},${y - half} ${x - height},${y + half}`;
+            else points = `${x},${y} ${x - half},${y - height} ${x + half},${y - height}`; 
 
-            return <polygon points={points} fill="black" />;
+            return <polygon points={points} fill="black" transform={rotate ? `rotate(${rotate} ${x} ${y})` : undefined} />;
         };
 
         // 辅助组件：补角圆点
@@ -138,10 +142,11 @@
             });
             const [topChamfer, setTopChamfer] = useState('3');
             const [bottomChamfer, setBottomChamfer] = useState('2');
-            const [thicknesses, setThicknesses] = useState(['30']);
+            const [thicknesses, setThicknesses] = useState([]); // 默认不选
             const [bottomPolish, setBottomPolish] = useState('15'); 
             const [isFullPolish, setIsFullPolish] = useState(false); 
-            const [drawingNo, setDrawingNo] = useState(''); // 新增：图号状态
+            const [drawingNo, setDrawingNo] = useState('');
+            const [showTopChamferTriangle, setShowTopChamferTriangle] = useState(false); 
             
             const [copied, setCopied] = useState(false);
             const [isDownloading, setIsDownloading] = useState(false);
@@ -155,7 +160,7 @@
             const toggleThickness = (val) => {
             setThicknesses(prev => {
                 if (prev.includes(val)) {
-                if (prev.length === 1) return prev;
+                // 允许取消选择最后一个，变为空数组
                 return prev.filter(t => t !== val);
                 } else {
                 return [...prev, val].sort((a, b) => parseFloat(a) - parseFloat(b));
@@ -207,11 +212,11 @@
             let chamferText = "";
             
             if (tVal > 0 && bVal > 0) {
-                chamferText = `上倒${tVal}下倒${bVal}`;
+                chamferText = `上倒${tVal}mm下倒${bVal}mm`;
             } else if (tVal > 0) {
                 chamferText = `倒角${tVal}mm`;
             } else if (bVal > 0) {
-                chamferText = `下倒${bVal}`;
+                chamferText = `下倒${bVal}mm`;
             }
 
             let combinedTop = sideText;
@@ -226,9 +231,11 @@
             };
 
             const fullLabel = generateLabel();
+            
+            const displayLabel = drawingNo ? `图${drawingNo} : ${fullLabel}` : fullLabel;
 
             const copyText = () => {
-            navigator.clipboard.writeText(fullLabel);
+            navigator.clipboard.writeText(displayLabel); 
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
             };
@@ -290,11 +297,8 @@
                 ctx.font = 'bold 32px sans-serif';
                 ctx.textAlign = 'center';
                 
-                // 绘制文字：如果有图号，显示图号+描述
-                const displayText = drawingNo ? `${drawingNo} : ${fullLabel}` : fullLabel;
-                ctx.fillText(displayText, totalWidth / 2, totalHeight - 50);
+                ctx.fillText(displayLabel, totalWidth / 2, totalHeight - 50);
 
-                // 文件名逻辑：如果有图号，文件名以图号开头
                 let fileName = '板材加工图.png';
                 if (drawingNo) {
                     fileName = `${drawingNo}_${fullLabel || '加工图'}.png`;
@@ -366,7 +370,7 @@
                 {sides.left && <Triangle x={rx - 3} y={cy} direction="right" />}
                 {sides.right && <polygon points={`${rx + RW + 3},${cy} ${rx + RW + 3 + 8},${cy - 4} ${rx + RW + 3 + 8},${cy + 4}`} fill="black" />}
                 
-                {sides.center && <Triangle x={cx} y={cy + 5} direction="down" />}
+                <Triangle x={cx} y={cy + 5} direction="down" />
                 </svg>
             );
             };
@@ -448,16 +452,20 @@
             const isSidePolished = true; 
             const R_RED = 1.0;
 
+            // 计算上倒角三角位置
+            const chamferMidX = sx + C_Top / 2;
+            const chamferMidY = sy + C_Top / 2;
+
             return (
                 <svg ref={sectionRef} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-full">
                 <defs>
-                    <pattern id="hatch_thin_fix_v31" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <pattern id="hatch_thin_fix_v36" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
                     <line x1="0" y1="0" x2="0" y2="10" style={{stroke:'black', strokeWidth:0.5}} />
                     </pattern>
                 </defs>
 
                 {/* 1. 填充层 */}
-                <path d={fillPath} fill="url(#hatch_thin_fix_v31)" stroke="none" />
+                <path d={fillPath} fill="url(#hatch_thin_fix_v36)" stroke="none" />
                 
                 {/* 2. 轮廓绘制层 */}
                 <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={sides.center ? COLOR_RED : COLOR_BLACK} strokeWidth={sides.center ? "1" : "0.8"} strokeLinecap="butt" />
@@ -479,7 +487,7 @@
                 {C_Bottom === 0 && <CornerDot x={p6.x} y={p6.y} color={COLOR_RED} r={R_RED} />}
 
                 {/* 4. 标注层 */}
-                {sides.center && <Triangle x={sx + DRAW_WIDTH/2} y={sy - 4} direction="down" />}
+                <Triangle x={sx + DRAW_WIDTH/2} y={sy - 4} direction="down" />
                 
                 <Triangle x={sx - 4} y={sy + T/2} direction="right" />
                 
@@ -487,26 +495,33 @@
                     <Triangle x={bottomTriangleX} y={sy + T + 4} direction="up" />
                 )}
 
-                {/* 厚度标注 */}
-                <g>
+                {/* 上倒角磨光三角 (垂直于倒角边) */}
+                {showTopChamferTriangle && C_Top > 0 && (
+                    <Triangle x={chamferMidX} y={chamferMidY} direction="down" rotate={-45} />
+                )}
+
+                {/* 厚度标注 (只有当选择了厚度时才显示) */}
+                {thicknesses.length > 0 && (
+                    <g>
                     <line x1={sx - 35} y1={sy} x2={sx - 35} y2={sy + T} stroke={COLOR_DIM} strokeWidth="0.5" />
                     <line x1={sx - 40} y1={sy} x2={sx - 15} y2={sy} stroke={COLOR_DIM} strokeWidth="0.5" />
                     <line x1={sx - 40} y1={sy + T} x2={sx - 15} y2={sy + T} stroke={COLOR_DIM} strokeWidth="0.5" />
                     <circle cx={sx - 35} cy={sy} r="1.5" fill={COLOR_DIM} />
                     <circle cx={sx - 35} cy={sy + T} r="1.5" fill={COLOR_DIM} />
                     <text 
-                    x={sx - 45} 
-                    y={sy + T/2} 
-                    fill={COLOR_DIM} 
-                    textAnchor="middle" 
-                    dominantBaseline="middle" 
-                    fontSize="16" 
-                    fontFamily="serif" 
-                    transform={`rotate(-90 ${sx-45} ${sy + T/2})`}
+                        x={sx - 45} 
+                        y={sy + T/2} 
+                        fill={COLOR_DIM} 
+                        textAnchor="middle" 
+                        dominantBaseline="middle" 
+                        fontSize="16" 
+                        fontFamily="serif" 
+                        transform={`rotate(-90 ${sx-45} ${sy + T/2})`}
                     >
-                    {thicknessLabel}
+                        {thicknessLabel}
                     </text>
-                </g>
+                    </g>
+                )}
 
                 {/* 上倒角标注 */}
                 {C_Top > 0 && (
@@ -563,14 +578,24 @@
                         <MiniBtn active={sides.bottom} onClick={() => toggleSide('bottom')} title="下"><ArrowDown size={18} /></MiniBtn>
                         <MiniBtn active={sides.left} onClick={() => toggleSide('left')} title="左"><ArrowLeft size={18} /></MiniBtn>
                         <MiniBtn active={sides.right} onClick={() => toggleSide('right')} title="右"><ArrowRight size={18} /></MiniBtn>
-                        <MiniBtn active={sides.center} onClick={() => toggleSide('center')} title="中心"><Circle size={12} className="fill-current" /></MiniBtn>
                         </div>
                     </div>
 
                     {/* 数值控制 */}
                     <div className="grid grid-cols-1 gap-4">
                         <div className="grid grid-cols-2 gap-3">
-                        <NumberControl label="上倒角" value={topChamfer} onChange={setTopChamfer} step={0.5} />
+                        <NumberControl 
+                            label="上倒角" 
+                            value={topChamfer} 
+                            onChange={setTopChamfer} 
+                            step={0.5} 
+                            rightElement={
+                                <label className="flex items-center gap-1 text-[10px] cursor-pointer bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 transition-colors" title="显示倒角磨光三角">
+                                    <input type="checkbox" checked={showTopChamferTriangle} onChange={(e) => setShowTopChamferTriangle(e.target.checked)} className="w-3 h-3" />
+                                    磨光
+                                </label>
+                            }
+                        />
                         <NumberControl label="下倒角" value={bottomChamfer} onChange={setBottomChamfer} step={0.5} />
                         </div>
                         
@@ -588,7 +613,7 @@
                         <div className="grid grid-cols-2 gap-3 mt-2">
                             {/* 左侧：底部进 */}
                             <div className="flex flex-col">
-                                <div className="flex justify-between items-center mb-1">
+                                <div className="flex justify-between items-center mb-1 h-[15px]">
                                     <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">底部进</span>
                                     <label className="flex items-center gap-1 text-[10px] cursor-pointer bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 transition-colors">
                                         <input type="checkbox" checked={isFullPolish} onChange={(e) => setIsFullPolish(e.target.checked)} className="w-3 h-3" />
@@ -600,7 +625,9 @@
 
                             {/* 右侧：图号 */}
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">图号</span>
+                                <div className="flex justify-between items-center mb-1 h-[15px]">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">图号</span>
+                                </div>
                                 <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden h-10 w-full shadow-sm hover:border-gray-300 transition-colors">
                                     <input 
                                         type="text" 
@@ -619,7 +646,7 @@
                     {/* 电脑端：操作按钮 */}
                     <div className="hidden md:flex flex-col gap-3">
                     <div className="bg-white p-3 rounded-xl border border-gray-200 text-gray-700 font-mono text-sm flex items-center justify-between shadow-sm">
-                        <span className="truncate font-bold mr-2">{fullLabel || "未选择加工"}</span>
+                        <span className="truncate font-bold mr-2">{displayLabel || "未选择加工"}</span>
                         <button onClick={copyText} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors" title="复制文本">
                         {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
                         </button>
@@ -656,7 +683,7 @@
                 <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
                     <div className="bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-xl border border-gray-200/50 flex gap-2 items-center">
                     <div className="flex-1 bg-gray-50 px-3 py-3 rounded-xl border border-gray-100 text-gray-700 font-mono flex items-center justify-between text-sm">
-                        <span className="truncate font-bold">{fullLabel || "未选择"}</span>
+                        <span className="truncate font-bold">{displayLabel || "未选择"}</span>
                         <button onClick={copyText} className="ml-2 p-1.5 bg-white border rounded-lg text-gray-500 active:bg-gray-100">
                         {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                         </button>
