@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>梅兰开槽编辑器 v2.3</title>
+    <title>梅兰开槽编辑器 v2.4</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -82,8 +82,8 @@
             <div class="input-group">
                 <label style="color:#1890ff">开槽方向</label>
                 <select id="slotDirection" class="highlight-option">
-                    <option value="horizontal">横向 (层板/侧板)</option>
-                    <option value="vertical">竖向 (背板/立柱)</option>
+                    <option value="horizontal">横向</option>
+                    <option value="vertical">竖向</option>
                 </select>
             </div>
             <div class="input-group">
@@ -328,7 +328,7 @@
         createLine(0, dimTopY - 10, 0, isVertical ? -55 : 0, 'red', 0.5);
         createLine(drawL, dimTopY - 10, drawL, isVertical ? -55 : 0, 'red', 0.5);
 
-        // 7. 底部文字 (已修改：去掉方向词)
+        // 7. 底部文字
         const bottomText = `${prefix} 开槽 ${sw}*${depth}`;
         createSvgElement('text', {
             x: drawL / 2,
