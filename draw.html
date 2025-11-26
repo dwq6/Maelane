@@ -142,7 +142,7 @@
             });
             const [topChamfer, setTopChamfer] = useState('3');
             const [bottomChamfer, setBottomChamfer] = useState('2');
-            const [thicknesses, setThicknesses] = useState([]); // 默认不选
+            const [thicknesses, setThicknesses] = useState(['20']); // 默认选中 20
             const [bottomPolish, setBottomPolish] = useState('15'); 
             const [isFullPolish, setIsFullPolish] = useState(false); 
             const [drawingNo, setDrawingNo] = useState('');
@@ -160,7 +160,6 @@
             const toggleThickness = (val) => {
             setThicknesses(prev => {
                 if (prev.includes(val)) {
-                // 允许取消选择最后一个，变为空数组
                 return prev.filter(t => t !== val);
                 } else {
                 return [...prev, val].sort((a, b) => parseFloat(a) - parseFloat(b));
@@ -232,7 +231,8 @@
 
             const fullLabel = generateLabel();
             
-            const displayLabel = drawingNo ? `图${drawingNo} : ${fullLabel}` : fullLabel;
+            // 修改：图号和描述之间使用 英文冒号，无空格
+            const displayLabel = drawingNo ? `图${drawingNo}:${fullLabel}` : fullLabel;
 
             const copyText = () => {
             navigator.clipboard.writeText(displayLabel); 
@@ -387,7 +387,8 @@
             const VIEW_H = 160; 
 
             const baseThickness = parseFloat(thicknesses[0]) || 30;
-            const thicknessLabel = thicknesses.length > 0 ? thicknesses.join(', ') + "T" : "";
+            // 修改：使用英文逗号连接，不带空格
+            const thicknessLabel = thicknesses.length > 0 ? thicknesses.join(',') + "T" : "";
 
             const realTopC = parseFloat(topChamfer) || 0;
             const realBottomC = parseFloat(bottomChamfer) || 0;
@@ -455,17 +456,19 @@
             // 计算上倒角三角位置
             const chamferMidX = sx + C_Top / 2;
             const chamferMidY = sy + C_Top / 2;
+            // 三角偏移量 2px
+            const triangleOffset = 2;
 
             return (
                 <svg ref={sectionRef} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-full">
                 <defs>
-                    <pattern id="hatch_thin_fix_v36" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <pattern id="hatch_thin_fix_v40" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
                     <line x1="0" y1="0" x2="0" y2="10" style={{stroke:'black', strokeWidth:0.5}} />
                     </pattern>
                 </defs>
 
                 {/* 1. 填充层 */}
-                <path d={fillPath} fill="url(#hatch_thin_fix_v36)" stroke="none" />
+                <path d={fillPath} fill="url(#hatch_thin_fix_v40)" stroke="none" />
                 
                 {/* 2. 轮廓绘制层 */}
                 <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={sides.center ? COLOR_RED : COLOR_BLACK} strokeWidth={sides.center ? "1" : "0.8"} strokeLinecap="butt" />
@@ -495,9 +498,9 @@
                     <Triangle x={bottomTriangleX} y={sy + T + 4} direction="up" />
                 )}
 
-                {/* 上倒角磨光三角 (垂直于倒角边) */}
+                {/* 上倒角磨光三角 (垂直于倒角边，带偏移) */}
                 {showTopChamferTriangle && C_Top > 0 && (
-                    <Triangle x={chamferMidX} y={chamferMidY} direction="down" rotate={-45} />
+                    <Triangle x={chamferMidX - triangleOffset} y={chamferMidY - triangleOffset} direction="down" rotate={-45} />
                 )}
 
                 {/* 厚度标注 (只有当选择了厚度时才显示) */}
@@ -611,17 +614,20 @@
                         
                         {/* 底部进 & 图号 (并排) */}
                         <div className="grid grid-cols-2 gap-3 mt-2">
-                            {/* 左侧：底部进 */}
-                            <div className="flex flex-col">
-                                <div className="flex justify-between items-center mb-1 h-[15px]">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">底部进</span>
+                            {/* 左侧：底部进 (修复对齐) */}
+                            <NumberControl 
+                                label="底部进" 
+                                value={bottomPolish} 
+                                onChange={setBottomPolish} 
+                                step={1} 
+                                disabled={isFullPolish}
+                                rightElement={
                                     <label className="flex items-center gap-1 text-[10px] cursor-pointer bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200 transition-colors">
                                         <input type="checkbox" checked={isFullPolish} onChange={(e) => setIsFullPolish(e.target.checked)} className="w-3 h-3" />
                                         全光
                                     </label>
-                                </div>
-                                <NumberControl label="" value={bottomPolish} onChange={setBottomPolish} step={1} disabled={isFullPolish} />
-                            </div>
+                                }
+                            />
 
                             {/* 右侧：图号 */}
                             <div className="flex flex-col">
