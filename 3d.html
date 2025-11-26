@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>梅兰石材编辑器</title>
+    <style>
+        /* --- Layout & Reset --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #eee; color: #333; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* --- 3D Viewport --- */
+        #canvas-container { 
+            width: 100%; 
+            flex: 1; 
+            position: relative; 
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+        
+        /* --- Loading Screens --- */
+        #app-loader {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; z-index: 2000; display: flex; justify-content: center; align-items: center;
+            flex-direction: column; transition: opacity 0.5s;
+        }
+        #app-loader.hidden { opacity: 0; pointer-events: none; }
+        
+        #texture-loader {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); z-index: 999; display: flex; justify-content: center; align-items: center;
+            flex-direction: column; transition: opacity 0.2s; pointer-events: none; opacity: 0;
+        }
+        #texture-loader.visible { pointer-events: auto; opacity: 1; }
+        
+        .spinner { width: 30px; height: 30px; border: 3px solid #eee; border-top: 3px solid #333; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- Toggle Button --- */
+        #ui-toggle-btn {
+            position: absolute; bottom: 20px; right: 20px; z-index: 100;
+            width: 50px; height: 50px; border-radius: 25px;
+            background: #333; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: none; color: #fff; font-size: 22px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #ui-toggle-btn:active { transform: scale(0.9); }
+        #ui-toggle-btn.hidden { transform: scale(0) rotate(90deg); pointer-events: none; }
+
+        /* --- Control Panel --- */
+        #panel-container {
+            position: relative;
+            height: 0;
+            background: #fff;
+            border-top: 1px solid #ddd;
+            overflow: hidden;
+            transition: height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex; flex-direction: column;
+            z-index: 200;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+        }
+        #panel-container.active { height: 50vh; }
+
+        .panel-header { display: flex; align-items: center; border-bottom: 1px solid #eee; background: #fff; flex-shrink: 0; padding: 0 10px; height: 44px; }
+        .tab-btn { flex: 1; text-align: center; font-size: 13px; font-weight: 600; color: #888; background: none; border: none; height: 100%; position: relative; cursor: pointer; transition: color 0.2s; }
+        .tab-btn.active { color: #000; }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 3px; background: #d4af37; border-radius: 3px 3px 0 0; }
+        .close-icon-btn { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; border-radius: 50%; border: none; cursor: pointer; margin-left: 10px; font-size: 16px; color: #666; flex-shrink: 0; }
+
+        .panel-content { padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex-grow: 1; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* UI Elements */
+        .stone-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 25px; }
+        .stone-btn { background: #f9f9f9; border: 2px solid transparent; border-radius: 8px; padding: 8px 2px; color: #666; font-size: 10px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
+        .stone-btn.active { border-color: #333; background: #eee; color: #000; font-weight: bold; }
+        .stone-preview { width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; border: 1px solid rgba(0,0,0,0.1); }
+        .stone-btn.active .stone-preview { border-color: #333; }
+
+        .edge-select-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .edge-toggle { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px; font-size: 13px; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .edge-toggle.active { background: #ffebee; border-color: #d32f2f; color: #d32f2f; font-weight: bold; }
+        .edge-indicator { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #ccc; flex-shrink: 0; }
+        .edge-toggle.active .edge-indicator { background: #d32f2f; border-color: #d32f2f; }
+
+        .control-group { margin-bottom: 20px; }
+        .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: #555; }
+        .val-input-wrapper { display: flex; align-items: center; gap: 4px; }
+        .val-input { width: 70px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-weight: bold; text-align: right; font-size: 14px; color: #333; outline: none; }
+        .val-input:focus { border-color: #d4af37; }
+        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; height: 30px; display: block; margin: 0; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #ddd; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%; background: #333; margin-top: -9px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+        .thickness-options { display: flex; background: #eee; border-radius: 8px; padding: 4px; gap: 4px; align-items: center; }
+        .thick-btn { flex: 1; border: none; background: transparent; color: #666; padding: 8px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .thick-btn.active { background: #fff; color: #000; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .thick-custom { width: 60px; margin-left: 4px; padding: 6px; border: 1px solid transparent; background: #fff; border-radius: 6px; font-size: 13px; text-align: center; outline: none; }
+
+        .qty-wrapper { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 10px; }
+        .qty-control { display: flex; align-items: center; gap: 15px; background: #f5f5f5; border-radius: 12px; padding: 8px 15px; }
+        .qty-btn { width: 40px; height: 40px; background: #fff; border: 1px solid #ddd; border-radius: 8px; font-size: 20px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #333; }
+        #qty-input-main { width: 60px; border: none; background: transparent; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
+
+        /* --- New Weight Card Style --- */
+        .weight-card { 
+            width: 100%; 
+            background: #333; 
+            color: #fff; 
+            border-radius: 12px; 
+            margin-top: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
+            padding: 5px 15px;
+        }
+        
+        .stat-line { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px 0; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            font-size: 14px; /* 统一字体大小 */
+        }
+        .stat-line:last-child { 
+            border-bottom: none; 
+        }
+        
+        .st-label { 
+            font-weight: bold; 
+            color: #ddd; 
+            min-width: 40px;
+        }
+        
+        .st-vals { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            font-family: monospace; /* 数字等宽对齐 */
+        }
+        
+        .st-prefix { 
+            color: #888; 
+            font-size: 12px; 
+            margin-right: 2px;
+        }
+        
+        .st-sep { 
+            color: #555; 
+            margin: 0 4px; 
+            font-size: 12px;
+        }
+
+        .st-val-txt {
+            color: #fff;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+    <!-- Initial App Loader -->
+    <div id="app-loader">
+        <div class="spinner"></div>
+        <div style="font-size:14px; color:#666; font-weight:500;">引擎初始化中...</div>
+    </div>
+
+    <!-- Texture Processing Loader -->
+    <div id="texture-loader">
+        <div class="spinner"></div>
+        <div style="color:#888; font-size:12px;">正在处理纹理...</div>
+    </div>
+
+    <div id="canvas-container"></div>
+    <button id="ui-toggle-btn">🛠️</button>
+
+    <div id="panel-container">
+        <div class="panel-header">
+            <button class="tab-btn active" data-tab="tab-1">选材尺寸</button>
+            <button class="tab-btn" data-tab="tab-2">加工处理</button>
+            <button class="tab-btn" data-tab="tab-3">统计数据</button>
+            <button class="close-icon-btn">✕</button>
+        </div>
+        <div class="panel-content">
+            <div class="tab-pane active" id="tab-1">
+                <div class="stone-grid" id="stone-grid-container"></div>
+                <div class="control-group">
+                    <div class="label-row"><span>长度 (L)</span><div class="val-input-wrapper"><input type="number" id="length-input" class="val-input" value="200"><span class="unit">mm</span></div></div>
+                    <input type="range" id="length-slider" min="50" max="2000" step="10" value="200">
+                </div>
+                <div class="control-group">
+                    <div class="label-row"><span>宽度 (W)</span><div class="val-input-wrapper"><input type="number" id="width-input" class="val-input" value="200"><span class="unit">mm</span></div></div>
+                    <input type="range" id="width-slider" min="50" max="2000" step="10" value="200">
+                </div>
+                <div class="control-group">
+                    <div class="label-row"><span>厚度 (T)</span></div>
+                    <div class="thickness-options">
+                        <button class="thick-btn active" data-val="20">20</button>
+                        <button class="thick-btn" data-val="30">30</button>
+                        <button class="thick-btn" data-val="50">50</button>
+                        <input type="number" id="thickness-input" class="thick-custom" placeholder="自定义" value="20">
+                        <span style="font-size:12px; color:#666; margin-right:5px;">mm</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane" id="tab-2">
+                <div class="edge-select-grid">
+                    <div class="edge-toggle" data-edge="top"><div class="edge-indicator"></div> 上 L</div>
+                    <div class="edge-toggle" data-edge="bottom"><div class="edge-indicator"></div> 下 L</div>
+                    <div class="edge-toggle" data-edge="left"><div class="edge-indicator"></div> 左 W</div>
+                    <div class="edge-toggle" data-edge="right"><div class="edge-indicator"></div> 右 W</div>
+                    <!-- 强制添加 active 类 -->
+                    <div class="edge-toggle active" data-edge="face"><div class="edge-indicator"></div> 正面/顶部</div>
+                    <div class="edge-toggle" data-edge="back"><div class="edge-indicator"></div> 底部</div>
+                </div>
+                <div style="margin-top:15px; font-size:12px; color:#888; text-align:center;">* 无材质模式下：选中面显示三角，相邻面均选中时公共边变红</div>
+            </div>
+            <div class="tab-pane" id="tab-3">
+                <div class="qty-wrapper">
+                    <div style="font-size:14px; color:#666;">选择数量 (PCS)</div>
+                    <div class="qty-control">
+                        <button class="qty-btn" id="qty-minus">-</button>
+                        <input type="number" id="qty-input-main" value="1" min="1" max="999">
+                        <button class="qty-btn" id="qty-plus">+</button>
+                    </div>
+                </div>
+                
+                <!-- 新的统计布局 -->
+                <div class="weight-card">
+                    <div class="stat-line">
+                        <div class="st-label">面积</div>
+                        <div class="st-vals">
+                            <span class="st-prefix">单</span><span class="st-val-txt" id="single-area">0.04 m²</span>
+                            <span class="st-sep">|</span>
+                            <span class="st-prefix">总</span><span class="st-val-txt" id="total-area">0.04 m²</span>
+                        </div>
+                    </div>
+                    <div class="stat-line">
+                        <div class="st-label">重量</div>
+                        <div class="st-vals">
+                            <span class="st-prefix">单</span><span class="st-val-txt" id="single-weight">2.00 kg</span>
+                            <span class="st-sep">|</span>
+                            <span class="st-prefix">总</span><span class="st-val-txt" id="total-weight">2.00 kg</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Optimized Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://esm.sh/three@0.160.0?target=es2022",
+                "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+        // Hide loader when module is parsed
+        const appLoader = document.getElementById('app-loader');
+        
+        // CORS Proxy
+        const PROXY_BASE = 'https://wsrv.nl/?url=';
+        
+        const STONE_CONFIG = [
+            { id: 'none', name: '无材质(白模)', url: '' },
+            { id: 'white_shimao', name: '白世贸', url: PROXY_BASE + 'img.website.xin/contents/sitefiles10828/54140055/images/33314796.jpg' },
+            { id: 'bala_white', name: '巴拉白', url: PROXY_BASE + 'img.website.xin/contents/sitefiles10828/54140055/images/173623572.jpg' },
+            { id: 'tan_brown', name: '英国棕', url: PROXY_BASE + 'img.website.xin/contents/sitefiles10828/54140055/images/33314798.jpg' },
+            { id: 'angola_black', name: '安哥拉黑', url: PROXY_BASE + 'img.website.xin/contents/sitefiles10828/54140055/images/173623573.jpg' }
+        ];
+
+        // UI Init
+        const gridContainer = document.getElementById('stone-grid-container');
+        STONE_CONFIG.forEach((stone, index) => {
+            const btn = document.createElement('div');
+            btn.className = `stone-btn ${index === 0 ? 'active' : ''}`;
+            btn.dataset.type = stone.id;
+            const bgStyle = stone.url ? `background-image: url('${stone.url}&w=64&h=64&fit=cover');` : `background: #fff; border: 1px solid #ddd;`;
+            btn.innerHTML = `<div class="stone-preview" style="${bgStyle}"></div>${stone.name}`;
+            gridContainer.appendChild(btn);
+        });
+
+        // 初始状态：face 设为 true
+        const STATE = { length: 0.2, width: 0.2, thickness: 0.02, stoneType: 'none', quantity: 1, edges: { top: false, bottom: false, left: false, right: false, face: true, back: false } };
+        const DENSITY = 2500;
+        const TEXTURE_URLS = {};
+        STONE_CONFIG.forEach(s => { if(s.url) TEXTURE_URLS[s.id] = s.url; });
+
+        // Elements
+        const els = {
+            panel: document.getElementById('panel-container'),
+            toggle: document.getElementById('ui-toggle-btn'),
+            close: document.querySelector('.close-icon-btn'),
+            canvas: document.getElementById('canvas-container'),
+            sArea: document.getElementById('single-area'),
+            tArea: document.getElementById('total-area'),
+            sWeight: document.getElementById('single-weight'),
+            tWeight: document.getElementById('total-weight'),
+            qty: document.getElementById('qty-input-main'),
+            lenIn: document.getElementById('length-input'),
+            lenSl: document.getElementById('length-slider'),
+            widIn: document.getElementById('width-input'),
+            widSl: document.getElementById('width-slider'),
+            thkIn: document.getElementById('thickness-input'),
+            texLoader: document.getElementById('texture-loader')
+        };
+
+        // Three.js Init
+        const scene = new THREE.Scene(); scene.background = new THREE.Color('#f0f0f0');
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100); 
+        // Initial pos will be set by fitView
+        camera.position.set(0, 0, 1);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        els.canvas.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; controls.dampingFactor = 0.05; controls.minDistance = 0.1; controls.maxDistance = 5;
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        const hl = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0); hl.position.set(0, 20, 0); scene.add(hl);
+        const ml = new THREE.DirectionalLight(0xffffff, 2.0); ml.position.set(5, 10, 7); ml.castShadow = true; ml.shadow.mapSize.set(1024,1024); ml.shadow.bias = -0.0001; scene.add(ml);
+        const fl = new THREE.DirectionalLight(0xffffff, 1.0); fl.position.set(-5, 0, 5); scene.add(fl);
+
+        // --- CAMERA ANIMATION & FIT LOGIC ---
+        let camAnim = { active: false, startPos: new THREE.Vector3(), endPos: new THREE.Vector3(), startTarget: new THREE.Vector3(), endTarget: new THREE.Vector3(), startTime: 0, duration: 600 };
+        
+        function animateCameraTo(targetPos, targetLookAt) {
+            camAnim.startPos.copy(camera.position);
+            camAnim.endPos.copy(targetPos);
+            camAnim.startTarget.copy(controls.target);
+            camAnim.endTarget.copy(targetLookAt);
+            camAnim.startTime = performance.now();
+            camAnim.active = true;
+        }
+
+        function fitView(isMenuOpen) {
+            if (!slabMesh) return;
+
+            // 1. Calculate Bounding Box of Stone + Dimensions + Highlights
+            const box = new THREE.Box3();
+            box.expandByObject(slabMesh);
+            box.expandByObject(groups.dim);
+            box.expandByObject(groups.hl);
+
+            if (box.isEmpty()) return;
+
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            // 2. Calculate Distance to Fit
+            // Get the max dimension relative to aspect ratio
+            const aspect = camera.aspect;
+            const fov = camera.fov * (Math.PI / 180);
+            
+            // Basic distance to fit the object vertically
+            let distanceV = size.y / (2 * Math.tan(fov / 2));
+            // Basic distance to fit the object horizontally
+            let distanceH = size.x / (2 * Math.tan(fov / 2) * aspect);
+            
+            // Use the larger distance to ensure everything fits
+            let distance = Math.max(distanceV, distanceH);
+            
+            // Add padding (1.3x)
+            distance *= 1.3;
+
+            // 3. Adjust for Menu
+            let yOffset = 0;
+            if (isMenuOpen) {
+                distance = Math.max(distanceV * 2, distanceH); 
+                distance *= 1.1; 
+                const visibleHeight = 2 * Math.tan(fov / 2) * distance;
+                yOffset = -visibleHeight * 0.25; 
+            }
+
+            // 4. Set Targets
+            const endTarget = new THREE.Vector3(center.x, center.y + yOffset, center.z);
+            const viewDir = new THREE.Vector3(0, 0, 1).normalize(); 
+            
+            // New Camera Position
+            const endPos = endTarget.clone().add(viewDir.multiplyScalar(distance));
+
+            animateCameraTo(endPos, endTarget);
+        }
+
+        // --- UI Events with Camera Trigger ---
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+        
+        els.toggle.addEventListener('click', () => { 
+            els.panel.classList.add('active'); 
+            els.toggle.classList.add('hidden');
+            // Trigger Fit for Menu Open
+            fitView(true);
+        });
+        
+        els.close.addEventListener('click', () => { 
+            els.panel.classList.remove('active'); 
+            els.toggle.classList.remove('hidden');
+            // Trigger Fit for Menu Close (Center)
+            fitView(false);
+        });
+
+        // Texture Logic
+        const TEXTURE_CACHE = {};
+        function makeSeamless(ctx, w, h) {
+            const bx = Math.floor(w * 0.15), by = Math.floor(h * 0.15);
+            const createGrad = (w, h, isX) => {
+                const c = document.createElement('canvas'); c.width = w; c.height = h;
+                const x = c.getContext('2d');
+                const g = x.createLinearGradient(0, 0, isX?w:0, isX?0:h);
+                g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+                x.fillStyle = g; x.fillRect(0, 0, w, h);
+                return c;
+            };
+            const blend = (src, mask, x, y) => {
+                const tc = document.createElement('canvas'); tc.width = mask.width; tc.height = mask.height;
+                const tx = tc.getContext('2d');
+                tx.putImageData(src, 0, 0);
+                tx.globalCompositeOperation = 'destination-in';
+                tx.drawImage(mask, 0, 0);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(tc, x, y);
+            };
+            const rDat = ctx.getImageData(w - bx, 0, bx, h);
+            blend(rDat, createGrad(bx, h, true), 0, 0);
+            const bDat = ctx.getImageData(0, h - by, w, by);
+            blend(bDat, createGrad(w, by, false), 0, 0);
+        }
+
+        function loadTexture(type, cb) {
+            if (TEXTURE_CACHE[type]) return cb(TEXTURE_CACHE[type]);
+            if (!TEXTURE_URLS[type]) return cb(null);
+            const img = new Image(); img.crossOrigin = "anonymous"; img.src = TEXTURE_URLS[type];
+            img.onerror = () => { els.texLoader.classList.remove('visible'); cb(null); };
+            img.onload = () => {
+                setTimeout(() => {
+                    try {
+                        const c = document.createElement('canvas'); const cx = c.getContext('2d');
+                        c.width = img.width; c.height = img.height; cx.drawImage(img, 0, 0);
+                        if (img.height > 350) cx.drawImage(c, 0, 200, 350, 150, 0, 0, 350, 150);
+                        makeSeamless(cx, c.width, c.height);
+                        const tex = new THREE.CanvasTexture(c);
+                        tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                        TEXTURE_CACHE[type] = tex; cb(tex);
+                    } catch(e) { cb(null); }
+                }, 10);
+            };
+        }
+
+        // Slab & Highlights
+        let slabMesh;
+        const groups = { hl: new THREE.Group(), dim: new THREE.Group() };
+        scene.add(groups.hl); scene.add(groups.dim);
+        
+        const mats = {
+            redLine: new THREE.LineBasicMaterial({ color: 0xff0000, depthTest: true }),
+            blackTri: new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide }),
+            redPlane: new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.6, side: THREE.DoubleSide }),
+            dimLine: new THREE.LineBasicMaterial({ color: 0x000000 })
+        };
+        const triGeom = new THREE.CircleGeometry(1, 3);
+
+        function updateHighlights() {
+            groups.hl.clear();
+            const isNoMat = STATE.stoneType === 'none';
+            const redOff = 0.0002, triOff = 0.001;
+            const addPlane = (w, h, pos, rot) => {
+                const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mats.redPlane);
+                m.position.copy(pos); if(rot) m.rotation.set(rot.x||0, rot.y||0, rot.z||0);
+                groups.hl.add(m);
+            };
+            const addTri = (pos, rot, w, h, isFB) => {
+                const m = new THREE.Mesh(triGeom, mats.blackTri);
+                m.position.copy(pos); if(rot) m.rotation.set(rot.x||0, rot.y||0, rot.z||0);
+                const limit = 0.1; const effDim = Math.min(w, h, limit);
+                let factor = 0.15; if (isFB && (w < 0.5 || h < 0.5)) factor = 0.08;
+                const s = effDim * factor; m.scale.set(s, s, 1); groups.hl.add(m);
+            };
+            if(STATE.edges.face) isNoMat ? addTri(new THREE.Vector3(0,0,STATE.thickness/2+triOff), {z:-Math.PI/2}, STATE.length, STATE.width, true) : addPlane(STATE.length, STATE.width, new THREE.Vector3(0,0,STATE.thickness/2+redOff));
+            if(STATE.edges.back) isNoMat ? addTri(new THREE.Vector3(0,0,-STATE.thickness/2-triOff), {z:-Math.PI/2}, STATE.length, STATE.width, true) : addPlane(STATE.length, STATE.width, new THREE.Vector3(0,0,-STATE.thickness/2-redOff));
+            if(STATE.edges.top) isNoMat ? addTri(new THREE.Vector3(0,STATE.width/2+triOff,0), {x:-Math.PI/2, z:-Math.PI/2}, STATE.length, STATE.thickness) : addPlane(STATE.length, STATE.thickness, new THREE.Vector3(0,STATE.width/2+redOff,0), {x:-Math.PI/2});
+            if(STATE.edges.bottom) isNoMat ? addTri(new THREE.Vector3(0,-STATE.width/2-triOff,0), {x:Math.PI/2, z:Math.PI/2}, STATE.length, STATE.thickness) : addPlane(STATE.length, STATE.thickness, new THREE.Vector3(0,-STATE.width/2-redOff,0), {x:Math.PI/2});
+            if(STATE.edges.left) isNoMat ? addTri(new THREE.Vector3(-STATE.length/2-triOff,0,0), {y:-Math.PI/2, z:-Math.PI/2}, STATE.thickness, STATE.width) : addPlane(STATE.thickness, STATE.width, new THREE.Vector3(-STATE.length/2-redOff,0,0), {y:-Math.PI/2});
+            if(STATE.edges.right) isNoMat ? addTri(new THREE.Vector3(STATE.length/2+triOff,0,0), {y:Math.PI/2, z:-Math.PI/2}, STATE.thickness, STATE.width) : addPlane(STATE.thickness, STATE.width, new THREE.Vector3(STATE.length/2+redOff,0,0), {y:Math.PI/2});
+            if (isNoMat) {
+                const L=STATE.length, W=STATE.width, T=STATE.thickness;
+                const line = (x1,y1,z1, x2,y2,z2) => {
+                    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1,y1,z1), new THREE.Vector3(x2,y2,z2)]);
+                    const l = new THREE.Line(g, mats.redLine);
+                    l.position.add(new THREE.Vector3(x1+x2, y1+y2, z1+z2).multiplyScalar(0.5).normalize().multiplyScalar(0.0005));
+                    groups.hl.add(l);
+                };
+                const x=L/2, y=W/2, z=T/2;
+                if(STATE.edges.face && STATE.edges.top) line(-x,y,z, x,y,z);
+                if(STATE.edges.face && STATE.edges.bottom) line(-x,-y,z, x,-y,z);
+                if(STATE.edges.face && STATE.edges.right) line(x,-y,z, x,y,z);
+                if(STATE.edges.face && STATE.edges.left) line(-x,-y,z, -x,y,z);
+                if(STATE.edges.back && STATE.edges.top) line(-x,y,-z, x,y,-z);
+                if(STATE.edges.back && STATE.edges.bottom) line(-x,-y,-z, x,-y,-z);
+                if(STATE.edges.back && STATE.edges.right) line(x,-y,-z, x,y,-z);
+                if(STATE.edges.back && STATE.edges.left) line(-x,-y,-z, -x,y,-z);
+                if(STATE.edges.top && STATE.edges.right) line(x,y,-z, x,y,z);
+                if(STATE.edges.top && STATE.edges.left) line(-x,y,-z, -x,y,z);
+                if(STATE.edges.bottom && STATE.edges.right) line(x,-y,-z, x,-y,z);
+                if(STATE.edges.bottom && STATE.edges.left) line(-x,-y,-z, -x,-y,z);
+            }
+        }
+
+        function updateDimensions() {
+            groups.dim.clear();
+            const gap = 0.05, tl = 0.01;
+            const addL = (pts) => groups.dim.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), mats.dimLine));
+            const addT = (txt, pos, rz=0) => {
+                const c = document.createElement('canvas'); c.width=256; c.height=64;
+                const x = c.getContext('2d'); x.font='bold 40px Arial'; x.fillStyle='black'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(txt,128,32);
+                const m = new THREE.Mesh(new THREE.PlaneGeometry(0.2,0.05), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c), transparent:true, side:THREE.DoubleSide}));
+                m.position.copy(pos); m.rotation.z = rz; groups.dim.add(m);
+            };
+            const ly = STATE.width/2+gap;
+            addL([new THREE.Vector3(-STATE.length/2,ly,0), new THREE.Vector3(STATE.length/2,ly,0), new THREE.Vector3(-STATE.length/2,ly-tl,0), new THREE.Vector3(-STATE.length/2,ly+tl,0), new THREE.Vector3(STATE.length/2,ly-tl,0), new THREE.Vector3(STATE.length/2,ly+tl,0)]);
+            addT('L='+Math.round(STATE.length*1000)+'mm', new THREE.Vector3(0,ly+0.03,0));
+            const wx = -STATE.length/2-gap;
+            addL([new THREE.Vector3(wx,-STATE.width/2,0), new THREE.Vector3(wx,STATE.width/2,0), new THREE.Vector3(wx-tl,-STATE.width/2,0), new THREE.Vector3(wx+tl,-STATE.width/2,0), new THREE.Vector3(wx-tl,STATE.width/2,0), new THREE.Vector3(wx+tl,STATE.width/2,0)]);
+            addT('W='+Math.round(STATE.width*1000)+'mm', new THREE.Vector3(wx-0.04,0,0), Math.PI/2);
+            const tx = STATE.length/2+gap, ty = -STATE.width/2;
+            addL([new THREE.Vector3(tx,ty,-STATE.thickness/2), new THREE.Vector3(tx,ty,STATE.thickness/2), new THREE.Vector3(tx-tl,ty,-STATE.thickness/2), new THREE.Vector3(tx+tl,ty,-STATE.thickness/2), new THREE.Vector3(tx-tl,ty,STATE.thickness/2), new THREE.Vector3(tx+tl,ty,STATE.thickness/2)]);
+            addT(Math.round(STATE.thickness*1000)+'T', new THREE.Vector3(tx+0.05,ty,0));
+        }
+
+        function genSlab() {
+            if (slabMesh) { scene.remove(slabMesh); slabMesh.geometry.dispose(); if(slabMesh.userData.ol) slabMesh.userData.ol.geometry.dispose(); }
+            const geom = STATE.stoneType === 'none' ? new THREE.BoxGeometry(STATE.length, STATE.width, STATE.thickness) : new RoundedBoxGeometry(STATE.length, STATE.width, STATE.thickness, 2, 0.003);
+            geom.computeBoundingBox();
+            const pos = geom.attributes.position, norm = geom.attributes.normal, uv = geom.attributes.uv;
+            const s = 5.0; const v = new THREE.Vector3(), n = new THREE.Vector3();
+            for(let i=0; i<pos.count; i++){
+                v.fromBufferAttribute(pos,i); n.fromBufferAttribute(norm,i);
+                const ax=Math.abs(n.x), ay=Math.abs(n.y), az=Math.abs(n.z);
+                let u,vv;
+                if(az>ax && az>ay) { u=(v.x+STATE.length/2)*s; vv=(v.y+STATE.width/2)*s; }
+                else if(ax>ay && ax>az) { u=(v.z+STATE.thickness/2)*s; vv=(v.y+STATE.width/2)*s; }
+                else { u=(v.x+STATE.length/2)*s; vv=(v.z+STATE.thickness/2)*s; }
+                uv.setXY(i,u,vv);
+            }
+            uv.needsUpdate = true;
+            slabMesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({color:0xffffff}));
+            slabMesh.castShadow = true; slabMesh.receiveShadow = true;
+            const edges = new THREE.EdgesGeometry(geom, 15);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0x000000}));
+            line.visible = false; slabMesh.add(line); slabMesh.userData.ol = line;
+            scene.add(slabMesh);
+            els.texLoader.classList.add('visible');
+            loadTexture(STATE.stoneType, (tex) => {
+                if(tex) {
+                    slabMesh.material.map = tex; slabMesh.material.bumpMap = tex;
+                    if(STATE.stoneType==='angola_black') { slabMesh.material.bumpScale=0.001; slabMesh.material.roughness=0.05; slabMesh.material.envMapIntensity=2; }
+                    else if(STATE.stoneType==='tan_brown') { slabMesh.material.bumpScale=0.003; slabMesh.material.roughness=0.4; }
+                    else { slabMesh.material.bumpScale=0.002; slabMesh.material.roughness=0.6; }
+                    line.visible = false;
+                } else {
+                    slabMesh.material.map = null; slabMesh.material.bumpMap = null; slabMesh.material.roughness=0.5;
+                    line.visible = true;
+                }
+                slabMesh.material.needsUpdate = true;
+                updateHighlights();
+                els.texLoader.classList.remove('visible');
+            });
+            updateHighlights();
+            updateDimensions();
+            const area = STATE.length * STATE.width;
+            const vol = area * STATE.thickness;
+            const sw = vol * DENSITY;
+            els.sArea.textContent = area.toFixed(2) + ' m²';
+            els.tArea.textContent = (area * STATE.quantity).toFixed(2) + ' m²';
+            els.sWeight.textContent = sw.toFixed(2) + ' kg';
+            els.tWeight.textContent = (sw * STATE.quantity).toFixed(2) + ' kg';
+        }
+
+        // Inputs
+        let reqId;
+        const reqUp = (k,v) => { STATE[k]=v/1000; cancelAnimationFrame(reqId); reqId=requestAnimationFrame(genSlab); };
+        els.lenSl.oninput = els.lenIn.onchange = (e) => { let v=parseInt(e.target.value)||10; els.lenSl.value=els.lenIn.value=v; reqUp('length',v); };
+        els.widSl.oninput = els.widIn.onchange = (e) => { let v=parseInt(e.target.value)||10; els.widSl.value=els.widIn.value=v; reqUp('width',v); };
+        const setThk = (v) => { els.thkIn.value=v; document.querySelectorAll('.thick-btn').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.val)==v)); reqUp('thickness',v); };
+        document.querySelectorAll('.thick-btn').forEach(b=>b.onclick=()=>setThk(b.dataset.val));
+        els.thkIn.onchange = (e) => setThk(parseInt(e.target.value)||20);
+        
+        // 材质切换逻辑优化
+        document.getElementById('stone-grid-container').onclick = (e) => {
+            const t = e.target.closest('.stone-btn');
+            if(t) { 
+                document.querySelectorAll('.stone-btn').forEach(b=>b.classList.remove('active')); 
+                t.classList.add('active'); 
+                
+                const prevType = STATE.stoneType;
+                STATE.stoneType = t.dataset.type; 
+                
+                // 智能切换：如果是无材质，强制开启正面；如果是从无材质切走，强制关闭正面
+                if (STATE.stoneType === 'none') {
+                    STATE.edges.face = true;
+                } else if (prevType === 'none') {
+                    STATE.edges.face = false;
+                }
+                
+                // 同步UI按钮状态
+                document.querySelector('.edge-toggle[data-edge="face"]').classList.toggle('active', STATE.edges.face);
+                
+                genSlab(); 
+            }
+        };
+        
+        document.querySelectorAll('.edge-toggle').forEach(b => b.onclick = () => { b.classList.toggle('active'); STATE.edges[b.dataset.edge]=!STATE.edges[b.dataset.edge]; updateHighlights(); });
+        const upQty = (v) => { v=Math.max(1,Math.min(999,v)); STATE.quantity=v; els.qty.value=v; genSlab(); };
+        document.getElementById('qty-minus').onclick = () => upQty(STATE.quantity-1);
+        document.getElementById('qty-plus').onclick = () => upQty(STATE.quantity+1);
+        els.qty.onchange = (e) => upQty(parseInt(e.target.value)||1);
+
+        // Start
+        genSlab();
+        // Initial Fit (Wait for next frame to ensure geometry is ready)
+        requestAnimationFrame(() => fitView(false));
+        appLoader.classList.add('hidden');
+
+        // --- 强制同步 UI 状态 ---
+        // 确保 JS 状态与 HTML 样式完全一致
+        Object.keys(STATE.edges).forEach(key => {
+            const btn = document.querySelector(`.edge-toggle[data-edge="${key}"]`);
+            if (btn) {
+                if (STATE.edges[key]) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }
+        });
+        
+        function animate() { 
+            requestAnimationFrame(animate); 
+            
+            // Camera Animation Loop
+            if (camAnim.active) {
+                const now = performance.now();
+                const progress = Math.min((now - camAnim.startTime) / camAnim.duration, 1);
+                // Ease Out Cubic
+                const ease = 1 - Math.pow(1 - progress, 3);
+                
+                camera.position.lerpVectors(camAnim.startPos, camAnim.endPos, ease);
+                controls.target.lerpVectors(camAnim.startTarget, camAnim.endTarget, ease);
+                
+                if (progress >= 1) camAnim.active = false;
+            }
+            
+            controls.update(); 
+            renderer.render(scene, camera); 
+        }
+        animate();
+        
+        const rs = () => { camera.aspect = els.canvas.clientWidth/els.canvas.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(els.canvas.clientWidth, els.canvas.clientHeight); };
+        window.addEventListener('resize', rs); rs();
+    </script>
+</body>
+</html>
