@@ -2,138 +2,203 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 关键：添加视口设置，禁止用户缩放，适配移动端宽度 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>梅兰背倒编辑器</title>
+    <title>梅兰背倒编辑器-高清版</title>
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
         html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%; /* 占满屏幕高度 */
+            margin: 0; padding: 0; 
             width: 100%;
-            background-color: #f0f0f0;
-            font-family: "Times New Roman", serif;
-            overflow: hidden; /* 防止整体滚动，只让内容适应布局 */
+            background-color: #f0f2f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow-y: auto; 
         }
 
         .container {
             display: flex;
             flex-direction: column;
-            height: 100%;
-            max-width: 1000px; /* 电脑端限制最大宽度 */
-            margin: 0 auto; /* 电脑端居中 */
+            max-width: 800px;
+            margin: 0 auto;
             background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
         }
 
-        /* 绘图区域：占据剩余空间，内容居中 */
+        /* --- 绘图区域 --- */
         .drawing-area {
-            flex: 1; /* 关键：自动伸缩 */
             width: 100%;
+            height: 320px; 
+            background-color: #fff;
+            position: relative;
+            border-bottom: 1px solid #eee;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 10px;
-            min-height: 0; /* 关键：允许在Flex容器中压缩高度 */
-            background-color: #fff;
-            position: relative;
+            overflow: hidden;
         }
 
         svg {
-            max-width: 100%;
-            max-height: 100%;
-            /* 保持边框以便看到边界，也可以去掉 */
-            border: 1px dashed #eee; 
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
-        /* 底部操作区域 */
+        /* --- 底部操作区域 --- */
         .controls-area {
             padding: 15px;
-            background-color: #f8f9fa;
-            border-top: 1px solid #ddd;
+            background-color: #fff;
             display: flex;
             flex-direction: column;
+            gap: 12px;
+            padding-bottom: 40px;
+        }
+
+        /* 网格布局 */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; 
             gap: 10px;
-            align-items: center;
-            z-index: 10;
-        }
-
-        .input-group {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-
-        label {
-            font-weight: bold;
-            font-size: 1rem;
-        }
-
-        input[type="text"] {
-            padding: 10px;
-            font-size: 16px;
-            width: 100%; /* 手机端占满 */
-            max-width: 400px; /* 电脑端限制宽度 */
-            text-align: center;
-            border: 2px solid #007bff;
-            border-radius: 4px;
-            outline: none;
         }
         
-        input[type="text"]:focus {
-            border-color: #0056b3;
-            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+        /* 两列网格用于开关按钮 */
+        .toggle-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; 
+            gap: 10px;
         }
 
-        button {
-            padding: 12px 30px;
-            font-size: 16px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            max-width: 400px;
-            -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+        .form-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
-        button:hover {
-            background-color: #218838;
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        .hint {
-            color: #666;
+        .form-item label {
             font-size: 12px;
+            color: #666;
+            font-weight: 500;
             text-align: center;
         }
 
-        .error {
-            color: red;
-            font-size: 14px;
-            height: 20px;
-            line-height: 20px;
+        .form-control {
+            height: 40px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            padding: 0 8px;
+            font-size: 16px;
+            background: #fff;
+            width: 100%;
             text-align: center;
+            -webkit-appearance: none; 
+            color: #333;
         }
+
+        .form-control[readonly] {
+            background-color: #f5f5f5;
+            color: #888;
+            border-color: #e8e8e8;
+        }
+        
+        select.form-control {
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right .7em top 50%;
+            background-size: .65em auto;
+            padding-right: 1.5em;
+        }
+
+        .form-control:focus {
+            border-color: #40a9ff;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+
+        /* 开关按钮通用样式 */
+        .toggle-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+            background: #f5f5f5;
+            border-radius: 6px;
+            border: 1px solid #d9d9d9;
+            cursor: pointer;
+            user-select: none;
+            font-size: 14px;
+            color: #666;
+            transition: all 0.2s;
+        }
+        
+        /* 光面激活 */
+        .toggle-btn.polish-active {
+            background: #e6f7ff;
+            border-color: #1890ff;
+            color: #1890ff;
+            font-weight: bold;
+        }
+        
+        /* 准确激活 */
+        .toggle-btn.accurate-active {
+            background: #fff1f0;
+            border-color: #ff4d4f;
+            color: #ff4d4f;
+            font-weight: bold;
+        }
+
+        /* 结果展示区 */
+        .result-section {
+            background: #f7f9fc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .result-text {
+            font-family: "Times New Roman", serif;
+            font-size: 16px; 
+            font-weight: bold;
+            color: #333;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .btn {
+            height: 44px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-success { background-color: #52c41a; color: white; }
+        
+        .btn-copy {
+            background-color: white;
+            border: 1px solid #1890ff;
+            color: #1890ff;
+            font-size: 13px;
+            height: 32px;
+            padding: 0 12px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="drawing-area">
-        <!-- 
-            1. 移除了 width/height 属性，改用 viewBox 定义逻辑坐标系 
-            2. preserveAspectRatio 确保图形按比例缩放且居中
-        -->
         <svg id="drawingSvg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <pattern id="mixedHatch" patternUnits="userSpaceOnUse" width="30" height="30" patternTransform="rotate(-45)">
@@ -149,73 +214,228 @@
     </div>
     
     <div class="controls-area">
-        <div class="input-group">
-            <label for="specInput">输入规格文字:</label>
-            <input type="text" id="specInput" value="1W背倒20*27余3光" placeholder="例如: 1W背倒20*27余3光">
-            <div class="error" id="errorMsg"></div>
+        <!-- 第一行 -->
+        <div class="control-grid">
+            <div class="form-item">
+                <label style="color:#1890ff; font-weight:bold;">板厚 (mm)</label>
+                <input type="number" id="thicknessInput" class="form-control" value="30" oninput="onThicknessChange()">
+            </div>
+            <div class="form-item">
+                <label>位置</label>
+                <select id="idxInput" class="form-control" onchange="updateAll()">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="左">左</option>
+                    <option value="右">右</option>
+                </select>
+            </div>
+            <div class="form-item">
+                <label>类型</label>
+                <select id="typeInput" class="form-control" onchange="updateAll()">
+                    <option value="W">W</option>
+                    <option value="L">L</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 第二行 -->
+        <div class="control-grid">
+            <div class="form-item">
+                <label>切宽 (mm)</label>
+                <input type="number" id="widthInput" class="form-control" value="20" oninput="onWidthChange()">
+            </div>
+            <div class="form-item">
+                <label>切深 (mm)</label>
+                <input type="number" id="heightInput" class="form-control" value="20" oninput="onHeightChange()">
+            </div>
+            <div class="form-item">
+                <label>余 (自动)</label>
+                <input type="number" id="remainInput" class="form-control" value="10" readonly>
+            </div>
+        </div>
+
+        <!-- 第三行：光面开关 + 准确开关 -->
+        <div class="toggle-grid">
+             <div id="polishBtn" class="toggle-btn" onclick="togglePolish()">无光</div>
+             <div id="accurateBtn" class="toggle-btn" onclick="toggleAccurate()">准确</div>
+        </div>
+
+        <!-- 结果文字展示与复制 -->
+        <div class="result-section">
+            <div class="result-text" id="resultDisplay">1W背倒20*20余10</div>
+            <button class="btn btn-copy" onclick="copyText()">复制</button>
         </div>
         
-        <button onclick="downloadJPG()">下载 JPG 图片</button>
-        <div class="hint">支持格式示例: 1W背倒20*27余3光 / 2L背倒15*10余5</div>
+        <!-- 底部大按钮 -->
+        <button class="btn btn-success" onclick="downloadJPG()">下载高清 JPG 图片</button>
     </div>
 </div>
 
 <script>
     const svg = document.getElementById('drawingSvg');
     const svgContent = document.getElementById('svgContent');
-    const input = document.getElementById('specInput');
-    const errorMsg = document.getElementById('errorMsg');
+    
+    // Inputs
+    const idxInput = document.getElementById('idxInput');
+    const typeInput = document.getElementById('typeInput');
+    const thicknessInput = document.getElementById('thicknessInput');
+    const widthInput = document.getElementById('widthInput');
+    const heightInput = document.getElementById('heightInput');
+    const remainInput = document.getElementById('remainInput');
+    const polishBtn = document.getElementById('polishBtn');
+    const accurateBtn = document.getElementById('accurateBtn');
+    const resultDisplay = document.getElementById('resultDisplay');
 
-    // 定义逻辑画布大小（对应 viewBox）
+    let isPolished = false;
+    let isAccurate = false;
+
+    window.onload = function() {
+        updateAll();
+    };
+    setTimeout(updateAll, 100);
+
+    // --- 联动逻辑 ---
+
+    function onThicknessChange() {
+        calculateRemain();
+        updateAll();
+    }
+
+    function onWidthChange() {
+        const w = parseInt(widthInput.value) || 0;
+        heightInput.value = w; 
+        calculateRemain();
+        updateAll();
+    }
+
+    function onHeightChange() {
+        calculateRemain();
+        updateAll();
+    }
+
+    function calculateRemain() {
+        const t = parseInt(thicknessInput.value) || 0;
+        const h = parseInt(heightInput.value) || 0;
+        const r = t - h;
+        remainInput.value = r >= 0 ? r : 0; 
+    }
+
+    function togglePolish() {
+        isPolished = !isPolished;
+        if (isPolished) {
+            polishBtn.classList.add('polish-active');
+            polishBtn.textContent = "有光";
+        } else {
+            polishBtn.classList.remove('polish-active');
+            polishBtn.textContent = "无光";
+        }
+        updateAll();
+    }
+
+    function toggleAccurate() {
+        isAccurate = !isAccurate;
+        if (isAccurate) {
+            accurateBtn.classList.add('accurate-active');
+            accurateBtn.textContent = "准确 (开)";
+        } else {
+            accurateBtn.classList.remove('accurate-active');
+            accurateBtn.textContent = "准确 (关)";
+        }
+        updateAll();
+    }
+
+    function updateAll() {
+        const idx = idxInput.value;
+        const type = typeInput.value;
+        const w = parseInt(widthInput.value) || 0;
+        const h = parseInt(heightInput.value) || 0;
+        const r = parseInt(remainInput.value) || 0;
+        const t = parseInt(thicknessInput.value) || 0; 
+
+        // 生成文字
+        let text = `${idx}${type}背倒${w}*${h}余${r}`;
+        if (isPolished) text += "光";
+        
+        // 新增：准确逻辑
+        if (isAccurate) {
+            text += `,余${r}准确`;
+        }
+
+        resultDisplay.textContent = text;
+
+        // 绘图数据
+        const data = {
+            index: idx,
+            dimType: type,
+            cutWidth: w,
+            cutHeight: h,
+            remaining: r,
+            isPolished: isPolished,
+            totalThickness: t 
+        };
+
+        drawSVG(data);
+    }
+
+    function copyText() {
+        const text = resultDisplay.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(showCopySuccess).catch(() => fallbackCopy(text));
+        } else {
+            fallbackCopy(text);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showCopySuccess();
+        } catch (err) {
+            alert('复制失败');
+        }
+        document.body.removeChild(textArea);
+    }
+
+    function showCopySuccess() {
+        const btn = document.querySelector('.btn-copy');
+        const originalText = btn.textContent;
+        btn.textContent = "OK!";
+        btn.style.borderColor = "#52c41a";
+        btn.style.color = "#52c41a";
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.borderColor = "#1890ff";
+            btn.style.color = "#1890ff";
+        }, 1500);
+    }
+
+    // --- 绘图逻辑 ---
     const LOGICAL_WIDTH = 800;
     const LOGICAL_HEIGHT = 500;
 
-    parseAndDraw();
-    input.addEventListener('input', parseAndDraw);
-
-    function parseAndDraw() {
-        const text = input.value.trim();
-        const regex = /^(\d+)([WL])背倒(\d+)\*(\d+)余(\d+)(光?)$/i;
-        const match = text.match(regex);
-
-        if (!match) {
-            errorMsg.textContent = "格式错误，例：1W背倒20*27余3光";
-            return;
-        } else {
-            errorMsg.textContent = "";
-        }
-
-        const data = {
-            index: match[1],
-            dimType: match[2].toUpperCase(),
-            cutWidth: parseInt(match[3]),
-            cutHeight: parseInt(match[4]),
-            remaining: parseInt(match[5]),
-            isPolished: match[6] === '光'
-        };
-        data.totalThickness = data.cutHeight + data.remaining;
-        drawSVG(data, text);
-    }
-
-    function drawSVG(data, originalText) {
+    function drawSVG(data) {
         while (svgContent.firstChild) {
             svgContent.removeChild(svgContent.firstChild);
         }
 
-        // 使用常量逻辑宽高，不再获取 DOM 元素的实际像素宽高
         const width = LOGICAL_WIDTH;
         const height = LOGICAL_HEIGHT;
         
-        // --- 布局参数配置 ---
-        const sidePadding = 30;
-        const topPadding = 40;
-        const bottomAreaHeight = 60;
+        const sidePadding = 40;
+        const topPadding = 50;
+        const bottomAreaHeight = 50; 
         
         const availableW = width - sidePadding * 2;
         const availableH = height - topPadding - bottomAreaHeight; 
 
         const logicalH = data.totalThickness;
-        const logicalW = logicalH * 5.5; 
+        if (logicalH <= 0) return;
+
+        const logicalW = logicalH * 4.5; 
         
         const scale = Math.min(availableW / logicalW, availableH / logicalH) * 0.85;
 
@@ -266,13 +486,17 @@
         createLine(pBottomRight.x, pBottomRight.y, rightX + 5, pBottomRight.y);
 
         const leftLabelX = pTopLeft.x - 45;
-        
-        drawDimLine(leftLabelX, pTopLeft.y, leftLabelX, pChamferStart.y, data.remaining, true, -20);
-        createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
-        createLine(pChamferStart.x, pChamferStart.y, leftLabelX - 5, pChamferStart.y);
+        if (data.remaining > 0) {
+            drawDimLine(leftLabelX, pTopLeft.y, leftLabelX, pChamferStart.y, data.remaining, true, -20);
+            createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
+            createLine(pChamferStart.x, pChamferStart.y, leftLabelX - 5, pChamferStart.y);
+        }
 
         drawDimLine(leftLabelX, pChamferStart.y, leftLabelX, pChamferEnd.y, data.cutHeight, true, -20);
         createLine(pChamferEnd.x, pChamferEnd.y, leftLabelX - 5, pChamferEnd.y);
+        if (data.remaining <= 0) {
+             createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
+        }
 
         const bottomLabelY = pBottomRight.y + 40;
         const cutX = pChamferEnd.x;
@@ -301,16 +525,6 @@
                 fill: 'black'
             });
         }
-
-        createSvgElement('text', {
-            x: width / 2,
-            y: height - 30,
-            'text-anchor': 'middle',
-            'dominant-baseline': 'middle',
-            'font-family': 'Times New Roman',
-            'font-size': '40px',
-            fill: 'black'
-        }, originalText);
     }
 
     function createSvgElement(type, attrs, textContent) {
@@ -366,8 +580,8 @@
     function downloadJPG() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        // 使用逻辑尺寸乘以倍率，保证下载图片的清晰度一致
-        const scaleFactor = 2;
+        // 修改点：将倍率从 2 提高到 4
+        const scaleFactor = 4;
         const w = LOGICAL_WIDTH;
         const h = LOGICAL_HEIGHT;
         
@@ -375,19 +589,13 @@
         canvas.height = h * scaleFactor;
         
         const serializer = new XMLSerializer();
-        // 确保 SVG 字符串包含正确的宽高属性，以便 Image 对象正确加载
         let source = serializer.serializeToString(svg);
         
-        // 临时给 SVG 字符串加上 width 和 height 属性，因为 CSS 控制的 DOM 可能没有这两个属性
         if (!source.includes('width=')) {
              source = source.replace('<svg', `<svg width="${w}" height="${h}"`);
         }
-
         if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
             source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-        }
-        if(!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)){
-            source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
         }
 
         const img = new Image();
@@ -399,7 +607,7 @@
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
             const a = document.createElement('a');
-            a.download = input.value + '.jpg';
+            a.download = resultDisplay.textContent + '.jpg';
             a.href = canvas.toDataURL('image/jpeg', 0.9);
             document.body.appendChild(a);
             a.click();
