@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>梅兰弧形板 - 最终交付版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        .polish-btn.active {
+            background-color: #1f2937;
+            color: white;
+            border-color: #1f2937;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .polish-btn:not(.active):hover {
+            background-color: #f9fafb;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-slate-800 min-h-screen flex flex-col lg:flex-row gap-4 p-4">
+
+    <!-- 左侧控制面板 -->
+    <div class="w-full lg:w-96 flex-shrink-0 bg-white p-5 rounded-xl shadow-sm border border-gray-200 h-fit">
+        <div class="flex items-center justify-between mb-4 border-b pb-3">
+            <h1 class="font-bold text-xl text-gray-800">梅兰弧形板</h1>
+            <button onclick="resetParams()" class="text-xs text-blue-600 flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded transition-colors">
+                <i data-lucide="rotate-ccw" width="12"></i> 重置
+            </button>
+        </div>
+
+        <div class="space-y-5">
+            <!-- 几何参数 -->
+            <div>
+                <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">几何参数 (任填2项)</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="relative">
+                        <input type="number" id="radiusOut" value="5020" class="geom-input w-full p-2 pt-5 text-sm border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-100 transition-colors">
+                        <span class="absolute left-2 top-1 text-[10px] text-gray-400 font-bold pointer-events-none">外半径 (R外)</span>
+                    </div>
+                    <div class="relative">
+                        <input type="number" id="arcOut" value="983" class="geom-input w-full p-2 pt-5 text-sm border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-100 transition-colors">
+                        <span class="absolute left-2 top-1 text-[10px] text-gray-400 font-bold pointer-events-none">外弧长 (L外)</span>
+                    </div>
+                    <div class="relative">
+                        <input type="number" id="chordOut" class="geom-input w-full p-2 pt-5 text-sm border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-100 transition-colors">
+                        <span class="absolute left-2 top-1 text-[10px] text-gray-400 font-bold pointer-events-none">外弦长 (C外)</span>
+                    </div>
+                    <div class="relative">
+                        <input type="number" id="sagittaOut" class="geom-input w-full p-2 pt-5 text-sm border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-100 transition-colors">
+                        <span class="absolute left-2 top-1 text-[10px] text-gray-400 font-bold pointer-events-none">总高 (H)</span>
+                    </div>
+                    <div class="relative">
+                        <input type="number" id="radiusIn" class="geom-input w-full p-2 pt-5 text-sm border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-100 transition-colors bg-orange-50/30">
+                        <span class="absolute left-2 top-1 text-[10px] text-gray-400 font-bold pointer-events-none">内半径 (R内)</span>
+                    </div>
+                    <div class="relative">
+                        <input type="number" id="arcIn" class="geom-input w-full p-2 pt-5 text-sm border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-100 transition-colors bg-orange-50/30">
+                        <span class="absolute left-2 top-1 text-[10px] text-gray-400 font-bold pointer-events-none">内弧长 (L内)</span>
+                    </div>
+                </div>
+                <div id="statusMsg" class="mt-2 text-xs flex items-center gap-1 text-orange-500 font-medium">
+                    <i data-lucide="alert-circle" width="12"></i> 请输入任意两个几何参数
+                </div>
+            </div>
+
+            <!-- 尺寸参数 -->
+            <div>
+                <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">板材尺寸</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="relative">
+                        <input type="number" id="width" value="2000" class="geom-input w-full p-2 text-sm border border-gray-300 rounded outline-none focus:border-blue-500">
+                        <span class="absolute right-2 top-2 text-xs text-gray-400">宽度 W</span>
+                    </div>
+                    <div class="relative">
+                        <input type="number" id="thickness" value="30" class="geom-input w-full p-2 text-sm border border-gray-300 rounded outline-none focus:border-blue-500">
+                        <span class="absolute right-2 top-2 text-xs text-gray-400">厚度 T</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 磨光面标记 -->
+            <div class="pt-2 border-t">
+                <label class="text-xs font-bold text-gray-400 uppercase mb-3 block">磨光面标记</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="polish-btn active flex items-center justify-center p-2 border rounded text-xs font-medium transition-all" onclick="togglePolish('face', this)">外弧</button>
+                    <button class="polish-btn flex items-center justify-center p-2 border rounded text-xs font-medium transition-all" onclick="togglePolish('neiHu', this)">内弧</button>
+                    <button class="polish-btn flex items-center justify-center p-2 border rounded text-xs font-medium transition-all" onclick="togglePolish('shangL', this)">上L</button>
+                    <button class="polish-btn flex items-center justify-center p-2 border rounded text-xs font-medium transition-all" onclick="togglePolish('xiaL', this)">下L</button>
+                    <button class="polish-btn flex items-center justify-center p-2 border rounded text-xs font-medium transition-all" onclick="togglePolish('leftW', this)">左W</button>
+                    <button class="polish-btn flex items-center justify-center p-2 border rounded text-xs font-medium transition-all" onclick="togglePolish('rightW', this)">右W</button>
+                </div>
+            </div>
+
+            <!-- 计算结果 -->
+            <div id="resultBox" class="hidden mt-4 bg-blue-50 rounded-lg p-3 border border-blue-100 text-xs">
+                <h3 class="font-bold text-blue-800 mb-2">计算结果</h3>
+                <div class="grid grid-cols-2 gap-y-1 gap-x-2" id="resultContent">
+                    <!-- 动态填充 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧预览面板 -->
+    <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col h-[600px] lg:h-auto">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 class="font-bold text-gray-700 flex items-center gap-2">
+                预览图 <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">自动缩放</span>
+            </h2>
+            <button id="downloadBtn" onclick="downloadImage()" disabled class="text-xs bg-blue-600 text-white flex items-center gap-1 px-3 py-1.5 rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
+                <i data-lucide="download" width="14"></i> 下载高清图
+            </button>
+        </div>
+
+        <div id="svgContainer" class="flex-1 flex items-center justify-center overflow-hidden relative bg-white">
+            <div class="text-center text-gray-400">
+                <i data-lucide="alert-circle" class="mx-auto mb-2 w-10 h-10 opacity-20"></i>
+                <p>请输入至少2个几何参数以生成图纸</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const state = {
+            polish: {
+                face: true,   // 外弧面
+                neiHu: false, // 内弧面
+                shangL: false, // 后侧面
+                xiaL: false,  // 前侧面
+                leftW: false, // 左侧面
+                rightW: false // 右侧面
+            },
+            data: null
+        };
+
+        document.querySelectorAll('.geom-input').forEach(input => {
+            input.addEventListener('input', calculate);
+        });
+
+        function togglePolish(key, btn) {
+            state.polish[key] = !state.polish[key];
+            if (state.polish[key]) btn.classList.add('active');
+            else btn.classList.remove('active');
+            draw();
+        }
+
+        function resetParams() {
+            document.getElementById('radiusOut').value = '';
+            document.getElementById('arcOut').value = '';
+            document.getElementById('chordOut').value = '';
+            document.getElementById('sagittaOut').value = '';
+            document.getElementById('radiusIn').value = '';
+            document.getElementById('arcIn').value = '';
+            calculate();
+        }
+
+        function calculate() {
+            const dims = {
+                width: document.getElementById('width').value,
+                thickness: document.getElementById('thickness').value,
+            };
+            const W = parseFloat(dims.width) || 1000;
+            const T = parseFloat(dims.thickness) || 20;
+
+            const geomInput = {
+                radiusOut: document.getElementById('radiusOut').value,
+                arcOut: document.getElementById('arcOut').value,
+                chordOut: document.getElementById('chordOut').value,
+                totalHeight: document.getElementById('sagittaOut').value,
+                radiusIn: document.getElementById('radiusIn').value,
+                arcIn: document.getElementById('arcIn').value,
+            };
+
+            const R_out_in = parseFloat(geomInput.radiusOut);
+            const A_out_in = parseFloat(geomInput.arcOut);
+            const C_out_in = parseFloat(geomInput.chordOut);
+            const H_total_in = parseFloat(geomInput.totalHeight);
+            const R_in_in = parseFloat(geomInput.radiusIn);
+            const A_in_in = parseFloat(geomInput.arcIn);
+            
+            let H_geom_in = NaN;
+            if (!isNaN(H_total_in)) {
+                H_geom_in = H_total_in - T;
+            }
+
+            let R = 0, Theta = 0; 
+            let valid = false;
+            let method = '';
+            let errorMsg = '';
+
+            if (R_out_in && R_in_in && !A_out_in && !C_out_in && isNaN(H_total_in) && !A_in_in) {
+                errorMsg = "仅有半径无法确定弧长，请补充：弧长、弦长或总高";
+            } else {
+                try {
+                    if (R_out_in) {
+                        R = R_out_in;
+                        if (A_out_in) { Theta = A_out_in / R; method = 'R外+L外'; valid = true; }
+                        else if (C_out_in) { 
+                            if (C_out_in > 2*R) throw new Error("弦长不能大于直径");
+                            Theta = 2 * Math.asin(C_out_in / (2 * R)); method = 'R外+C外'; valid = true; 
+                        }
+                        else if (H_geom_in) { 
+                            if (H_geom_in >= R) throw new Error("拱高不能大于半径");
+                            if (H_geom_in <= 0) throw new Error("总高必须大于板厚");
+                            Theta = 2 * Math.acos(1 - H_geom_in / R); method = 'R外+H总'; valid = true; 
+                        }
+                        else if (A_in_in) { 
+                            if (R <= T) throw new Error("外半径必须大于板厚");
+                            Theta = A_in_in / (R - T); method = 'R外+L内'; valid = true; 
+                        }
+                    }
+                    else if (R_in_in) {
+                        R = R_in_in + T;
+                        if (A_in_in) { Theta = A_in_in / R_in_in; method = 'R内+L内'; valid = true; }
+                        else if (A_out_in) { Theta = A_out_in / R; method = 'R内+L外'; valid = true; }
+                    }
+                    else if (C_out_in && H_geom_in) { 
+                        if (H_geom_in <= 0) throw new Error("总高必须大于板厚");
+                        R = (Math.pow(C_out_in, 2) / (8 * H_geom_in)) + (H_geom_in / 2);
+                        Theta = 2 * Math.asin(C_out_in / (2 * R));
+                        method = 'C外+H总';
+                        valid = true;
+                    }
+                    else if (A_out_in && A_in_in) {
+                        if (A_out_in <= A_in_in) throw new Error("外弧长必须大于内弧长");
+                        R = (A_out_in * T) / (A_out_in - A_in_in);
+                        Theta = A_out_in / R;
+                        method = 'L外+L内';
+                        valid = true;
+                    }
+                } catch (e) {
+                    errorMsg = e.message;
+                }
+            }
+
+            const statusEl = document.getElementById('statusMsg');
+            const resultBox = document.getElementById('resultBox');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            if (valid) {
+                statusEl.className = "mt-2 text-xs flex items-center gap-1 text-green-600 font-medium";
+                statusEl.innerHTML = `<i data-lucide="check-circle-2" width="12"></i> 计算成功 (${method})`;
+                lucide.createIcons();
+
+                const R_in = R - T;
+                const sagitta_geom = R * (1 - Math.cos(Theta / 2));
+                const total_h = sagitta_geom + T * Math.cos(Theta / 2);
+
+                const results = {
+                    R_out: R,
+                    R_in: R_in,
+                    L_arc_out: Theta * R,
+                    L_arc_in: Theta * R_in,
+                    chord_out: 2 * R * Math.sin(Theta / 2),
+                    chord_in: 2 * R_in * Math.sin(Theta / 2),
+                    sagitta_out: sagitta_geom,
+                    total_h: total_h
+                };
+
+                state.data = { valid: true, theta: Theta, ...results, W, T };
+                
+                resultBox.classList.remove('hidden');
+                document.getElementById('resultContent').innerHTML = `
+                    <div class="flex justify-between"><span class="text-blue-400">外半径:</span> <span class="font-mono">${results.R_out.toFixed(1)}</span></div>
+                    <div class="flex justify-between"><span class="text-blue-400">内半径:</span> <span class="font-mono font-bold">${results.R_in.toFixed(1)}</span></div>
+                    <div class="flex justify-between"><span class="text-blue-400">外弧长:</span> <span class="font-mono">${results.L_arc_out.toFixed(1)}</span></div>
+                    <div class="flex justify-between"><span class="text-blue-400">内弧长:</span> <span class="font-mono font-bold">${results.L_arc_in.toFixed(1)}</span></div>
+                    <div class="flex justify-between"><span class="text-blue-400">外弦长:</span> <span class="font-mono">${results.chord_out.toFixed(1)}</span></div>
+                    <div class="flex justify-between"><span class="text-blue-400">总高:</span> <span class="font-mono font-bold text-slate-800">${results.total_h.toFixed(1)}</span></div>
+                `;
+                downloadBtn.disabled = false;
+                
+                document.querySelectorAll('.geom-input').forEach(el => {
+                    if(el.value) el.classList.add('border-blue-200');
+                    else el.classList.remove('border-blue-200');
+                });
+
+                draw();
+            } else {
+                state.data = { valid: false };
+                const inputs = [R_out_in, A_out_in, C_out_in, H_total_in, R_in_in, A_in_in];
+                const count = inputs.filter(v => !isNaN(v) && v > 0).length;
+                
+                if (errorMsg) {
+                    statusEl.className = "mt-2 text-xs flex items-center gap-1 text-red-500 font-medium";
+                    statusEl.innerHTML = `<i data-lucide="alert-circle" width="12"></i> ${errorMsg}`;
+                } else {
+                    statusEl.className = "mt-2 text-xs flex items-center gap-1 text-orange-500 font-medium";
+                    statusEl.innerHTML = `<i data-lucide="alert-circle" width="12"></i> 已填 ${count} 个参数`;
+                }
+                lucide.createIcons();
+                resultBox.classList.add('hidden');
+                downloadBtn.disabled = true;
+                document.getElementById('svgContainer').innerHTML = `
+                    <div class="text-center text-gray-400">
+                        <i data-lucide="alert-circle" class="mx-auto mb-2 w-10 h-10 opacity-20"></i>
+                        <p>请输入至少2个几何参数以生成图纸</p>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+        }
+
+        function draw() {
+            if (!state.data || !state.data.valid) return;
+            const { theta, R_out, R_in, W, T, L_arc_out, L_arc_in, chord_out, chord_in, total_h } = state.data;
+
+            const polarToCartesian = (cx, cy, r, angle) => ({
+                x: cx + r * Math.sin(angle),
+                y: cy - r * Math.cos(angle)
+            });
+
+            const perspectiveAngle = 30 * (Math.PI / 180);
+            const depthScale = 0.5;
+            const dx = W * Math.cos(perspectiveAngle) * depthScale;
+            const dy = -W * Math.sin(perspectiveAngle) * depthScale;
+            
+            const cx = 0;
+            const cy = R_out;
+            const startAngle = -theta / 2;
+            const endAngle = theta / 2;
+
+            const p_out_left = polarToCartesian(cx, cy, R_out, startAngle);
+            const p_in_left = polarToCartesian(cx, cy, R_in, startAngle);
+            const p_out_right = polarToCartesian(cx, cy, R_out, endAngle);
+            const p_in_right = polarToCartesian(cx, cy, R_in, endAngle);
+
+            const project = (p) => ({ x: p.x + dx, y: p.y + dy });
+            const p_out_left_back = project(p_out_left);
+            const p_in_left_back = project(p_in_left);
+            const p_out_right_back = project(p_out_right);
+            const p_in_right_back = project(p_in_right);
+
+            // Define Faces (for filling)
+            const pathFace = `M ${p_out_left.x} ${p_out_left.y} A ${R_out} ${R_out} 0 0 1 ${p_out_right.x} ${p_out_right.y} L ${p_out_right_back.x} ${p_out_right_back.y} A ${R_out} ${R_out} 0 0 0 ${p_out_left_back.x} ${p_out_left_back.y} Z`;
+            const pathRightW = `M ${p_out_right.x} ${p_out_right.y} L ${p_out_right_back.x} ${p_out_right_back.y} L ${p_in_right_back.x} ${p_in_right_back.y} L ${p_in_right.x} ${p_in_right.y} Z`;
+            const pathXiaL = `M ${p_out_left.x} ${p_out_left.y} A ${R_out} ${R_out} 0 0 1 ${p_out_right.x} ${p_out_right.y} L ${p_in_right.x} ${p_in_right.y} A ${R_in} ${R_in} 0 0 0 ${p_in_left.x} ${p_in_left.y} Z`;
+
+            // Helper for Edge Color
+            const getEdgeStyle = (f1, f2) => {
+                const isRed = state.polish[f1] && state.polish[f2];
+                return {
+                    color: isRed ? "#ef4444" : "black", // Red-500
+                    width: isRed ? 2.5 : 1
+                };
+            };
+
+            // Define Edges
+            const e_front_top = {
+                d: `M ${p_out_left.x} ${p_out_left.y} A ${R_out} ${R_out} 0 0 1 ${p_out_right.x} ${p_out_right.y}`,
+                ...getEdgeStyle('face', 'xiaL')
+            };
+            const e_front_btm = {
+                d: `M ${p_in_left.x} ${p_in_left.y} A ${R_in} ${R_in} 0 0 1 ${p_in_right.x} ${p_in_right.y}`,
+                ...getEdgeStyle('xiaL', 'neiHu')
+            };
+            const e_front_left = {
+                d: `M ${p_out_left.x} ${p_out_left.y} L ${p_in_left.x} ${p_in_left.y}`,
+                ...getEdgeStyle('xiaL', 'leftW')
+            };
+            const e_front_right = {
+                d: `M ${p_out_right.x} ${p_out_right.y} L ${p_in_right.x} ${p_in_right.y}`,
+                ...getEdgeStyle('xiaL', 'rightW')
+            };
+            const e_top_left = {
+                d: `M ${p_out_left.x} ${p_out_left.y} L ${p_out_left_back.x} ${p_out_left_back.y}`,
+                ...getEdgeStyle('face', 'leftW')
+            };
+            const e_top_right = {
+                d: `M ${p_out_right.x} ${p_out_right.y} L ${p_out_right_back.x} ${p_out_right_back.y}`,
+                ...getEdgeStyle('face', 'rightW')
+            };
+            const e_top_back = {
+                d: `M ${p_out_right_back.x} ${p_out_right_back.y} A ${R_out} ${R_out} 0 0 0 ${p_out_left_back.x} ${p_out_left_back.y}`,
+                ...getEdgeStyle('face', 'shangL')
+            };
+            const e_right_btm = {
+                d: `M ${p_in_right.x} ${p_in_right.y} L ${p_in_right_back.x} ${p_in_right_back.y}`,
+                ...getEdgeStyle('rightW', 'neiHu')
+            };
+            const e_right_back = {
+                d: `M ${p_out_right_back.x} ${p_out_right_back.y} L ${p_in_right_back.x} ${p_in_right_back.y}`,
+                ...getEdgeStyle('rightW', 'shangL')
+            };
+
+            // Marks
+            const p_mid_front = polarToCartesian(cx, cy, R_out, 0);
+            const p_mid_back = project(p_mid_front);
+            const mark_face = { 
+                x: (p_mid_front.x + p_mid_back.x) / 2, 
+                y: (p_mid_front.y + p_mid_back.y) / 2 
+            };
+
+            const mark_rightW = { x: (p_out_right.x + p_out_right_back.x + p_in_right.x + p_in_right_back.x) / 4, y: (p_out_right.y + p_out_right_back.y + p_in_right.y + p_in_right_back.y) / 4 };
+            const p_mid_in = polarToCartesian(cx, cy, R_in, 0);
+            const mark_xiaL = { x: (p_mid_front.x + p_mid_in.x) / 2, y: (p_mid_front.y + p_mid_in.y) / 2 };
+            const mid_left = { x: (p_out_left.x + p_out_left_back.x) / 2, y: (p_out_left.y + p_out_left_back.y) / 2 };
+            const edge_dx = p_out_left_back.x - p_out_left.x;
+            const edge_dy = p_out_left_back.y - p_out_left.y;
+            const edge_angle = Math.atan2(edge_dy, edge_dx);
+            const normal_angle = edge_angle - Math.PI / 2; 
+            const dist_left = 15; 
+            const mark_leftW_pos = { x: mid_left.x + dist_left * Math.cos(normal_angle), y: mid_left.y + dist_left * Math.sin(normal_angle) };
+            const mark_leftW_rot = (normal_angle * 180 / Math.PI) + 90;
+            const p_back_mid_base = polarToCartesian(cx, cy, R_out, 0);
+            const p_back_mid = project(p_back_mid_base);
+            const mark_shangL = { x: p_back_mid.x, y: p_back_mid.y - 25 };
+            const mark_neiHu = { x: p_mid_in.x, y: p_mid_in.y + 25 };
+
+            // Dimension Points
+            const dim_arc_r = R_out + 140;
+            const dim_arc_in_r = R_in - 220; 
+            
+            const p_arc_start = polarToCartesian(cx, cy, dim_arc_r, startAngle);
+            const p_arc_end = polarToCartesian(cx, cy, dim_arc_r, endAngle);
+            const p_text_arc = polarToCartesian(cx, cy, dim_arc_r + 10, 0);
+            
+            const p_arc_in_start = polarToCartesian(cx, cy, dim_arc_in_r, startAngle);
+            const p_arc_in_end = polarToCartesian(cx, cy, dim_arc_in_r, endAngle);
+            const p_text_arc_in = polarToCartesian(cx, cy, dim_arc_in_r - 10, 0);
+
+            const p_chord_start = { x: p_out_left.x, y: p_out_left.y - 60 };
+            
+            const chord_in_offset = 80;
+            const p_chord_in_start = { x: p_in_left.x, y: p_in_left.y + chord_in_offset };
+            const p_chord_in_end = { x: p_in_right.x, y: p_in_right.y + chord_in_offset };
+
+            const radius_angle = -theta/2 + 0.05;
+            const p_radius_on_arc = polarToCartesian(cx, cy, R_out, radius_angle);
+            const p_radius_text_start = polarToCartesian(cx, cy, R_out - 150, radius_angle);
+            
+            const radius_in_angle = theta/2 - 0.05;
+            const p_radius_in_on_arc = polarToCartesian(cx, cy, R_in, radius_in_angle);
+            const p_radius_in_text_start = polarToCartesian(cx, cy, R_in - 150, radius_in_angle);
+
+            // ViewBox Calculation
+            const allPoints = [
+                p_out_left, p_out_right, p_in_left, p_in_right,
+                p_out_left_back, p_out_right_back, p_in_left_back, p_in_right_back,
+                p_arc_start, p_arc_end, p_text_arc,
+                p_arc_in_start, p_text_arc_in,
+                { x: p_text_arc.x, y: p_text_arc.y - 50 }, 
+                { x: 0, y: p_chord_start.y + 50 },
+                { x: 0, y: p_chord_in_start.y + 80 }, 
+                { x: p_out_left.x - 200, y: p_out_left.y }, 
+                { x: p_out_right_back.x + 200, y: p_out_right_back.y },
+                { x: p_radius_text_start.x, y: p_radius_text_start.y + 100 },
+                { x: mark_leftW_pos.x - 50, y: mark_leftW_pos.y - 50 },
+                { x: mark_shangL.x, y: mark_shangL.y - 30 },
+                { x: mark_neiHu.x, y: mark_neiHu.y + 30 }
+            ];
+            
+            const validPoints = allPoints.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number');
+            let viewBox = "0 0 100 100";
+            if (validPoints.length > 0) {
+                const xs = validPoints.map(p => p.x);
+                const ys = validPoints.map(p => p.y);
+                const padding = 50;
+                const minX = Math.min(...xs) - padding;
+                const maxX = Math.max(...xs) + padding;
+                const minY = Math.min(...ys) - padding;
+                const maxY = Math.max(...ys) + padding;
+                viewBox = `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
+            }
+
+            const polishColor = "#d1d5db"; 
+            const normalColor = "#ffffff"; 
+
+            const svgContent = `
+                <svg id="mainSvg" width="100%" height="100%" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrow-end" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L6,3 L0,6" fill="#444" />
+                        </marker>
+                        <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4">
+                            <circle cx="4" cy="4" r="3" fill="#444" />
+                        </marker>
+                        <symbol id="tri-vis" viewBox="0 0 20 20"><path d="M0,0 L20,0 L10,17 Z" fill="black" /></symbol>
+                    </defs>
+
+                    <!-- 填充层 (无描边) -->
+                    <path d="${pathFace}" fill="${state.polish.face ? polishColor : normalColor}" stroke="none" />
+                    <path d="${pathRightW}" fill="${state.polish.rightW ? polishColor : normalColor}" stroke="none" />
+                    <path d="${pathXiaL}" fill="${state.polish.xiaL ? polishColor : normalColor}" stroke="none" />
+
+                    <!-- 描边层 (分段绘制) -->
+                    <path d="${e_front_top.d}" fill="none" stroke="${e_front_top.color}" stroke-width="${e_front_top.width}" stroke-linejoin="round" stroke-linecap="round" />
+                    <path d="${e_front_btm.d}" fill="none" stroke="${e_front_btm.color}" stroke-width="${e_front_btm.width}" stroke-linejoin="round" stroke-linecap="round" />
+                    <path d="${e_front_left.d}" fill="none" stroke="${e_front_left.color}" stroke-width="${e_front_left.width}" stroke-linejoin="round" stroke-linecap="round" />
+                    <path d="${e_front_right.d}" fill="none" stroke="${e_front_right.color}" stroke-width="${e_front_right.width}" stroke-linejoin="round" stroke-linecap="round" />
+                    <path d="${e_top_left.d}" fill="none" stroke="${e_top_left.color}" stroke-width="${e_top_left.width}" stroke-linejoin="round" stroke-linecap="round" />
+                    <path d="${e_top_right.d}" fill="none" stroke="${e_top_right.color}" stroke-width="${e_top_right.width}" stroke-linejoin="round" stroke-linecap="round" />
+                    <path d="${e_top_back.d}" fill="none" stroke="${e_top_back.color}" stroke-width="${e_top_back.width}" stroke-linejoin="round" stroke-linecap="round" />
+                    <path d="${e_right_btm.d}" fill="none" stroke="${e_right_btm.color}" stroke-width="${e_right_btm.width}" stroke-linejoin="round" stroke-linecap="round" />
+                    <path d="${e_right_back.d}" fill="none" stroke="${e_right_back.color}" stroke-width="${e_right_back.width}" stroke-linejoin="round" stroke-linecap="round" />
+
+                    <!-- 标记 -->
+                    ${state.polish.face ? `<use href="#tri-vis" x="${mark_face.x - 10}" y="${mark_face.y - 10}" width="20" height="20" />` : ''}
+                    ${state.polish.rightW ? `<use href="#tri-vis" x="${mark_rightW.x - 10}" y="${mark_rightW.y - 10}" width="20" height="20" />` : ''}
+                    ${state.polish.xiaL ? `<use href="#tri-vis" x="${mark_xiaL.x - 10}" y="${mark_xiaL.y - 10}" width="20" height="20" />` : ''}
+                    ${state.polish.leftW ? `<use href="#tri-vis" x="${mark_leftW_pos.x - 10}" y="${mark_leftW_pos.y - 10}" width="20" height="20" transform="rotate(${mark_leftW_rot}, ${mark_leftW_pos.x}, ${mark_leftW_pos.y})" />` : ''}
+                    ${state.polish.shangL ? `<use href="#tri-vis" x="${mark_shangL.x - 10}" y="${mark_shangL.y - 10}" width="20" height="20" />` : ''}
+                    ${state.polish.neiHu ? `<use href="#tri-vis" x="${mark_neiHu.x - 10}" y="${mark_neiHu.y - 10}" width="20" height="20" transform="rotate(180, ${mark_neiHu.x}, ${mark_neiHu.y})" />` : ''}
+
+                    <!-- 标注 -->
+                    <g font-size="14" font-family="Arial, sans-serif" text-anchor="middle">
+                        <!-- 外弧长 (Top Outer) -->
+                        <line x1="${p_out_left.x}" y1="${p_out_left.y}" x2="${polarToCartesian(cx, cy, dim_arc_r + 10, startAngle).x}" y2="${polarToCartesian(cx, cy, dim_arc_r + 10, startAngle).y}" stroke="#666" stroke-width="0.5" />
+                        <line x1="${p_out_right.x}" y1="${p_out_right.y}" x2="${polarToCartesian(cx, cy, dim_arc_r + 10, endAngle).x}" y2="${polarToCartesian(cx, cy, dim_arc_r + 10, endAngle).y}" stroke="#666" stroke-width="0.5" />
+                        <path d="M ${p_arc_start.x} ${p_arc_start.y} A ${dim_arc_r} ${dim_arc_r} 0 0 1 ${p_arc_end.x} ${p_arc_end.y}" fill="none" stroke="#444" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
+                        <text x="${p_text_arc.x}" y="${p_text_arc.y}" fill="#333" font-size="24" paint-order="stroke" stroke="white" stroke-width="3">⌒ ${L_arc_out.toFixed(0)}</text>
+                        
+                        <!-- 外弦长 (Top Inner) -->
+                        <line x1="${p_out_left.x}" y1="${p_out_left.y - 60}" x2="${p_out_right.x}" y2="${p_out_right.y - 60}" stroke="#666" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
+                        <text x="0" y="${p_out_left.y - 70}" fill="#333" font-size="24" paint-order="stroke" stroke="white" stroke-width="3">${chord_out.toFixed(0)}</text>
+
+                        <!-- 内弦长 (Bottom Inner) -->
+                        <line x1="${p_in_left.x}" y1="${p_in_left.y}" x2="${p_in_left.x}" y2="${p_in_left.y + chord_in_offset}" stroke="#666" stroke-width="0.5" />
+                        <line x1="${p_in_right.x}" y1="${p_in_right.y}" x2="${p_in_right.x}" y2="${p_in_right.y + chord_in_offset}" stroke="#666" stroke-width="0.5" />
+                        <line x1="${p_chord_in_start.x}" y1="${p_chord_in_start.y}" x2="${p_chord_in_end.x}" y2="${p_chord_in_end.y}" stroke="#666" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
+                        <text x="0" y="${p_chord_in_start.y + 25}" fill="#333" font-size="24" paint-order="stroke" stroke="white" stroke-width="3">${chord_in.toFixed(0)}</text>
+
+                        <!-- 内弧长 (Bottom Outer) -->
+                        <line x1="${p_in_left.x}" y1="${p_in_left.y}" x2="${polarToCartesian(cx, cy, dim_arc_in_r - 10, startAngle).x}" y2="${polarToCartesian(cx, cy, dim_arc_in_r - 10, startAngle).y}" stroke="#666" stroke-width="0.5" />
+                        <line x1="${p_in_right.x}" y1="${p_in_right.y}" x2="${polarToCartesian(cx, cy, dim_arc_in_r - 10, endAngle).x}" y2="${polarToCartesian(cx, cy, dim_arc_in_r - 10, endAngle).y}" stroke="#666" stroke-width="0.5" />
+                        <path d="M ${p_arc_in_start.x} ${p_arc_in_start.y} A ${dim_arc_in_r} ${dim_arc_in_r} 0 0 1 ${p_arc_in_end.x} ${p_arc_in_end.y}" fill="none" stroke="#444" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
+                        <text x="${p_text_arc_in.x}" y="${p_text_arc_in.y + 10}" fill="#333" font-size="24" paint-order="stroke" stroke="white" stroke-width="3">⌒ ${L_arc_in.toFixed(0)}</text>
+
+                        <!-- 外半径 (Left) -->
+                        <line x1="${p_radius_text_start.x}" y1="${p_radius_text_start.y}" x2="${p_radius_on_arc.x}" y2="${p_radius_on_arc.y}" stroke="#444" stroke-width="1" marker-end="url(#arrow-end)"/>
+                        <text x="${p_radius_text_start.x - 10}" y="${p_radius_text_start.y}" fill="#333" font-size="24" transform="rotate(${(radius_angle * 180 / Math.PI) - 90}, ${p_radius_text_start.x}, ${p_radius_text_start.y})" text-anchor="end" paint-order="stroke" stroke="white" stroke-width="3">R${R_out.toFixed(0)}</text>
+
+                        <!-- 内半径 (Right) -->
+                        <line x1="${p_radius_in_text_start.x}" y1="${p_radius_in_text_start.y}" x2="${p_radius_in_on_arc.x}" y2="${p_radius_in_on_arc.y}" stroke="#444" stroke-width="1" marker-end="url(#arrow-end)"/>
+                        <text x="${p_radius_in_text_start.x + 10}" y="${p_radius_in_text_start.y}" fill="#333" font-size="24" transform="rotate(${(radius_in_angle * 180 / Math.PI) - 90}, ${p_radius_in_text_start.x}, ${p_radius_in_text_start.y})" text-anchor="start" paint-order="stroke" stroke="white" stroke-width="3">R${R_in.toFixed(0)}</text>
+
+                        <!-- 宽度 W (Right Angled) -->
+                        ${(() => {
+                            const dx = W * Math.cos(30 * Math.PI / 180) * 0.5;
+                            const dy = -W * Math.sin(30 * Math.PI / 180) * 0.5;
+                            const p_r = polarToCartesian(cx, cy, R_out, endAngle);
+                            const p_r_b = { x: p_r.x + dx, y: p_r.y + dy };
+                            const dist = 40;
+                            return `
+                                <line x1="${p_r.x}" y1="${p_r.y}" x2="${p_r.x + dist}" y2="${p_r.y - dist}" stroke="#666" stroke-width="0.5" />
+                                <line x1="${p_r_b.x}" y1="${p_r_b.y}" x2="${p_r_b.x + dist}" y2="${p_r_b.y - dist}" stroke="#666" stroke-width="0.5" />
+                                <line x1="${p_r.x + dist}" y1="${p_r.y - dist}" x2="${p_r_b.x + dist}" y2="${p_r_b.y - dist}" stroke="#444" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
+                                <text x="${(p_r.x + p_r_b.x)/2 + dist + 10}" y="${(p_r.y + p_r_b.y)/2 - dist - 10}" fill="#333" font-size="24" transform="rotate(-30, ${(p_r.x + p_r_b.x)/2 + dist}, ${(p_r.y + p_r_b.y)/2 - dist})" paint-order="stroke" stroke="white" stroke-width="3">W = ${W}</text>
+                            `;
+                        })()}
+
+                        <!-- 左侧双标注：厚度 T (斜向) + 总高 H (垂直) -->
+                        ${(() => {
+                            const p_top = polarToCartesian(cx, cy, R_out, startAngle);
+                            const p_btm = polarToCartesian(cx, cy, R_in, startAngle);
+                            
+                            // 1. 厚度 T (斜向，平行于弧边切线)
+                            const dist_ext = 60;
+                            const tx = -Math.cos(startAngle) * dist_ext; 
+                            const ty = -Math.sin(startAngle) * dist_ext;
+                            
+                            const p_top_ext = { x: p_top.x + tx, y: p_top.y + ty };
+                            const p_btm_ext = { x: p_btm.x + tx, y: p_btm.y + ty };
+                            
+                            // 计算中点
+                            const mid_T_x = (p_top_ext.x + p_btm_ext.x) / 2;
+                            const mid_T_y = (p_top_ext.y + p_btm_ext.y) / 2;
+
+                            // 旋转角度：与半径垂直，即切线角度
+                            const rot_deg = (startAngle * 180 / Math.PI) - 90; 
+
+                            const lineT = `
+                                <line x1="${p_top.x}" y1="${p_top.y}" x2="${p_top_ext.x}" y2="${p_top_ext.y}" stroke="#666" stroke-width="0.5" />
+                                <line x1="${p_btm.x}" y1="${p_btm.y}" x2="${p_btm_ext.x}" y2="${p_btm_ext.y}" stroke="#666" stroke-width="0.5" />
+                                <line x1="${p_top_ext.x}" y1="${p_top_ext.y}" x2="${p_btm_ext.x}" y2="${p_btm_ext.y}" stroke="#444" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
+                                <text x="${mid_T_x}" y="${mid_T_y}" dy="-8" fill="#333" font-size="24" text-anchor="middle" transform="rotate(${rot_deg}, ${mid_T_x}, ${mid_T_y})" paint-order="stroke" stroke="white" stroke-width="3">${T}</text>
+                            `;
+
+                            // 2. 总高 H (垂直)
+                            // 测量范围：从最高点 (y=0) 到 最低点 (p_btm.y)
+                            // 注意：p_btm.y 是内弧边缘的 y 坐标，即总高
+                            const offsetH = -180; 
+                            const h_val = total_h; // 使用精确计算的总高
+                            
+                            const lineH = `
+                                <line x1="0" y1="0" x2="${p_top.x + offsetH}" y2="0" stroke="#666" stroke-width="0.5" stroke-dasharray="4" />
+                                <line x1="${p_btm.x}" y1="${p_btm.y}" x2="${p_top.x + offsetH}" y2="${p_btm.y}" stroke="#666" stroke-width="0.5" stroke-dasharray="4" />
+                                <line x1="${p_top.x + offsetH + 10}" y1="0" x2="${p_top.x + offsetH + 10}" y2="${p_btm.y}" stroke="#444" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)"/>
+                                <text x="${p_top.x + offsetH - 10}" y="${p_btm.y/2 + 5}" fill="#333" font-size="24" text-anchor="end" paint-order="stroke" stroke="white" stroke-width="3">H=${h_val.toFixed(0)}</text>
+                            `;
+
+                            return lineT + lineH;
+                        })()}
+                    </g>
+                </svg>
+            `;
+
+            document.getElementById('svgContainer').innerHTML = svgContent;
+        }
+
+        calculate();
+    </script>
+</body>
+</html>
