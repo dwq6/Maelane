@@ -60,10 +60,10 @@
             gap: 10px;
         }
         
-        /* 两列网格用于开关按钮 */
+        /* 三列网格用于开关按钮 */
         .toggle-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr; 
+            grid-template-columns: 1fr 1fr 1fr; 
             gap: 10px;
         }
 
@@ -142,6 +142,14 @@
             background: #fff1f0;
             border-color: #ff4d4f;
             color: #ff4d4f;
+            font-weight: bold;
+        }
+
+        /* 顶标激活 */
+        .toggle-btn.topdim-active {
+            background: #f6ffed;
+            border-color: #52c41a;
+            color: #52c41a;
             font-weight: bold;
         }
 
@@ -254,10 +262,11 @@
             </div>
         </div>
 
-        <!-- 第三行：光面开关 + 准确开关 -->
+        <!-- 第三行：开关按钮组 -->
         <div class="toggle-grid">
              <div id="polishBtn" class="toggle-btn" onclick="togglePolish()">无光</div>
              <div id="accurateBtn" class="toggle-btn" onclick="toggleAccurate()">准确</div>
+             <div id="topDimBtn" class="toggle-btn topdim-active" onclick="toggleTopDim()">顶标 (开)</div>
         </div>
 
         <!-- 结果文字展示与复制 -->
@@ -282,12 +291,16 @@
     const widthInput = document.getElementById('widthInput');
     const heightInput = document.getElementById('heightInput');
     const remainInput = document.getElementById('remainInput');
+    
     const polishBtn = document.getElementById('polishBtn');
     const accurateBtn = document.getElementById('accurateBtn');
+    const topDimBtn = document.getElementById('topDimBtn');
+    
     const resultDisplay = document.getElementById('resultDisplay');
 
     let isPolished = false;
     let isAccurate = false;
+    let showTopDim = true;
 
     window.onload = function() {
         updateAll();
@@ -344,6 +357,18 @@
         updateAll();
     }
 
+    function toggleTopDim() {
+        showTopDim = !showTopDim;
+        if (showTopDim) {
+            topDimBtn.classList.add('topdim-active');
+            topDimBtn.textContent = "顶标 (开)";
+        } else {
+            topDimBtn.classList.remove('topdim-active');
+            topDimBtn.textContent = "顶标 (关)";
+        }
+        updateAll();
+    }
+
     function updateAll() {
         const idx = idxInput.value;
         const type = typeInput.value;
@@ -356,7 +381,7 @@
         let text = `${idx}${type}背倒${w}*${h}余${r}`;
         if (isPolished) text += "光";
         
-        // 新增：准确逻辑
+        // 准确逻辑
         if (isAccurate) {
             text += `,余${r}准确`;
         }
@@ -371,7 +396,8 @@
             cutHeight: h,
             remaining: r,
             isPolished: isPolished,
-            totalThickness: t 
+            totalThickness: t,
+            showTopDim: showTopDim
         };
 
         drawSVG(data);
@@ -475,16 +501,22 @@
         });
 
         // 3. 标注
-        const topY = pTopLeft.y - 30;
-        drawDimLine(pTopLeft.x, topY, pTopRight.x, topY, data.dimType, false, -25, 36);
-        createLine(pTopLeft.x, pTopLeft.y, pTopLeft.x, topY - 5);
-        createLine(pTopRight.x, pTopRight.y, pTopRight.x, topY - 5);
+        
+        // --- 顶部标注 (可开关) ---
+        if (data.showTopDim) {
+            const topY = pTopLeft.y - 30;
+            drawDimLine(pTopLeft.x, topY, pTopRight.x, topY, data.dimType, false, -25, 36);
+            createLine(pTopLeft.x, pTopLeft.y, pTopLeft.x, topY - 5);
+            createLine(pTopRight.x, pTopRight.y, pTopRight.x, topY - 5);
+        }
 
+        // 右侧板厚
         const rightX = pTopRight.x + 45;
         drawDimLine(rightX, pTopRight.y, rightX, pBottomRight.y, data.totalThickness + "T", true, 20);
         createLine(pTopRight.x, pTopRight.y, rightX + 5, pTopRight.y);
         createLine(pBottomRight.x, pBottomRight.y, rightX + 5, pBottomRight.y);
 
+        // 左侧余量
         const leftLabelX = pTopLeft.x - 45;
         if (data.remaining > 0) {
             drawDimLine(leftLabelX, pTopLeft.y, leftLabelX, pChamferStart.y, data.remaining, true, -20);
@@ -492,12 +524,14 @@
             createLine(pChamferStart.x, pChamferStart.y, leftLabelX - 5, pChamferStart.y);
         }
 
+        // 切深
         drawDimLine(leftLabelX, pChamferStart.y, leftLabelX, pChamferEnd.y, data.cutHeight, true, -20);
         createLine(pChamferEnd.x, pChamferEnd.y, leftLabelX - 5, pChamferEnd.y);
         if (data.remaining <= 0) {
              createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
         }
 
+        // 底部切宽
         const bottomLabelY = pBottomRight.y + 40;
         const cutX = pChamferEnd.x;
         const zeroX = pTopLeft.x;
@@ -506,6 +540,7 @@
         createLine(zeroX, pBottomRight.y, zeroX, bottomLabelY + 5);
         createLine(cutX, pBottomRight.y, cutX, bottomLabelY + 5);
 
+        // 三角指示符
         const triHalfW = 6;
         const triLen = 12;
         const triGap = 8;
@@ -580,7 +615,7 @@
     function downloadJPG() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        // 修改点：将倍率从 2 提高到 4
+        // 高清倍率
         const scaleFactor = 4;
         const w = LOGICAL_WIDTH;
         const h = LOGICAL_HEIGHT;
