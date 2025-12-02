@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>梅兰背倒编辑器-高清版</title>
+    <title>背倒+倒角</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -56,14 +56,20 @@
         /* 网格布局 */
         .control-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr; 
+            grid-template-columns: repeat(3, 1fr); 
             gap: 10px;
         }
         
-        /* 三列网格用于开关按钮 */
+        .control-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 10px;
+        }
+        
+        /* 按钮网格 */
         .toggle-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr; 
+            grid-template-columns: 1fr 1fr; 
             gap: 10px;
         }
 
@@ -78,13 +84,14 @@
             color: #666;
             font-weight: 500;
             text-align: center;
+            white-space: nowrap;
         }
 
         .form-control {
             height: 40px;
             border: 1px solid #d9d9d9;
             border-radius: 6px;
-            padding: 0 8px;
+            padding: 0 4px;
             font-size: 16px;
             background: #fff;
             width: 100%;
@@ -102,9 +109,9 @@
         select.form-control {
             background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
             background-repeat: no-repeat;
-            background-position: right .7em top 50%;
+            background-position: right .5em top 50%;
             background-size: .65em auto;
-            padding-right: 1.5em;
+            padding-right: 1.2em;
         }
 
         .form-control:focus {
@@ -129,24 +136,22 @@
             transition: all 0.2s;
         }
         
-        /* 光面激活 */
-        .toggle-btn.polish-active {
+        /* 激活状态样式 */
+        .toggle-btn.active {
             background: #e6f7ff;
             border-color: #1890ff;
             color: #1890ff;
             font-weight: bold;
         }
         
-        /* 准确激活 */
-        .toggle-btn.accurate-active {
+        .toggle-btn.active-red {
             background: #fff1f0;
             border-color: #ff4d4f;
             color: #ff4d4f;
             font-weight: bold;
         }
 
-        /* 顶标激活 */
-        .toggle-btn.topdim-active {
+        .toggle-btn.active-green {
             background: #f6ffed;
             border-color: #52c41a;
             color: #52c41a;
@@ -216,6 +221,10 @@
                 <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
                     <circle cx="4" cy="4" r="3" fill="red" />
                 </marker>
+                <!-- 箭头marker (保留定义但此处不使用) -->
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L9,3 z" fill="red" />
+                </marker>
             </defs>
             <g id="svgContent"></g>
         </svg>
@@ -247,14 +256,18 @@
         </div>
 
         <!-- 第二行 -->
-        <div class="control-grid">
+        <div class="control-grid-4">
             <div class="form-item">
-                <label>切宽 (mm)</label>
+                <label>切宽</label>
                 <input type="number" id="widthInput" class="form-control" value="20" oninput="onWidthChange()">
             </div>
             <div class="form-item">
-                <label>切深 (mm)</label>
+                <label>切深</label>
                 <input type="number" id="heightInput" class="form-control" value="20" oninput="onHeightChange()">
+            </div>
+            <div class="form-item">
+                <label>上倒角</label>
+                <input type="number" id="chamferInput" class="form-control" value="0" placeholder="0" oninput="updateAll()">
             </div>
             <div class="form-item">
                 <label>余 (自动)</label>
@@ -262,11 +275,12 @@
             </div>
         </div>
 
-        <!-- 第三行：开关按钮组 -->
+        <!-- 第三行：开关按钮组 (2x2布局) -->
         <div class="toggle-grid">
              <div id="polishBtn" class="toggle-btn" onclick="togglePolish()">无光</div>
              <div id="accurateBtn" class="toggle-btn" onclick="toggleAccurate()">准确</div>
-             <div id="topDimBtn" class="toggle-btn topdim-active" onclick="toggleTopDim()">顶标 (开)</div>
+             <div id="topDimBtn" class="toggle-btn active-green" onclick="toggleTopDim()">顶标 (开)</div>
+             <div id="unitBtn" class="toggle-btn" onclick="toggleUnit()">倒角单位 (关)</div>
         </div>
 
         <!-- 结果文字展示与复制 -->
@@ -291,16 +305,19 @@
     const widthInput = document.getElementById('widthInput');
     const heightInput = document.getElementById('heightInput');
     const remainInput = document.getElementById('remainInput');
+    const chamferInput = document.getElementById('chamferInput');
     
     const polishBtn = document.getElementById('polishBtn');
     const accurateBtn = document.getElementById('accurateBtn');
     const topDimBtn = document.getElementById('topDimBtn');
+    const unitBtn = document.getElementById('unitBtn');
     
     const resultDisplay = document.getElementById('resultDisplay');
 
     let isPolished = false;
     let isAccurate = false;
     let showTopDim = true;
+    let showChamferUnit = false; 
 
     window.onload = function() {
         updateAll();
@@ -336,10 +353,10 @@
     function togglePolish() {
         isPolished = !isPolished;
         if (isPolished) {
-            polishBtn.classList.add('polish-active');
+            polishBtn.classList.add('active');
             polishBtn.textContent = "有光";
         } else {
-            polishBtn.classList.remove('polish-active');
+            polishBtn.classList.remove('active');
             polishBtn.textContent = "无光";
         }
         updateAll();
@@ -348,10 +365,10 @@
     function toggleAccurate() {
         isAccurate = !isAccurate;
         if (isAccurate) {
-            accurateBtn.classList.add('accurate-active');
+            accurateBtn.classList.add('active-red');
             accurateBtn.textContent = "准确 (开)";
         } else {
-            accurateBtn.classList.remove('accurate-active');
+            accurateBtn.classList.remove('active-red');
             accurateBtn.textContent = "准确 (关)";
         }
         updateAll();
@@ -360,11 +377,23 @@
     function toggleTopDim() {
         showTopDim = !showTopDim;
         if (showTopDim) {
-            topDimBtn.classList.add('topdim-active');
+            topDimBtn.classList.add('active-green');
             topDimBtn.textContent = "顶标 (开)";
         } else {
-            topDimBtn.classList.remove('topdim-active');
+            topDimBtn.classList.remove('active-green');
             topDimBtn.textContent = "顶标 (关)";
+        }
+        updateAll();
+    }
+    
+    function toggleUnit() {
+        showChamferUnit = !showChamferUnit;
+        if (showChamferUnit) {
+            unitBtn.classList.add('active');
+            unitBtn.textContent = "倒角单位 (开)";
+        } else {
+            unitBtn.classList.remove('active');
+            unitBtn.textContent = "倒角单位 (关)";
         }
         updateAll();
     }
@@ -376,9 +405,14 @@
         const h = parseInt(heightInput.value) || 0;
         const r = parseInt(remainInput.value) || 0;
         const t = parseInt(thicknessInput.value) || 0; 
+        const c = parseFloat(chamferInput.value) || 0;
 
         // 生成文字
         let text = `${idx}${type}背倒${w}*${h}余${r}`;
+        if (c > 0) {
+            // 修改：文字格式改为 "倒角Cmm"
+            text += `倒角${c}mm`;
+        }
         if (isPolished) text += "光";
         
         // 准确逻辑
@@ -397,7 +431,9 @@
             remaining: r,
             isPolished: isPolished,
             totalThickness: t,
-            showTopDim: showTopDim
+            showTopDim: showTopDim,
+            chamfer: c,
+            showUnit: showChamferUnit
         };
 
         drawSVG(data);
@@ -451,8 +487,8 @@
         const width = LOGICAL_WIDTH;
         const height = LOGICAL_HEIGHT;
         
-        const sidePadding = 40;
-        const topPadding = 50;
+        const sidePadding = 50;
+        const topPadding = 60;
         const bottomAreaHeight = 50; 
         
         const availableW = width - sidePadding * 2;
@@ -471,19 +507,43 @@
         const toX = (val) => offsetX + val * scale;
         const toY = (val) => offsetY + val * scale;
 
+        // 基础点计算
         const pTopLeft = { x: toX(0), y: toY(0) };
         const pChamferStart = { x: toX(0), y: toY(data.remaining) };
         const pChamferEnd = { x: toX(data.cutWidth), y: toY(data.totalThickness) };
         const pBottomRight = { x: toX(logicalW), y: toY(data.totalThickness) };
         const pTopRight = { x: toX(logicalW), y: toY(0) };
 
-        const points = `
-            ${pTopLeft.x},${pTopLeft.y} 
-            ${pChamferStart.x},${pChamferStart.y} 
-            ${pChamferEnd.x},${pChamferEnd.y} 
-            ${pBottomRight.x},${pBottomRight.y} 
-            ${pTopRight.x},${pTopRight.y}
-        `;
+        // 倒角逻辑
+        let points = "";
+        let chamferP1 = null;
+        let chamferP2 = null;
+
+        if (data.chamfer > 0) {
+            // 左上角倒角：从(c,0)到(0,c)
+            // 限制倒角大小不超过余量和宽度
+            const c = Math.min(data.chamfer, data.remaining - 0.5, logicalW/2); 
+            
+            chamferP1 = { x: toX(c), y: toY(0) }; // 顶边点
+            chamferP2 = { x: toX(0), y: toY(c) }; // 左边点
+
+            points = `
+                ${chamferP1.x},${chamferP1.y} 
+                ${chamferP2.x},${chamferP2.y} 
+                ${pChamferStart.x},${pChamferStart.y} 
+                ${pChamferEnd.x},${pChamferEnd.y} 
+                ${pBottomRight.x},${pBottomRight.y} 
+                ${pTopRight.x},${pTopRight.y}
+            `;
+        } else {
+            points = `
+                ${pTopLeft.x},${pTopLeft.y} 
+                ${pChamferStart.x},${pChamferStart.y} 
+                ${pChamferEnd.x},${pChamferEnd.y} 
+                ${pBottomRight.x},${pBottomRight.y} 
+                ${pTopRight.x},${pTopRight.y}
+            `;
+        }
         
         // 1. 填充
         createSvgElement('polygon', {
@@ -506,8 +566,27 @@
         if (data.showTopDim) {
             const topY = pTopLeft.y - 30;
             drawDimLine(pTopLeft.x, topY, pTopRight.x, topY, data.dimType, false, -25, 36);
-            createLine(pTopLeft.x, pTopLeft.y, pTopLeft.x, topY - 5);
-            createLine(pTopRight.x, pTopRight.y, pTopRight.x, topY - 5);
+            
+            // 辅助线
+            const guideY = topY - 5;
+            
+            if (data.chamfer > 0 && chamferP1) {
+                 // 修正：当有倒角时，画出虚拟角点延长线 (细黑线)
+                 createSvgElement('line', {
+                     x1: chamferP1.x, y1: chamferP1.y, x2: pTopLeft.x, y2: pTopLeft.y,
+                     stroke: 'black', 'stroke-width': 1
+                 });
+                 createSvgElement('line', {
+                     x1: chamferP2.x, y1: chamferP2.y, x2: pTopLeft.x, y2: pTopLeft.y,
+                     stroke: 'black', 'stroke-width': 1
+                 });
+                 
+                 // 修正：红色界限线从虚拟角点(pTopLeft)向上引出，而不是从实体点(chamferP1)引出
+                 createLine(pTopLeft.x, pTopLeft.y, pTopLeft.x, guideY);
+            } else {
+                 createLine(pTopLeft.x, pTopLeft.y, pTopLeft.x, guideY);
+            }
+            createLine(pTopRight.x, pTopRight.y, pTopRight.x, guideY);
         }
 
         // 右侧板厚
@@ -519,8 +598,16 @@
         // 左侧余量
         const leftLabelX = pTopLeft.x - 45;
         if (data.remaining > 0) {
-            drawDimLine(leftLabelX, pTopLeft.y, leftLabelX, pChamferStart.y, data.remaining, true, -20);
-            createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
+            let topRefY = pTopLeft.y;
+            if (data.chamfer > 0 && chamferP2) {
+                // 余量标注
+                drawDimLine(leftLabelX, topRefY, leftLabelX, pChamferStart.y, data.remaining, true, -20);
+                // 上界限线：从虚拟角点引出
+                createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
+            } else {
+                drawDimLine(leftLabelX, topRefY, leftLabelX, pChamferStart.y, data.remaining, true, -20);
+                createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
+            }
             createLine(pChamferStart.x, pChamferStart.y, leftLabelX - 5, pChamferStart.y);
         }
 
@@ -539,6 +626,48 @@
         drawDimLine(zeroX, bottomLabelY, cutX, bottomLabelY, data.cutWidth, false, -10);
         createLine(zeroX, pBottomRight.y, zeroX, bottomLabelY + 5);
         createLine(cutX, pBottomRight.y, cutX, bottomLabelY + 5);
+
+        // 倒角标注 (修改：平行于倒角面的线性标注)
+        if (data.chamfer > 0 && chamferP1 && chamferP2) {
+            // 计算偏移量 (向左上方)
+            const offsetDist = 25; 
+            // 倒角面法向量大致是 (-1, -1)
+            const angle45 = Math.PI / 4;
+            const offX = -offsetDist * Math.cos(angle45);
+            const offY = -offsetDist * Math.sin(angle45);
+            
+            const dimP1 = { x: chamferP1.x + offX, y: chamferP1.y + offY };
+            const dimP2 = { x: chamferP2.x + offX, y: chamferP2.y + offY };
+            
+            // 1. 辅助线 (延伸线)
+            createLine(chamferP1.x, chamferP1.y, dimP1.x, dimP1.y);
+            createLine(chamferP2.x, chamferP2.y, dimP2.x, dimP2.y);
+            
+            // 2. 尺寸线 (带圆点)
+            createSvgElement('line', {
+                x1: dimP1.x, y1: dimP1.y, x2: dimP2.x, y2: dimP2.y,
+                stroke: 'red', 'stroke-width': 1,
+                'marker-start': 'url(#dot)',
+                'marker-end': 'url(#dot)'
+            });
+            
+            // 3. 文字
+            const chamferText = data.chamfer + (data.showUnit ? "mm" : "");
+            const midX = (dimP1.x + dimP2.x) / 2;
+            const midY = (dimP1.y + dimP2.y) / 2;
+            
+            // 旋转文字以平行于尺寸线 (-45度)
+            // 稍微向上偏移一点 (y: -5) 以避免压线
+            createSvgElement('text', {
+                x: midX, y: midY,
+                'font-family': 'Times New Roman',
+                'font-size': '24px',
+                fill: 'red',
+                'text-anchor': 'middle',
+                'dominant-baseline': 'alphabetic', 
+                transform: `rotate(-45, ${midX}, ${midY}) translate(0, -5)`
+            }, chamferText);
+        }
 
         // 三角指示符
         const triHalfW = 6;
