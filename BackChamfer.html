@@ -66,10 +66,10 @@
             gap: 10px;
         }
         
-        /* 按钮网格 */
+        /* 按钮网格：3列 */
         .toggle-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr; 
+            grid-template-columns: repeat(3, 1fr); 
             gap: 10px;
         }
 
@@ -275,12 +275,14 @@
             </div>
         </div>
 
-        <!-- 第三行：开关按钮组 (2x2布局) -->
+        <!-- 第三行：开关按钮组 (3列布局) -->
         <div class="toggle-grid">
              <div id="polishBtn" class="toggle-btn" onclick="togglePolish()">无光</div>
              <div id="accurateBtn" class="toggle-btn" onclick="toggleAccurate()">准确</div>
              <div id="topDimBtn" class="toggle-btn active-green" onclick="toggleTopDim()">顶标 (开)</div>
              <div id="unitBtn" class="toggle-btn" onclick="toggleUnit()">倒角单位 (关)</div>
+             <!-- 新增倒角光按钮 -->
+             <div id="chamferPolishBtn" class="toggle-btn" onclick="toggleChamferPolish()">倒角光 (关)</div>
         </div>
 
         <!-- 结果文字展示与复制 -->
@@ -311,6 +313,7 @@
     const accurateBtn = document.getElementById('accurateBtn');
     const topDimBtn = document.getElementById('topDimBtn');
     const unitBtn = document.getElementById('unitBtn');
+    const chamferPolishBtn = document.getElementById('chamferPolishBtn');
     
     const resultDisplay = document.getElementById('resultDisplay');
 
@@ -318,6 +321,7 @@
     let isAccurate = false;
     let showTopDim = true;
     let showChamferUnit = false; 
+    let isChamferPolished = false; // 倒角光状态
 
     window.onload = function() {
         updateAll();
@@ -398,6 +402,18 @@
         updateAll();
     }
 
+    function toggleChamferPolish() {
+        isChamferPolished = !isChamferPolished;
+        if (isChamferPolished) {
+            chamferPolishBtn.classList.add('active');
+            chamferPolishBtn.textContent = "倒角光 (开)";
+        } else {
+            chamferPolishBtn.classList.remove('active');
+            chamferPolishBtn.textContent = "倒角光 (关)";
+        }
+        updateAll();
+    }
+
     function updateAll() {
         const idx = idxInput.value;
         const type = typeInput.value;
@@ -418,6 +434,7 @@
         text += `背倒${w}*${h}余${r}`;
         
         if (isPolished) text += "光";
+        if (isChamferPolished && c > 0) text += "(倒角光)"; 
         
         // 准确逻辑
         if (isAccurate) {
@@ -437,7 +454,8 @@
             totalThickness: t,
             showTopDim: showTopDim,
             chamfer: c,
-            showUnit: showChamferUnit
+            showUnit: showChamferUnit,
+            isChamferPolished: isChamferPolished
         };
 
         drawSVG(data);
@@ -575,7 +593,7 @@
             const guideY = topY - 5;
             
             if (data.chamfer > 0 && chamferP1) {
-                 // 修正：当有倒角时，画出虚拟角点延长线 (细黑线)
+                 // 虚拟角点延长线
                  createSvgElement('line', {
                      x1: chamferP1.x, y1: chamferP1.y, x2: pTopLeft.x, y2: pTopLeft.y,
                      stroke: 'black', 'stroke-width': 1
@@ -585,7 +603,6 @@
                      stroke: 'black', 'stroke-width': 1
                  });
                  
-                 // 修正：红色界限线从虚拟角点(pTopLeft)向上引出，而不是从实体点(chamferP1)引出
                  createLine(pTopLeft.x, pTopLeft.y, pTopLeft.x, guideY);
             } else {
                  createLine(pTopLeft.x, pTopLeft.y, pTopLeft.x, guideY);
@@ -604,9 +621,7 @@
         if (data.remaining > 0) {
             let topRefY = pTopLeft.y;
             if (data.chamfer > 0 && chamferP2) {
-                // 余量标注
                 drawDimLine(leftLabelX, topRefY, leftLabelX, pChamferStart.y, data.remaining, true, -20);
-                // 上界限线：从虚拟角点引出
                 createLine(pTopLeft.x, pTopLeft.y, leftLabelX - 5, pTopLeft.y);
             } else {
                 drawDimLine(leftLabelX, topRefY, leftLabelX, pChamferStart.y, data.remaining, true, -20);
@@ -631,11 +646,9 @@
         createLine(zeroX, pBottomRight.y, zeroX, bottomLabelY + 5);
         createLine(cutX, pBottomRight.y, cutX, bottomLabelY + 5);
 
-        // 倒角标注 (修改：平行于倒角面的线性标注)
+        // 倒角标注
         if (data.chamfer > 0 && chamferP1 && chamferP2) {
-            // 计算偏移量 (向左上方)
             const offsetDist = 25; 
-            // 倒角面法向量大致是 (-1, -1)
             const angle45 = Math.PI / 4;
             const offX = -offsetDist * Math.cos(angle45);
             const offY = -offsetDist * Math.sin(angle45);
@@ -643,11 +656,9 @@
             const dimP1 = { x: chamferP1.x + offX, y: chamferP1.y + offY };
             const dimP2 = { x: chamferP2.x + offX, y: chamferP2.y + offY };
             
-            // 1. 辅助线 (延伸线)
             createLine(chamferP1.x, chamferP1.y, dimP1.x, dimP1.y);
             createLine(chamferP2.x, chamferP2.y, dimP2.x, dimP2.y);
             
-            // 2. 尺寸线 (带圆点)
             createSvgElement('line', {
                 x1: dimP1.x, y1: dimP1.y, x2: dimP2.x, y2: dimP2.y,
                 stroke: 'red', 'stroke-width': 1,
@@ -655,13 +666,10 @@
                 'marker-end': 'url(#dot)'
             });
             
-            // 3. 文字
             const chamferText = data.chamfer + (data.showUnit ? "mm" : "");
             const midX = (dimP1.x + dimP2.x) / 2;
             const midY = (dimP1.y + dimP2.y) / 2;
             
-            // 旋转文字以平行于尺寸线 (-45度)
-            // 稍微向上偏移一点 (y: -5) 以避免压线
             createSvgElement('text', {
                 x: midX, y: midY,
                 'font-family': 'Times New Roman',
@@ -673,7 +681,7 @@
             }, chamferText);
         }
 
-        // 三角指示符
+        // 三角指示符 (Top & Side)
         const triHalfW = 6;
         const triLen = 12;
         const triGap = 8;
@@ -690,6 +698,41 @@
             const sideTriY = (pTopLeft.y + pChamferStart.y) / 2;
             createSvgElement('polygon', {
                 points: `${sideTriX - triLen},${sideTriY - triHalfW} ${sideTriX},${sideTriY} ${sideTriX - triLen},${sideTriY + triHalfW}`,
+                fill: 'black'
+            });
+        }
+        
+        // 倒角磨光三角指示符 (New)
+        if (data.isChamferPolished && data.chamfer > 0 && chamferP1 && chamferP2) {
+            const midX = (chamferP1.x + chamferP2.x) / 2;
+            const midY = (chamferP1.y + chamferP2.y) / 2;
+            
+            const normalX = -1; 
+            const normalY = -1;
+            const len = Math.sqrt(2);
+            const uX = normalX / len;
+            const uY = normalY / len;
+            
+            // 修改：尖端距离倒角面3px
+            const gap = 3;
+            const tipX = midX + uX * gap;
+            const tipY = midY + uY * gap;
+            
+            // 底边中心
+            const baseCX = tipX + uX * triLen;
+            const baseCY = tipY + uY * triLen;
+            
+            // 底边两点 (垂直于法线)
+            const pX = 1 / len;
+            const pY = -1 / len;
+            
+            const b1x = baseCX + pX * triHalfW;
+            const b1y = baseCY + pY * triHalfW;
+            const b2x = baseCX - pX * triHalfW;
+            const b2y = baseCY - pY * triHalfW;
+            
+            createSvgElement('polygon', {
+                points: `${tipX},${tipY} ${b1x},${b1y} ${b2x},${b2y}`,
                 fill: 'black'
             });
         }
