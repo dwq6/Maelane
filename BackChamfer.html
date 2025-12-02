@@ -408,11 +408,15 @@
         const c = parseFloat(chamferInput.value) || 0;
 
         // 生成文字
-        let text = `${idx}${type}背倒${w}*${h}余${r}`;
+        // 格式调整：1W倒角3mm，背倒20*20余10
+        let text = `${idx}${type}`;
+        
         if (c > 0) {
-            // 修改：文字格式改为 "倒角Cmm"
-            text += `倒角${c}mm`;
+            text += `倒角${c}mm，`;
         }
+        
+        text += `背倒${w}*${h}余${r}`;
+        
         if (isPolished) text += "光";
         
         // 准确逻辑
