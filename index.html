@@ -2,34 +2,53 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>制图工具箱v1.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 自定义滚动条样式，让界面更精致 */
+        /* 自定义滚动条样式 */
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
         }
         ::-webkit-scrollbar-track {
             background: #1e293b; 
         }
         ::-webkit-scrollbar-thumb {
             background: #475569; 
-            border-radius: 4px;
+            border-radius: 3px;
         }
         ::-webkit-scrollbar-thumb:hover {
             background: #64748b; 
+        }
+        
+        /* 移动端侧边栏过渡动画 */
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
         }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden bg-gray-100 font-sans">
 
+    <!-- 移动端遮罩层 (默认隐藏) -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass" onclick="toggleSidebar()"></div>
+
     <!-- 左侧侧边栏 -->
-    <aside class="w-64 flex-shrink-0 bg-[#1a2234] text-slate-300 flex flex-col transition-all duration-300">
+    <!-- 修改点：
+         1. fixed inset-y-0 left-0 z-50: 手机端固定定位，层级最高
+         2. transform -translate-x-full: 手机端默认移出屏幕
+         3. md:relative md:translate-x-0: 电脑端恢复相对定位且显示
+    -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-[#1a2234] text-slate-300 flex flex-col sidebar-transition transform -translate-x-full md:relative md:translate-x-0 shadow-2xl md:shadow-none">
         <!-- 标题区域 -->
-        <div class="h-16 flex items-center justify-center border-b border-slate-700/50 shadow-sm">
-            <h1 class="text-xl font-bold text-white tracking-wide">制图工具箱v1.1</h1>
+        <div class="h-16 flex items-center justify-between px-4 border-b border-slate-700/50 shadow-sm flex-shrink-0">
+            <h1 class="text-xl font-bold text-white tracking-wide mx-auto md:mx-0 w-full text-center md:text-left">制图工具箱</h1>
+            <!-- 手机端关闭按钮 -->
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
         </div>
 
         <!-- 菜单列表 -->
@@ -37,27 +56,36 @@
             <!-- 菜单项将通过 JavaScript 动态生成 -->
         </nav>
 
-        <!-- 底部版权或信息 (可选) -->
-        <div class="p-4 text-xs text-center text-slate-600 border-t border-slate-700/50">
+        <!-- 底部版权 -->
+        <div class="p-4 text-xs text-center text-slate-600 border-t border-slate-700/50 flex-shrink-0">
             &copy; 2025 Maelane Tools
         </div>
     </aside>
 
     <!-- 右侧主内容区 -->
-    <main class="flex-1 flex flex-col relative bg-white">
-        <!-- 顶部简单的状态栏 (可选) -->
-        <header class="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shadow-sm z-10">
-            <span id="current-tool-name" class="font-medium text-gray-700">加载中...</span>
-            <a id="open-new-tab" href="#" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+    <main class="flex-1 flex flex-col relative bg-white w-full">
+        <!-- 顶部状态栏 -->
+        <header class="h-12 bg-white border-b border-gray-200 flex items-center px-4 justify-between shadow-sm z-10 flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <!-- 手机端汉堡菜单按钮 -->
+                <button onclick="toggleSidebar()" class="md:hidden text-gray-600 hover:text-blue-600 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <span id="current-tool-name" class="font-medium text-gray-700 truncate max-w-[150px] md:max-w-none">加载中...</span>
+            </div>
+            
+            <a id="open-new-tab" href="#" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 whitespace-nowrap">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
-                新窗口打开
+                <span class="hidden sm:inline">新窗口</span>打开
             </a>
         </header>
 
         <!-- iframe 容器 -->
-        <div class="flex-1 relative w-full h-full bg-gray-50">
+        <div class="flex-1 relative w-full bg-gray-50 overflow-hidden">
             <iframe 
                 id="content-frame" 
                 name="content-frame"
@@ -74,27 +102,27 @@
             { 
                 name: "开槽生成", 
                 url: "https://dwq6.github.io/Maelane/slot.html", 
-                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>` // 类似列表/开槽图标
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>` 
             },
             { 
                 name: "侧磨倒角", 
                 url: "https://dwq6.github.io/Maelane/draw", 
-                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>` // 类似截图中的三角
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>` 
             },
             { 
                 name: "踏板生成", 
                 url: "https://dwq6.github.io/Maelane/stair.html", 
-                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>` // 阶梯状图标
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>` 
             },
             { 
                 name: "背倒生成", 
                 url: "https://dwq6.github.io/Maelane/BackChamfer.html", 
-                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>` // 旋转/反向图标
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>` 
             },
             { 
                 name: "清口生成", 
                 url: "https://dwq6.github.io/Maelane/notch.html", 
-                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>` // 星形/切口图标
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>` 
             },
             { 
                 name: "弧形板", 
@@ -122,20 +150,37 @@
         const contentFrame = document.getElementById('content-frame');
         const currentToolName = document.getElementById('current-tool-name');
         const openNewTabLink = document.getElementById('open-new-tab');
+        const sidebar = document.getElementById('sidebar');
+        const mobileOverlay = document.getElementById('mobile-overlay');
 
-        let activeIndex = 0; // 默认选中第一个
+        let activeIndex = 0; 
+
+        // 切换侧边栏显示/隐藏
+        function toggleSidebar() {
+            const isClosed = sidebar.classList.contains('-translate-x-full');
+            if (isClosed) {
+                sidebar.classList.remove('-translate-x-full');
+                mobileOverlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                mobileOverlay.classList.add('hidden');
+            }
+        }
+
+        // 在手机端，点击菜单项后自动关闭侧边栏
+        function closeSidebarOnMobile() {
+            if (window.innerWidth < 768) { // 768px 是 tailwind 的 md 断点
+                sidebar.classList.add('-translate-x-full');
+                mobileOverlay.classList.add('hidden');
+            }
+        }
 
         function renderMenu() {
             menuContainer.innerHTML = '';
             tools.forEach((tool, index) => {
                 const isActive = index === activeIndex;
                 
-                // 创建菜单按钮
                 const button = document.createElement('button');
-                // 样式逻辑：
-                // 基础样式：w-full flex items-center px-6 py-3 text-sm font-medium transition-colors duration-200
-                // 选中样式：bg-[#2d3748] text-white border-l-4 border-blue-500
-                // 未选中样式：text-slate-400 hover:bg-[#2d3748] hover:text-white border-l-4 border-transparent
                 
                 let className = "w-full flex items-center px-6 py-3 text-sm font-medium transition-all duration-200 outline-none ";
                 if (isActive) {
@@ -153,7 +198,8 @@
                 button.onclick = () => {
                     activeIndex = index;
                     loadTool(index);
-                    renderMenu(); // 重新渲染以更新样式
+                    renderMenu();
+                    closeSidebarOnMobile(); // 点击后关闭菜单
                 };
 
                 menuContainer.appendChild(button);
@@ -169,7 +215,7 @@
 
         // 初始化
         renderMenu();
-        loadTool(0); // 加载第一个工具
+        loadTool(0);
 
     </script>
 </body>
