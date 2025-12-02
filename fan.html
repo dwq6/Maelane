@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>扇形板计算器 - 智能工程版</title>
+    <title>扇形板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -28,90 +28,149 @@
             background-color: #f9fafb;
         }
         .input-wrapper { position: relative; }
+        
+        .custom-checkbox {
+            accent-color: #374151;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        
+        /* 分组标题样式 */
+        .group-label {
+            grid-column: span 2;
+            font-size: 11px;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            margin-top: 8px;
+            margin-bottom: 4px;
+            letter-spacing: 0.05em;
+        }
     </style>
 </head>
-<!-- 修改1：items-start 改为 items-stretch，使左右高度拉伸对齐 -->
 <body class="bg-gray-50 text-slate-800 min-h-screen flex flex-col lg:flex-row justify-center items-stretch gap-4 p-6">
 
     <!-- 左侧控制面板 -->
-    <div class="w-full lg:w-80 flex-shrink-0 bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col">
+    <div class="w-full lg:w-96 flex-shrink-0 bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-y-auto max-h-screen">
         <div class="flex items-center justify-between mb-4 border-b pb-3">
             <h1 class="font-bold text-lg text-gray-800">扇形板计算器</h1>
-            <button onclick="resetParams()" class="text-xs text-blue-600 flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded transition-colors">
+            <button onclick="resetParams()" class="text-xs text-gray-600 flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded transition-colors">
                 <i data-lucide="rotate-ccw" width="12"></i> 重置
             </button>
         </div>
 
-        <div class="space-y-5 flex-1">
+        <div class="space-y-4 flex-1">
             <!-- 几何参数 -->
             <div>
                 <div class="flex justify-between items-end mb-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase">任意填入参数即可计算</label>
+                    <label class="text-xs font-bold text-gray-500">输入任意参数 (自动互推)</label>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-3">
+                    <!-- 基础尺寸 -->
+                    <div class="group-label">基础尺寸</div>
                     <div class="input-wrapper">
-                        <input type="number" id="radiusOut" value="2000" class="geom-input w-full h-12 px-3 pt-6 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors">
+                        <input type="number" id="radiusOut" value="2000" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
                         <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">外半径 (R外)</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="number" id="radiusIn" value="1200" class="geom-input w-full h-12 px-3 pt-6 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors">
+                        <input type="number" id="radiusIn" value="1200" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
                         <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">内半径 (R内)</span>
                     </div>
-                    
-                    <!-- 宽度输入 -->
                     <div class="input-wrapper">
-                        <input type="number" id="widthVal" placeholder="自动计算" class="geom-input w-full h-12 px-3 pt-6 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
+                        <input type="number" id="widthVal" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
                         <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">宽度 (W)</span>
                     </div>
-
                     <div class="input-wrapper">
-                        <input type="number" id="arcOut" value="1500" class="geom-input w-full h-12 px-3 pt-6 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors">
+                        <input type="number" id="thickness" value="30" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors">
+                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">厚度 (T)</span>
+                    </div>
+
+                    <!-- 弧长与弦长 -->
+                    <div class="group-label">弧长与弦长</div>
+                    <div class="input-wrapper">
+                        <input type="number" id="arcOut" value="1500" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
                         <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">外弧长 (L外)</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="number" id="arcIn" placeholder="自动计算" class="geom-input w-full h-12 px-3 pt-6 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
+                        <input type="number" id="arcIn" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
                         <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">内弧长 (L内)</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="number" id="chordOut" placeholder="自动计算" class="geom-input w-full h-12 px-3 pt-6 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
+                        <input type="number" id="chordOut" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
                         <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">外弦长 (C外)</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="number" id="chordIn" placeholder="自动计算" class="geom-input w-full h-12 px-3 pt-6 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
+                        <input type="number" id="chordIn" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
                         <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">内弦长 (C内)</span>
                     </div>
+
+                    <!-- 高度参数 -->
+                    <div class="group-label">高度参数 (支持反推)</div>
                     <div class="input-wrapper">
-                        <input type="number" id="thickness" value="30" class="geom-input w-full h-12 px-3 pt-6 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">厚度 (T)</span>
+                        <input type="number" id="archOut" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
+                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">外弧拱高 (h外)</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="archIn" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
+                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">内弧拱高 (h内)</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="totalHeight" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
+                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">总高 (H)</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="sideVertHeight" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
+                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">侧边垂高 (Hv)</span>
                     </div>
                 </div>
                 <div id="statusMsg" class="mt-2 text-xs flex items-start gap-1 text-gray-500 font-medium"></div>
             </div>
 
             <!-- 磨光面标记 -->
-            <div class="pt-2 border-t">
-                <label class="text-xs font-bold text-gray-400 uppercase mb-3 block">磨光面标记</label>
+            <div class="pt-2 border-t border-gray-100">
+                <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">磨光面标记</label>
                 <div class="grid grid-cols-3 gap-2">
-                    <button class="polish-btn active flex items-center justify-center p-2 rounded text-xs transition-all" onclick="togglePolish('face', this)">正面</button>
-                    <button class="polish-btn flex items-center justify-center p-2 rounded text-xs transition-all" onclick="togglePolish('waiHu', this)">外弧面</button>
-                    <button class="polish-btn flex items-center justify-center p-2 rounded text-xs transition-all" onclick="togglePolish('neiHu', this)">内弧面</button>
-                    <button class="polish-btn flex items-center justify-center p-2 rounded text-xs transition-all" onclick="togglePolish('leftSide', this)">左侧面</button>
-                    <button class="polish-btn flex items-center justify-center p-2 rounded text-xs transition-all" onclick="togglePolish('rightSide', this)">右侧面</button>
-                    <button class="polish-btn flex items-center justify-center p-2 rounded text-xs transition-all" onclick="togglePolish('back', this)">背面</button>
+                    <button class="polish-btn active flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('face', this)">正面</button>
+                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('waiHu', this)">外弧面</button>
+                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('neiHu', this)">内弧面</button>
+                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('leftSide', this)">左侧面</button>
+                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('rightSide', this)">右侧面</button>
+                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('back', this)">背面</button>
+                </div>
+            </div>
+
+             <!-- 显示选项 -->
+             <div class="pt-2 border-t border-gray-100">
+                <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">图纸标注选项</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600">
+                        <input type="checkbox" id="showArchHeight" onchange="draw()" class="custom-checkbox rounded border-gray-300">
+                        <span>显示拱高</span>
+                    </label>
+                    <label class="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600">
+                        <input type="checkbox" id="showTotalHeight" onchange="draw()" checked class="custom-checkbox rounded border-gray-300">
+                        <span>显示总高</span>
+                    </label>
+                    <label class="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600 col-span-2">
+                        <input type="checkbox" id="showSideVertHeight" onchange="draw()" checked class="custom-checkbox rounded border-gray-300">
+                        <span>显示侧边垂高 (上弧底-下弧底)</span>
+                    </label>
                 </div>
             </div>
 
             <!-- 计算结果 -->
-            <div id="resultBox" class="hidden mt-4 bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs">
-                <h3 class="font-bold text-gray-700 mb-2">参数详情 (已计算)</h3>
+            <div id="resultBox" class="hidden mt-2 bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs">
+                <h3 class="font-bold text-gray-700 mb-2 flex items-center gap-1">
+                    <i data-lucide="calculator" width="12"></i> 计算结果
+                </h3>
                 <div class="flex flex-col space-y-1" id="resultContent"></div>
             </div>
         </div>
     </div>
 
     <!-- 右侧预览面板 -->
-    <!-- 修改2：移除固定高度 h-[600px]，改为 min-h-[600px]，配合父容器 stretch 实现对齐 -->
     <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col min-h-[600px] max-w-5xl relative">
         <div class="flex justify-between items-center mb-2 border-b pb-2 z-10 bg-white">
             <h2 class="font-bold text-gray-700 flex items-center gap-2">
@@ -151,13 +210,12 @@
         }
 
         function resetParams() {
+            const ids = ['radiusOut', 'radiusIn', 'widthVal', 'arcOut', 'arcIn', 'chordOut', 'chordIn', 'archOut', 'archIn', 'totalHeight', 'sideVertHeight'];
+            ids.forEach(id => document.getElementById(id).value = '');
+            
             document.getElementById('radiusOut').value = '2000';
             document.getElementById('radiusIn').value = '1200';
-            document.getElementById('widthVal').value = '';
             document.getElementById('arcOut').value = '1500';
-            document.getElementById('arcIn').value = '';
-            document.getElementById('chordOut').value = '';
-            document.getElementById('chordIn').value = '';
             document.getElementById('thickness').value = '30';
             calculate();
         }
@@ -176,6 +234,10 @@
                 li: getVal('arcIn'),
                 co: getVal('chordOut'),
                 ci: getVal('chordIn'),
+                ho: getVal('archOut'),
+                hi: getVal('archIn'),
+                ht: getVal('totalHeight'),
+                hsv: getVal('sideVertHeight'),
                 t:  getVal('thickness')
             };
 
@@ -188,12 +250,49 @@
                 return;
             }
 
+            // --- 参数推导逻辑 ---
+            
+            // 1. 基础几何: H_total = W + h_in
+            if (inp.ht && inp.w && !inp.hi) inp.hi = inp.ht - inp.w;
+            if (inp.ht && inp.hi && !inp.w) inp.w = inp.ht - inp.hi;
+            if (inp.w && inp.hi && !inp.ht) inp.ht = inp.w + inp.hi;
+
+            // 2. 基础几何: R, r, W
             if (inp.ro && inp.ri && !inp.w) inp.w = inp.ro - inp.ri;
             if (inp.ro && inp.w && !inp.ri) inp.ri = inp.ro - inp.w;
             if (inp.ri && inp.w && !inp.ro) inp.ro = inp.ri + inp.w;
 
             let theta = null;
 
+            // 3. 角度推导 (新增高级反推)
+            
+            // 场景: 侧边垂高 + 宽度 -> 角度
+            if (!theta && inp.w && inp.hsv && inp.hsv <= inp.w) {
+                theta = 2 * Math.acos(inp.hsv / inp.w);
+            }
+
+            // 场景: 弦长 + 拱高 -> 半径 + 角度 (外弧)
+            if (!theta && !inp.ro && inp.ho && inp.co) {
+                inp.ro = (inp.co * inp.co + 4 * inp.ho * inp.ho) / (8 * inp.ho);
+                theta = 2 * Math.asin(inp.co / (2 * inp.ro));
+            }
+            // 场景: 弦长 + 拱高 -> 半径 + 角度 (内弧)
+            if (!theta && !inp.ri && inp.hi && inp.ci) {
+                inp.ri = (inp.ci * inp.ci + 4 * inp.hi * inp.hi) / (8 * inp.hi);
+                theta = 2 * Math.asin(inp.ci / (2 * inp.ri));
+            }
+
+            // 场景: 半径 + 拱高 -> 角度
+            if (!theta && inp.ro && inp.ho) {
+                let cosVal = 1 - inp.ho/inp.ro;
+                if (cosVal >= -1 && cosVal <= 1) theta = 2 * Math.acos(cosVal);
+            }
+            if (!theta && inp.ri && inp.hi) {
+                let cosVal = 1 - inp.hi/inp.ri;
+                if (cosVal >= -1 && cosVal <= 1) theta = 2 * Math.acos(cosVal);
+            }
+
+            // 4. 常规角度推导
             if (!theta && inp.lo && inp.ro) theta = inp.lo / inp.ro;
             if (!theta && inp.li && inp.ri) theta = inp.li / inp.ri;
 
@@ -208,6 +307,7 @@
                  theta = (inp.lo - inp.li) / inp.w;
             }
 
+            // 5. 有了角度后，补全半径
             if (theta && theta > 0) {
                 if (!inp.ro) {
                     if (inp.lo) inp.ro = inp.lo / theta;
@@ -222,12 +322,13 @@
             if (!inp.w && inp.ro && inp.ri) inp.w = inp.ro - inp.ri;
             if (inp.w && !inp.ri && inp.ro) inp.ri = inp.ro - inp.w;
 
+            // 6. 验证与结果生成
             let error = null;
             let ro = inp.ro;
             let ri = inp.ri;
 
             if (!theta) {
-                if ((ro || ri) && !inp.lo && !inp.li && !inp.co && !inp.ci) error = "请输入任意 [弧长] 或 [弦长] 确定角度";
+                if ((ro || ri) && !inp.lo && !inp.li && !inp.co && !inp.ci && !inp.ho && !inp.hi && !inp.hsv) error = "请输入更多参数以确定形状";
                 else if (inp.lo && inp.li && !inp.w && !ro && !ri) error = "请输入 [宽度] 或 [半径] 以计算";
                 else error = "参数不足，无法构建图形";
             } else {
@@ -237,29 +338,44 @@
             }
 
             if (!error) {
+                const cosHalf = Math.cos(theta/2);
+                const h_out = ro * (1 - cosHalf);
+                const h_in = ri * (1 - cosHalf);
+                const h_total = ro - (ri * cosHalf);
+                const h_side_vert = (ro - ri) * cosHalf;
+
                 const res = {
                     ro: ro, ri: ri,
                     lo: theta * ro, li: theta * ri,
                     co: 2 * ro * Math.sin(theta/2), ci: 2 * ri * Math.sin(theta/2),
-                    w: ro - ri, angle: theta * 180 / Math.PI, t: inp.t
+                    w: ro - ri, angle: theta * 180 / Math.PI, t: inp.t,
+                    ho: h_out, hi: h_in, ht: h_total, hsv: h_side_vert
                 };
                 state.data = { valid: true, theta: theta, ...res };
 
                 statusEl.innerHTML = `<i data-lucide="check-circle-2" width="12"></i> 生成成功`;
-                statusEl.className = "mt-2 text-xs flex items-center gap-1 text-green-600 font-medium";
+                statusEl.className = "mt-2 text-xs flex items-center gap-1 text-gray-700 font-medium";
                 resultBox.classList.remove('hidden');
                 
                 const fmt = (n) => n.toFixed(1);
-                // 修改3：去掉了 text-blue-600，改为 text-gray-800，统一显示为深色
-                const isAuto = (val, id) => document.getElementById(id).value == '' ? 'font-mono font-bold text-gray-800' : 'font-mono text-gray-700';
+                // 辅助函数：如果输入框为空，则显示为粗体（表示是计算出的）
+                const isAuto = (val, id) => {
+                    const el = document.getElementById(id);
+                    return (el && el.value == '') ? 'font-mono font-bold text-gray-900' : 'font-mono text-gray-700';
+                };
                 
+                // 填充结果列表
                 document.getElementById('resultContent').innerHTML = `
                     <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">侧边宽(W)</span> <span class="${isAuto(res.w, 'widthVal')}">${fmt(res.w)}</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">圆心角</span> <span class="font-mono text-black">${fmt(res.angle)}°</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">内弧长</span> <span class="${isAuto(res.li, 'arcIn')}">${fmt(res.li)}</span></div>
+                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">圆心角</span> <span class="font-mono text-gray-900">${fmt(res.angle)}°</span></div>
+                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">总高度</span> <span class="${isAuto(res.ht, 'totalHeight')}">${fmt(res.ht)}</span></div>
+                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">侧边垂高</span> <span class="${isAuto(res.hsv, 'sideVertHeight')}">${fmt(res.hsv)}</span></div>
+                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">外弧拱高</span> <span class="${isAuto(res.ho, 'archOut')}">${fmt(res.ho)}</span></div>
+                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">内弧拱高</span> <span class="${isAuto(res.hi, 'archIn')}">${fmt(res.hi)}</span></div>
                     <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">外弦长</span> <span class="${isAuto(res.co, 'chordOut')}">${fmt(res.co)}</span></div>
                     <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">内弦长</span> <span class="${isAuto(res.ci, 'chordIn')}">${fmt(res.ci)}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">外弧长</span> <span class="${isAuto(res.lo, 'arcOut')}">${fmt(res.lo)}</span></div>
+                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">外弧长</span> <span class="${isAuto(res.lo, 'arcOut')}">${fmt(res.lo)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">内弧长</span> <span class="${isAuto(res.li, 'arcIn')}">${fmt(res.li)}</span></div>
                 `;
                 downloadBtn.disabled = false;
                 lucide.createIcons();
@@ -273,7 +389,7 @@
             state.data = { valid: false };
             const statusEl = document.getElementById('statusMsg');
             statusEl.innerHTML = `<i data-lucide="alert-circle" width="12"></i> ${msg}`;
-            statusEl.className = "mt-2 text-xs flex items-center gap-1 text-amber-600 font-medium";
+            statusEl.className = "mt-2 text-xs flex items-center gap-1 text-gray-800 font-medium";
             document.getElementById('resultBox').classList.add('hidden');
             document.getElementById('downloadBtn').disabled = true;
             document.getElementById('svgContainer').innerHTML = `
@@ -285,9 +401,28 @@
             lucide.createIcons();
         }
 
+        function downloadImage() {
+            const svg = document.getElementById('mainSvg');
+            if (!svg) return;
+            const serializer = new XMLSerializer();
+            const source = serializer.serializeToString(svg);
+            const blob = new Blob([source], {type: "image/svg+xml;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fan_plate_${new Date().getTime()}.svg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
         function draw() {
             if (!state.data || !state.data.valid) return;
-            const { theta, ro: R_out, ri: R_in, t: T, lo: L_out, li: L_in, co: C_out, ci: C_in, w: W } = state.data;
+            const { theta, ro: R_out, ri: R_in, t: T, lo: L_out, li: L_in, co: C_out, ci: C_in, w: W, ho: H_out, hi: H_in, ht: H_total, hsv: H_side_vert } = state.data;
+
+            const showArch = document.getElementById('showArchHeight').checked;
+            const showTotal = document.getElementById('showTotalHeight').checked;
+            const showSideVert = document.getElementById('showSideVertHeight').checked;
 
             const polarToCartesian = (r, angle) => ({
                 x: r * Math.sin(angle),
@@ -302,6 +437,7 @@
             const p_in_left = polarToCartesian(R_in, startAngle);
             const p_in_right = polarToCartesian(R_in, endAngle);
 
+            // 3D 投影 (厚度)
             const depthAngle = 45 * Math.PI / 180;
             const depthLen = T * 0.8; 
             const dx = depthLen * Math.sin(depthAngle);
@@ -313,6 +449,7 @@
             const p_in_right_back = project(p_in_right);
             const p_in_left_back = project(p_in_left);
 
+            // 路径定义
             const pathFace = `M ${p_out_left.x} ${p_out_left.y} A ${R_out} ${R_out} 0 0 1 ${p_out_right.x} ${p_out_right.y} L ${p_in_right.x} ${p_in_right.y} A ${R_in} ${R_in} 0 0 0 ${p_in_left.x} ${p_in_left.y} Z`;
             const pathOuter = `M ${p_out_left.x} ${p_out_left.y} L ${p_out_left_back.x} ${p_out_left_back.y} A ${R_out} ${R_out} 0 0 1 ${p_out_right_back.x} ${p_out_right_back.y} L ${p_out_right.x} ${p_out_right.y} A ${R_out} ${R_out} 0 0 0 ${p_out_left.x} ${p_out_left.y} Z`;
             const pathRight = `M ${p_out_right.x} ${p_out_right.y} L ${p_out_right_back.x} ${p_out_right_back.y} L ${p_in_right_back.x} ${p_in_right_back.y} L ${p_in_right.x} ${p_in_right.y} Z`;
@@ -320,6 +457,7 @@
             const colorWhite = "#ffffff";
             const colorPolish = "#e5e7eb"; 
             
+            // 尺寸标注坐标计算
             const top_apex_y = -R_out;
             const top_chord_y = top_apex_y - 40;
             
@@ -335,6 +473,7 @@
 
             const bottom_chord_y = Math.max(p_in_left.y, p_in_right.y) + 140;
             
+            // 侧边宽度标注 (Slanted W)
             const left_dx = p_out_left.x - p_in_left.x;
             const left_dy = p_out_left.y - p_in_left.y;
             const len = Math.sqrt(left_dx*left_dx + left_dy*left_dy);
@@ -347,6 +486,7 @@
             const w_angle = Math.atan2(p_w_end.y - p_w_start.y, p_w_end.x - p_w_start.x) * 180 / Math.PI;
             const p_thick_end = p_out_left_back;
 
+            // 磨光面标记
             const markSize = 16;
             const markPath = `M ${-markSize/2} ${-markSize} L ${markSize/2} ${-markSize} L 0 0 Z`;
             let marksSVG = '';
@@ -362,7 +502,6 @@
             }
             if (state.polish.back) {
                 const angle_back = 3 * Math.PI / 180;
-                // 修改4：背面标记向外移动 2px (R_out + 4)
                 const p_base = polarToCartesian(R_out + 4, angle_back);
                 const p_back = { x: p_base.x + dx, y: p_base.y + dy }; 
                 marksSVG += `<path d="${markPath}" fill="black" transform="translate(${p_back.x}, ${p_back.y}) rotate(30)" />`;
@@ -388,12 +527,12 @@
                 marksSVG += `<path d="${markPath}" fill="black" transform="translate(${p_mark.x}, ${p_mark.y}) rotate(${rot})" />`;
             }
 
+            // 半径标注函数
             const createRadialDim = (r, angle, text) => {
                 const p_start = polarToCartesian(r, angle);
                 const p_end = polarToCartesian(r - 150, angle);
                 const p_text = polarToCartesian(r - 75, angle);
                 const rot = (angle * 180 / Math.PI) + 90;
-                
                 return `
                     <circle cx="${p_start.x}" cy="${p_start.y}" r="3" fill="#333" />
                     <line x1="${p_start.x}" y1="${p_start.y}" x2="${p_end.x}" y2="${p_end.y}" stroke="#333" stroke-width="1" />
@@ -406,7 +545,59 @@
             const dim_r_out = createRadialDim(R_out, startAngle + theta * 0.15, `R${R_out.toFixed(0)}`);
             const dim_r_in = createRadialDim(R_in, endAngle - theta * 0.15, `R${R_in.toFixed(0)}`);
 
-            const pointsX = [p_out_left.x, p_out_right.x, p_out_right.x + 80, p_w_start.x - 60, p_thick_end.x - 50];
+            // 拱高标注绘制逻辑
+            let archHeightSVG = '';
+            if (showArch) {
+                const p_out_arc_mid = { x: 0, y: -R_out };
+                const p_out_chord_mid = { x: 0, y: -R_out * Math.cos(theta/2) };
+                const p_in_arc_mid = { x: 0, y: -R_in };
+                const p_in_chord_mid = { x: 0, y: -R_in * Math.cos(theta/2) };
+
+                archHeightSVG = `
+                    <line x1="0" y1="${p_out_arc_mid.y}" x2="0" y2="${p_out_chord_mid.y}" stroke="#333" stroke-width="1.5" marker-start="url(#arrow-end)" marker-end="url(#arrow-end)" />
+                    <text x="5" y="${(p_out_arc_mid.y + p_out_chord_mid.y)/2}" fill="#333" font-size="20" alignment-baseline="middle" font-weight="bold">h${H_out.toFixed(0)}</text>
+                    <line x1="0" y1="${p_in_arc_mid.y}" x2="0" y2="${p_in_chord_mid.y}" stroke="#333" stroke-width="1.5" marker-start="url(#arrow-end)" marker-end="url(#arrow-end)" />
+                    <text x="5" y="${(p_in_arc_mid.y + p_in_chord_mid.y)/2}" fill="#333" font-size="20" alignment-baseline="middle" font-weight="bold">h${H_in.toFixed(0)}</text>
+                `;
+            }
+
+            // 总高标注绘制逻辑
+            let totalHeightSVG = '';
+            if (showTotal) {
+                const topY = -R_out;
+                const bottomY = -R_in * Math.cos(theta/2);
+                const xPos = p_out_right.x + 180; 
+
+                totalHeightSVG = `
+                    <line x1="${p_out_right.x}" y1="${topY}" x2="${xPos + 10}" y2="${topY}" stroke="#333" stroke-width="0.5" stroke-dasharray="4,4" />
+                    <line x1="${p_in_right.x}" y1="${bottomY}" x2="${xPos + 10}" y2="${bottomY}" stroke="#333" stroke-width="0.5" stroke-dasharray="4,4" />
+                    <line x1="${xPos}" y1="${topY}" x2="${xPos}" y2="${bottomY}" stroke="#333" stroke-width="1.5" marker-start="url(#arrow-end)" marker-end="url(#arrow-end)" />
+                    <g transform="translate(${xPos + 10}, ${(topY + bottomY)/2}) rotate(90)">
+                        <text x="0" y="-5" text-anchor="middle" fill="#333" font-size="26" font-weight="bold">H=${H_total.toFixed(0)}</text>
+                    </g>
+                `;
+            }
+            
+            // 侧边垂高标注逻辑
+            let sideVertHeightSVG = '';
+            let sv_min_x = p_out_left.x; 
+            if (showSideVert) {
+                const y_top = p_out_left.y; 
+                const y_bot = p_in_left.y;  
+                const x_dim_pos = Math.min(p_out_left.x, p_in_left.x) - 180; 
+                sv_min_x = x_dim_pos;
+
+                sideVertHeightSVG = `
+                    <line x1="${p_out_left.x}" y1="${y_top}" x2="${x_dim_pos - 10}" y2="${y_top}" stroke="#333" stroke-width="0.5" stroke-dasharray="4,4" />
+                    <line x1="${p_in_left.x}" y1="${y_bot}" x2="${x_dim_pos - 10}" y2="${y_bot}" stroke="#333" stroke-width="0.5" stroke-dasharray="4,4" />
+                    <line x1="${x_dim_pos}" y1="${y_top}" x2="${x_dim_pos}" y2="${y_bot}" stroke="#333" stroke-width="1.5" marker-start="url(#arrow-end)" marker-end="url(#arrow-end)" />
+                    <g transform="translate(${x_dim_pos - 10}, ${(y_top + y_bot)/2}) rotate(-90)">
+                        <text x="0" y="-5" text-anchor="middle" fill="#333" font-size="26" font-weight="bold">Hv=${H_side_vert.toFixed(0)}</text>
+                    </g>
+                `;
+            }
+
+            const pointsX = [p_out_left.x, p_out_right.x, p_out_right.x + 200, p_w_start.x - 60, p_thick_end.x - 50, sv_min_x - 50];
             const pointsY = [polarToCartesian(dim_arc_r + 40, 0).y, bottom_chord_y + 50, p_out_right.y];
             const minX = Math.min(...pointsX);
             const maxX = Math.max(...pointsX);
@@ -463,6 +654,10 @@
                         <line x1="${p_out_left_back.x}" y1="${p_out_left_back.y}" x2="${p_out_left_back.x - 30}" y2="${p_out_left_back.y - 15}" stroke="#666" stroke-width="0.5" />
                         <line x1="${p_out_left.x - 25}" y1="${p_out_left.y - 12.5}" x2="${p_out_left_back.x - 25}" y2="${p_out_left_back.y - 12.5}" stroke="#333" stroke-width="1" />
                         <text x="${p_out_left_back.x - 35}" y="${p_out_left_back.y - 10}" text-anchor="end" alignment-baseline="middle" font-size="24">${T}T</text>
+
+                        ${archHeightSVG}
+                        ${totalHeightSVG}
+                        ${sideVertHeightSVG}
                     </g>
                 </svg>
             `;
