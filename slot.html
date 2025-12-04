@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>开槽</title>
+    <title>开槽生成器 v2.0</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -48,21 +48,22 @@
         .checkbox-wrapper {
             display: flex; align-items: center; background: white;
             border: 1px solid #ddd; border-radius: 4px; padding: 8px;
-            height: 38px; /* 与其他输入框等高 */
+            height: 38px; 
         }
         .checkbox-wrapper input { width: auto; margin-right: 8px; cursor: pointer; }
         .checkbox-wrapper span { font-size: 14px; cursor: pointer; user-select: none; }
         .checkbox-wrapper:hover { border-color: #1890ff; }
 
-        .action-bar { display: flex; gap: 10px; align-items: center; }
+        .action-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         button {
             flex: 1; padding: 10px; font-size: 15px;
             border: none; border-radius: 4px; cursor: pointer;
             background-color: #1890ff; color: white; font-weight: bold;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s; white-space: nowrap;
         }
         button:hover { opacity: 0.9; }
         button.secondary { background-color: #52c41a; }
+        button.warning { background-color: #faad14; } /* 新增黄色按钮样式 */
         
         .highlight-option { border: 2px solid #1890ff !important; background-color: #e6f7ff !important; color: #1890ff; font-weight: bold; }
     </style>
@@ -141,7 +142,6 @@
                 </select>
             </div>
             
-            <!-- 新增的交换按钮 -->
             <div class="input-group">
                 <label>特殊选项</label>
                 <div class="checkbox-wrapper" onclick="document.getElementById('swapWL').click()">
@@ -150,7 +150,6 @@
                 </div>
             </div>
             
-            <!-- 新增的三角显示切换 -->
             <div class="input-group">
                 <label>显示选项</label>
                 <div class="checkbox-wrapper" onclick="document.getElementById('showTriangles').click()">
@@ -158,11 +157,22 @@
                     <span>显示间隔三角</span>
                 </div>
             </div>
+
+            <!-- 新增：首槽反向显示 -->
+            <div class="input-group">
+                <label>标注位置</label>
+                <div class="checkbox-wrapper" onclick="document.getElementById('reverseStartOffset').click()">
+                    <input type="checkbox" id="reverseStartOffset" onclick="event.stopPropagation()">
+                    <span>首槽尺寸反向</span>
+                </div>
+            </div>
         </div>
         
         <div class="action-bar">
             <button onclick="draw()">刷新图纸</button>
-            <button class="secondary" onclick="downloadJPG()">下载 JPG 图片</button>
+            <button class="secondary" onclick="downloadJPG(false)">下载 JPG</button>
+            <!-- 新增：下载无字按钮 -->
+            <button class="warning" onclick="downloadJPG(true)">下载无字 JPG</button>
         </div>
     </div>
 </div>
@@ -192,13 +202,13 @@
         const lMode = document.getElementById('lDisplayMode').value;
         const wMode = document.getElementById('wDisplayMode').value;
         
-        // 获取是否交换标签
         const isSwapped = document.getElementById('swapWL').checked;
         const labelForW = isSwapped ? 'L' : 'W';
         const labelForL = isSwapped ? 'W' : 'L';
 
-        // 新增：获取是否显示三角
         const showTriangles = document.getElementById('showTriangles').checked;
+        // 新增：获取是否反向显示首槽
+        const isReverseOffset = document.getElementById('reverseStartOffset').checked;
 
         // 自动计算起始数值
         const calcBase = isVertical ? L : W;
@@ -233,7 +243,7 @@
 
         // 辅助函数：绘制自适应三角
         function drawAdaptiveTriangle(start, end, isVert) {
-            if (!showTriangles) return; // 新增：根据开关决定是否绘制
+            if (!showTriangles) return;
 
             const h = end - start;
             if (h <= 0.1) return; 
@@ -270,66 +280,99 @@
         const maxLoops = 300;
 
         if (!isVertical) {
-            // ================= 横向模式 =================
-            const dimX_Gap = -15;
+            // ================= 横向模式 (槽是横线) =================
+            const dimX_Gap = -15; // 默认在左侧
             const dimX_Slot = -45;
-            const extLineStart = -50;
+            const extLineStartDefault = -50; // 默认左侧延伸线起点
+
+            // 如果反向，首槽尺寸移到右侧
+            const dimX_Start = isReverseOffset ? (drawL + 45) : dimX_Gap;
+            // 如果反向，延伸线在右侧
+            const extLineX1_Start = isReverseOffset ? drawL : extLineStartDefault;
+            const extLineX2_Start = isReverseOffset ? (drawL + 50) : 0;
 
             let currentY = startOff;
 
+            // 绘制首槽起始尺寸
             if (currentY > 0.1) {
-                drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), currentY, true, -15);
+                drawDimLine(dimX_Start, 0, dimX_Start, toY(currentY), currentY, true, isReverseOffset ? 15 : -15);
                 createLine(0, toY(currentY), drawL, toY(currentY), 'black', 1);
-                createLine(extLineStart, 0, 0, 0, 'red', 0.5); 
-                createLine(extLineStart, toY(currentY), 0, toY(currentY), 'red', 0.5);
+                
+                // 绘制首槽的延伸线 (0 和 currentY)
+                createLine(extLineX1_Start, 0, extLineX2_Start, 0, 'red', 0.5); 
+                createLine(extLineX1_Start, toY(currentY), extLineX2_Start, toY(currentY), 'red', 0.5);
+                
                 drawAdaptiveTriangle(0, currentY, false);
             } else {
-                createLine(extLineStart, 0, 0, 0, 'red', 0.5);
+                // 即使没有首槽距离，0位置的红线也要画
+                createLine(extLineX1_Start, 0, extLineX2_Start, 0, 'red', 0.5);
             }
 
             while (currentY + sw <= W + 0.01 && loopCount < maxLoops) {
                 loopCount++;
                 const slotBottomY = currentY + sw;
                 createLine(0, toY(slotBottomY), drawL, toY(slotBottomY), 'black', 1);
+                
+                // 槽宽标注始终在左侧 (保持整洁，除非你想全部移过去，这里只移首槽)
                 drawDimLine(dimX_Slot, toY(currentY), dimX_Slot, toY(slotBottomY), sw, true, -15);
-                createLine(extLineStart, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
+                
+                // 槽底部的延伸线 (左侧)
+                createLine(extLineStartDefault, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
+                
                 currentY = slotBottomY;
                 
                 if (currentY < W - 0.1) {
                     let nextY = currentY + gap;
                     if (nextY > W) nextY = W;
                     const dist = Math.round((nextY - currentY)*100)/100;
+                    
+                    // 间隔标注始终在左侧
                     drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), dist, true, -15);
-                    createLine(extLineStart, toY(nextY), 0, toY(nextY), 'red', 0.5);
+                    createLine(extLineStartDefault, toY(nextY), 0, toY(nextY), 'red', 0.5);
                     createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
                     drawAdaptiveTriangle(currentY, nextY, false);
                     currentY = nextY;
                 }
             }
         } else {
-            // ================= 竖向模式 =================
-            const dimY_Gap = -15;
+            // ================= 竖向模式 (槽是竖线) =================
+            const dimY_Gap = -15; // 默认在顶部
             const dimY_Slot = -45;
-            const extLineStart = -50;
+            const extLineStartDefault = -50; // 默认顶部延伸线起点
+
+            // 如果反向，首槽尺寸移到底部
+            const dimY_Start = isReverseOffset ? (drawW + 45) : dimY_Gap;
+            // 如果反向，延伸线在底部
+            const extLineY1_Start = isReverseOffset ? drawW : extLineStartDefault;
+            const extLineY2_Start = isReverseOffset ? (drawW + 50) : 0;
 
             let currentX = startOff;
 
+            // 绘制首槽起始尺寸
             if (currentX > 0.1) {
-                drawDimLine(0, dimY_Gap, toX(currentX), dimY_Gap, currentX, false, -15);
+                drawDimLine(0, dimY_Start, toX(currentX), dimY_Start, currentX, false, isReverseOffset ? 15 : -15);
                 createLine(toX(currentX), 0, toX(currentX), drawW, 'black', 1);
-                createLine(0, extLineStart, 0, 0, 'red', 0.5);
-                createLine(toX(currentX), extLineStart, toX(currentX), 0, 'red', 0.5);
+                
+                // 绘制首槽的延伸线 (0 和 currentX)
+                createLine(0, extLineY1_Start, 0, extLineY2_Start, 'red', 0.5);
+                createLine(toX(currentX), extLineY1_Start, toX(currentX), extLineY2_Start, 'red', 0.5);
+                
                 drawAdaptiveTriangle(0, currentX, true);
             } else {
-                 createLine(0, extLineStart, 0, 0, 'red', 0.5);
+                 createLine(0, extLineY1_Start, 0, extLineY2_Start, 'red', 0.5);
             }
 
             while (currentX + sw <= L + 0.01 && loopCount < maxLoops) {
                 loopCount++;
                 const slotRightX = currentX + sw;
                 createLine(toX(slotRightX), 0, toX(slotRightX), drawW, 'black', 1);
+                
+                // 槽宽标注始终在顶部
                 drawDimLine(toX(currentX), dimY_Slot, toX(slotRightX), dimY_Slot, sw, false, -15);
-                createLine(toX(slotRightX), extLineStart, toX(slotRightX), 0, 'red', 0.5);
+                
+                // 槽右侧延伸线 (顶部)
+                createLine(toX(slotRightX), extLineStartDefault, toX(slotRightX), 0, 'red', 0.5);
+                
                 currentX = slotRightX;
 
                 if (currentX < L - 0.1) {
@@ -337,8 +380,9 @@
                     if (nextX > L) nextX = L;
                     const dist = Math.round((nextX - currentX)*100)/100;
                     
+                    // 间隔标注始终在顶部
                     drawDimLine(toX(currentX), dimY_Gap, toX(nextX), dimY_Gap, dist, false, -15);
-                    createLine(toX(nextX), extLineStart, toX(nextX), 0, 'red', 0.5);
+                    createLine(toX(nextX), extLineStartDefault, toX(nextX), 0, 'red', 0.5);
                     createLine(toX(nextX), 0, toX(nextX), drawW, 'black', 1);
                     
                     drawAdaptiveTriangle(currentX, nextX, true);
@@ -366,9 +410,10 @@
         createLine(0, dimTopY - 10, 0, isVertical ? -55 : 0, 'red', 0.5);
         createLine(drawL, dimTopY - 10, drawL, isVertical ? -55 : 0, 'red', 0.5);
 
-        // 7. 底部文字
+        // 7. 底部文字 (增加ID以便控制)
         const bottomText = `${prefix} 开槽 ${sw}*${depth}`;
-        createSvgElement('text', {
+        const textEl = createSvgElement('text', {
+            id: 'bottomLabel', // 增加ID
             x: drawL / 2,
             y: drawW + 80,
             'text-anchor': 'middle',
@@ -475,7 +520,8 @@
         createSvgElement('text', textAttrs, text);
     }
 
-    function downloadJPG() {
+    // 修改：增加 hideText 参数
+    function downloadJPG(hideText) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const vb = svg.getAttribute('viewBox').split(' ').map(Number);
@@ -487,10 +533,21 @@
         canvas.width = vbW * scaleFactor;
         canvas.height = vbH * scaleFactor;
         
+        // 1. 如果需要隐藏文字，先隐藏
+        const bottomLabel = document.getElementById('bottomLabel');
+        if (hideText && bottomLabel) {
+            bottomLabel.style.display = 'none';
+        }
+
         const serializer = new XMLSerializer();
         let source = serializer.serializeToString(svg);
         if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
             source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        
+        // 2. 序列化完成后，立刻恢复显示，以免界面上文字消失
+        if (hideText && bottomLabel) {
+            bottomLabel.style.display = '';
         }
         
         const img = new Image();
@@ -508,7 +565,9 @@
             const a = document.createElement('a');
             const prefix = document.getElementById('textPrefix').value;
             const dir = document.getElementById('slotDirection').value === 'vertical' ? '竖向' : '横向';
-            a.download = `${prefix}_${dir}开槽图.jpg`;
+            // 文件名增加标记
+            const suffix = hideText ? '_无字' : '';
+            a.download = `${prefix}_${dir}开槽图${suffix}.jpg`;
             a.href = canvas.toDataURL('image/jpeg', 0.9);
             document.body.appendChild(a);
             a.click();
