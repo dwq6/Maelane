@@ -149,6 +149,15 @@
                     <span>交换 W/L 标注</span>
                 </div>
             </div>
+            
+            <!-- 新增的三角显示切换 -->
+            <div class="input-group">
+                <label>显示选项</label>
+                <div class="checkbox-wrapper" onclick="document.getElementById('showTriangles').click()">
+                    <input type="checkbox" id="showTriangles" checked onclick="event.stopPropagation()">
+                    <span>显示间隔三角</span>
+                </div>
+            </div>
         </div>
         
         <div class="action-bar">
@@ -188,6 +197,9 @@
         const labelForW = isSwapped ? 'L' : 'W';
         const labelForL = isSwapped ? 'W' : 'L';
 
+        // 新增：获取是否显示三角
+        const showTriangles = document.getElementById('showTriangles').checked;
+
         // 自动计算起始数值
         const calcBase = isVertical ? L : W;
         const unit = sw + gap;
@@ -221,6 +233,8 @@
 
         // 辅助函数：绘制自适应三角
         function drawAdaptiveTriangle(start, end, isVert) {
+            if (!showTriangles) return; // 新增：根据开关决定是否绘制
+
             const h = end - start;
             if (h <= 0.1) return; 
 
