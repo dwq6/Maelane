@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>开槽生成器 v2.0</title>
+    <title>开槽</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -42,9 +42,8 @@
             font-size: 14px; outline: none; transition: border-color 0.2s; background: white;
         }
         .input-group input:focus, .input-group select:focus { border-color: #1890ff; }
-        .input-group input:disabled { background-color: #f5f5f5; color: #d32f2f; font-weight: bold; cursor: not-allowed; }
+        .input-group input:disabled { background-color: #f5f5f5; color: #666; font-weight: normal; cursor: not-allowed; }
         
-        /* 复选框样式优化 */
         .checkbox-wrapper {
             display: flex; align-items: center; background: white;
             border: 1px solid #ddd; border-radius: 4px; padding: 8px;
@@ -63,9 +62,7 @@
         }
         button:hover { opacity: 0.9; }
         button.secondary { background-color: #52c41a; }
-        button.warning { background-color: #faad14; } /* 新增黄色按钮样式 */
         
-        .highlight-option { border: 2px solid #1890ff !important; background-color: #e6f7ff !important; color: #1890ff; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -91,12 +88,13 @@
     <div class="controls-area">
         <div class="control-grid">
             <div class="input-group">
-                <label style="color:#1890ff">开槽方向</label>
-                <select id="slotDirection" class="highlight-option">
+                <label>开槽方向</label>
+                <select id="slotDirection">
                     <option value="horizontal">横向</option>
                     <option value="vertical">竖向</option>
                 </select>
             </div>
+
             <div class="input-group">
                 <label>总宽 W (高度)</label>
                 <input type="number" id="totalW" value="618">
@@ -139,6 +137,8 @@
                 <select id="wDisplayMode">
                     <option value="val">显示数值 (618)</option>
                     <option value="w_val">显示 W=数值</option>
+                    <!-- 新增选项 -->
+                    <option value="w_only">只显示 W</option>
                 </select>
             </div>
             
@@ -158,21 +158,25 @@
                 </div>
             </div>
 
-            <!-- 新增：首槽反向显示 -->
             <div class="input-group">
-                <label>标注位置</label>
-                <div class="checkbox-wrapper" onclick="document.getElementById('reverseStartOffset').click()">
-                    <input type="checkbox" id="reverseStartOffset" onclick="event.stopPropagation()">
-                    <span>首槽尺寸反向</span>
+                <label>文字选项</label>
+                <div class="checkbox-wrapper" onclick="document.getElementById('showBottomText').click()">
+                    <input type="checkbox" id="showBottomText" checked onclick="event.stopPropagation()">
+                    <span>显示底部文字</span>
                 </div>
+            </div>
+
+            <div class="input-group">
+                <label>对齐方式</label>
+                <select id="alignMode">
+                    <option value="end">尾部对齐 (尾部留Gap)</option>
+                    <option value="start">首部对齐 (首部留Gap)</option>
+                </select>
             </div>
         </div>
         
         <div class="action-bar">
-            <button onclick="draw()">刷新图纸</button>
-            <button class="secondary" onclick="downloadJPG(false)">下载 JPG</button>
-            <!-- 新增：下载无字按钮 -->
-            <button class="warning" onclick="downloadJPG(true)">下载无字 JPG</button>
+            <button class="secondary" onclick="downloadJPG()">下载 JPG</button>
         </div>
     </div>
 </div>
@@ -189,8 +193,9 @@
 
     function draw() {
         // 1. 获取数据
-        const direction = document.getElementById('slotDirection').value; // 'horizontal' or 'vertical'
+        const direction = document.getElementById('slotDirection').value; 
         const isVertical = direction === 'vertical';
+        const alignMode = document.getElementById('alignMode').value; 
 
         const W = parseFloat(document.getElementById('totalW').value) || 618;
         const L = parseFloat(document.getElementById('totalL').value) || 1400;
@@ -207,13 +212,23 @@
         const labelForL = isSwapped ? 'W' : 'L';
 
         const showTriangles = document.getElementById('showTriangles').checked;
-        // 新增：获取是否反向显示首槽
-        const isReverseOffset = document.getElementById('reverseStartOffset').checked;
+        const showBottomText = document.getElementById('showBottomText').checked;
 
         // 自动计算起始数值
         const calcBase = isVertical ? L : W;
         const unit = sw + gap;
-        let calculatedStart = calcBase % unit;
+        let calculatedStart = 0;
+
+        if (alignMode === 'start') {
+            // 首部对齐：强制第一个位置是 Gap
+            calculatedStart = gap;
+        } else {
+            // 尾部对齐：强制最后一个位置留 Gap
+            let rem = (calcBase - gap - sw) % unit;
+            if (rem < 0) rem += unit; 
+            calculatedStart = rem;
+        }
+        
         calculatedStart = Math.round(calculatedStart * 100) / 100;
         
         startOffsetInput.value = calculatedStart;
@@ -264,7 +279,6 @@
                 centerX = drawL / 2;
             }
             
-            // 统一绘制倒三角 (▼)
             const p1 = `${centerX - r},${centerY - r}`;
             const p2 = `${centerX + r},${centerY - r}`;
             const p3 = `${centerX},${centerY + r}`;
@@ -280,32 +294,23 @@
         const maxLoops = 300;
 
         if (!isVertical) {
-            // ================= 横向模式 (槽是横线) =================
-            const dimX_Gap = -15; // 默认在左侧
+            // ================= 横向模式 =================
+            const dimX_Gap = -15; 
             const dimX_Slot = -45;
-            const extLineStartDefault = -50; // 默认左侧延伸线起点
-
-            // 如果反向，首槽尺寸移到右侧
-            const dimX_Start = isReverseOffset ? (drawL + 45) : dimX_Gap;
-            // 如果反向，延伸线在右侧
-            const extLineX1_Start = isReverseOffset ? drawL : extLineStartDefault;
-            const extLineX2_Start = isReverseOffset ? (drawL + 50) : 0;
+            const extLineStartDefault = -50; 
 
             let currentY = startOff;
 
-            // 绘制首槽起始尺寸
             if (currentY > 0.1) {
-                drawDimLine(dimX_Start, 0, dimX_Start, toY(currentY), currentY, true, isReverseOffset ? 15 : -15);
+                drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), currentY, true, -15);
                 createLine(0, toY(currentY), drawL, toY(currentY), 'black', 1);
                 
-                // 绘制首槽的延伸线 (0 和 currentY)
-                createLine(extLineX1_Start, 0, extLineX2_Start, 0, 'red', 0.5); 
-                createLine(extLineX1_Start, toY(currentY), extLineX2_Start, toY(currentY), 'red', 0.5);
+                createLine(extLineStartDefault, 0, 0, 0, 'red', 0.5); 
+                createLine(extLineStartDefault, toY(currentY), 0, toY(currentY), 'red', 0.5);
                 
                 drawAdaptiveTriangle(0, currentY, false);
             } else {
-                // 即使没有首槽距离，0位置的红线也要画
-                createLine(extLineX1_Start, 0, extLineX2_Start, 0, 'red', 0.5);
+                createLine(extLineStartDefault, 0, 0, 0, 'red', 0.5);
             }
 
             while (currentY + sw <= W + 0.01 && loopCount < maxLoops) {
@@ -313,10 +318,7 @@
                 const slotBottomY = currentY + sw;
                 createLine(0, toY(slotBottomY), drawL, toY(slotBottomY), 'black', 1);
                 
-                // 槽宽标注始终在左侧 (保持整洁，除非你想全部移过去，这里只移首槽)
                 drawDimLine(dimX_Slot, toY(currentY), dimX_Slot, toY(slotBottomY), sw, true, -15);
-                
-                // 槽底部的延伸线 (左侧)
                 createLine(extLineStartDefault, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
                 
                 currentY = slotBottomY;
@@ -326,7 +328,6 @@
                     if (nextY > W) nextY = W;
                     const dist = Math.round((nextY - currentY)*100)/100;
                     
-                    // 间隔标注始终在左侧
                     drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), dist, true, -15);
                     createLine(extLineStartDefault, toY(nextY), 0, toY(nextY), 'red', 0.5);
                     createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
@@ -335,31 +336,23 @@
                 }
             }
         } else {
-            // ================= 竖向模式 (槽是竖线) =================
-            const dimY_Gap = -15; // 默认在顶部
+            // ================= 竖向模式 =================
+            const dimY_Gap = -15;
             const dimY_Slot = -45;
-            const extLineStartDefault = -50; // 默认顶部延伸线起点
-
-            // 如果反向，首槽尺寸移到底部
-            const dimY_Start = isReverseOffset ? (drawW + 45) : dimY_Gap;
-            // 如果反向，延伸线在底部
-            const extLineY1_Start = isReverseOffset ? drawW : extLineStartDefault;
-            const extLineY2_Start = isReverseOffset ? (drawW + 50) : 0;
+            const extLineStartDefault = -50;
 
             let currentX = startOff;
 
-            // 绘制首槽起始尺寸
             if (currentX > 0.1) {
-                drawDimLine(0, dimY_Start, toX(currentX), dimY_Start, currentX, false, isReverseOffset ? 15 : -15);
+                drawDimLine(0, dimY_Gap, toX(currentX), dimY_Gap, currentX, false, -15);
                 createLine(toX(currentX), 0, toX(currentX), drawW, 'black', 1);
                 
-                // 绘制首槽的延伸线 (0 和 currentX)
-                createLine(0, extLineY1_Start, 0, extLineY2_Start, 'red', 0.5);
-                createLine(toX(currentX), extLineY1_Start, toX(currentX), extLineY2_Start, 'red', 0.5);
+                createLine(0, extLineStartDefault, 0, 0, 'red', 0.5);
+                createLine(toX(currentX), extLineStartDefault, toX(currentX), 0, 'red', 0.5);
                 
                 drawAdaptiveTriangle(0, currentX, true);
             } else {
-                 createLine(0, extLineY1_Start, 0, extLineY2_Start, 'red', 0.5);
+                 createLine(0, extLineStartDefault, 0, 0, 'red', 0.5);
             }
 
             while (currentX + sw <= L + 0.01 && loopCount < maxLoops) {
@@ -367,10 +360,7 @@
                 const slotRightX = currentX + sw;
                 createLine(toX(slotRightX), 0, toX(slotRightX), drawW, 'black', 1);
                 
-                // 槽宽标注始终在顶部
                 drawDimLine(toX(currentX), dimY_Slot, toX(slotRightX), dimY_Slot, sw, false, -15);
-                
-                // 槽右侧延伸线 (顶部)
                 createLine(toX(slotRightX), extLineStartDefault, toX(slotRightX), 0, 'red', 0.5);
                 
                 currentX = slotRightX;
@@ -380,7 +370,6 @@
                     if (nextX > L) nextX = L;
                     const dist = Math.round((nextX - currentX)*100)/100;
                     
-                    // 间隔标注始终在顶部
                     drawDimLine(toX(currentX), dimY_Gap, toX(nextX), dimY_Gap, dist, false, -15);
                     createLine(toX(nextX), extLineStartDefault, toX(nextX), 0, 'red', 0.5);
                     createLine(toX(nextX), 0, toX(nextX), drawW, 'black', 1);
@@ -391,15 +380,17 @@
             }
         }
 
-        // 5. 总尺寸 W (垂直方向)
+        // 5. 总尺寸 W
         let wLabel = W;
         if (wMode === 'w_val') wLabel = `${labelForW}=${W}`;
+        if (wMode === 'w_only') wLabel = labelForW; // 新增逻辑
+        
         const dimTotalX = -120; 
         drawArrowDimLine(dimTotalX, 0, dimTotalX, drawW, wLabel, true, -20, true);
         createLine(dimTotalX - 10, 0, -5, 0, 'red', 0.5);
         createLine(dimTotalX - 10, drawW, -5, drawW, 'red', 0.5);
 
-        // 6. 总尺寸 L (水平方向)
+        // 6. 总尺寸 L
         let lLabel = L;
         if (lMode === 'l_val') lLabel = `${labelForL}=${L}`;
         if (lMode === 'l_only') lLabel = labelForL;
@@ -410,17 +401,19 @@
         createLine(0, dimTopY - 10, 0, isVertical ? -55 : 0, 'red', 0.5);
         createLine(drawL, dimTopY - 10, drawL, isVertical ? -55 : 0, 'red', 0.5);
 
-        // 7. 底部文字 (增加ID以便控制)
-        const bottomText = `${prefix} 开槽 ${sw}*${depth}`;
-        const textEl = createSvgElement('text', {
-            id: 'bottomLabel', // 增加ID
-            x: drawL / 2,
-            y: drawW + 80,
-            'text-anchor': 'middle',
-            'font-family': 'SimHei, sans-serif',
-            'font-size': '40px',
-            fill: 'red'
-        }, bottomText);
+        // 7. 底部文字
+        if (showBottomText) {
+            const bottomText = `${prefix} 开槽 ${sw}*${depth}`;
+            const textEl = createSvgElement('text', {
+                id: 'bottomLabel',
+                x: drawL / 2,
+                y: drawW + 80,
+                'text-anchor': 'middle',
+                'font-family': 'SimHei, sans-serif',
+                'font-size': '40px',
+                fill: 'red'
+            }, bottomText);
+        }
         
         // ================= 自动调整画布大小 =================
         const paddingLeft = 250; 
@@ -520,8 +513,7 @@
         createSvgElement('text', textAttrs, text);
     }
 
-    // 修改：增加 hideText 参数
-    function downloadJPG(hideText) {
+    function downloadJPG() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const vb = svg.getAttribute('viewBox').split(' ').map(Number);
@@ -533,21 +525,10 @@
         canvas.width = vbW * scaleFactor;
         canvas.height = vbH * scaleFactor;
         
-        // 1. 如果需要隐藏文字，先隐藏
-        const bottomLabel = document.getElementById('bottomLabel');
-        if (hideText && bottomLabel) {
-            bottomLabel.style.display = 'none';
-        }
-
         const serializer = new XMLSerializer();
         let source = serializer.serializeToString(svg);
         if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
             source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-        }
-        
-        // 2. 序列化完成后，立刻恢复显示，以免界面上文字消失
-        if (hideText && bottomLabel) {
-            bottomLabel.style.display = '';
         }
         
         const img = new Image();
@@ -565,8 +546,10 @@
             const a = document.createElement('a');
             const prefix = document.getElementById('textPrefix').value;
             const dir = document.getElementById('slotDirection').value === 'vertical' ? '竖向' : '横向';
-            // 文件名增加标记
-            const suffix = hideText ? '_无字' : '';
+            
+            const showBottomText = document.getElementById('showBottomText').checked;
+            const suffix = showBottomText ? '' : '_无字';
+            
             a.download = `${prefix}_${dir}开槽图${suffix}.jpg`;
             a.href = canvas.toDataURL('image/jpeg', 0.9);
             document.body.appendChild(a);
