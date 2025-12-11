@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>制图工具箱v1.1</title>
+    <title>制图工具箱v1.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 自定义滚动条样式 */
@@ -34,11 +34,6 @@
     <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass" onclick="toggleSidebar()"></div>
 
     <!-- 左侧侧边栏 -->
-    <!-- 修改点：
-         1. fixed inset-y-0 left-0 z-50: 手机端固定定位，层级最高
-         2. transform -translate-x-full: 手机端默认移出屏幕
-         3. md:relative md:translate-x-0: 电脑端恢复相对定位且显示
-    -->
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-[#1a2234] text-slate-300 flex flex-col sidebar-transition transform -translate-x-full md:relative md:translate-x-0 shadow-2xl md:shadow-none">
         <!-- 标题区域 -->
         <div class="h-16 flex items-center justify-between px-4 border-b border-slate-700/50 shadow-sm flex-shrink-0">
@@ -138,6 +133,11 @@
                 name: "干挂槽", 
                 url: "https://dwq6.github.io/Maelane/gangua", 
                 icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>` 
+            },
+            { 
+                name: "条石", 
+                url: "https://dwq6.github.io/Maelane/strip", 
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" /></svg>` 
             },
             { 
                 name: "三维", 
