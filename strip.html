@@ -1,379 +1,434 @@
-import React, { useState, useMemo } from 'react';
-import { Eye, EyeOff, Settings } from 'lucide-react';
-
-const CADBlock = () => {
-  // 基础参数状态
-  const [dimensions, setDimensions] = useState({
-    length: 1000, 
-    width: 300,
-    height: 150,
-  });
-
-  // 标注文字状态
-  const [labels, setLabels] = useState({
-    length: 'L',
-    width: 'W',
-    height: 'T',
-  });
-
-  // 三角显示状态
-  const [markers, setMarkers] = useState({
-    l_edge: true,    // 上L
-    top_mid: true,   // 正面
-    top_right: true, // 右W
-    front_mid: true, // 左W
-    side_mid: true,  // 下L
-    bottom_mid: true,// 背面
-  });
-
-  // 透视角度参数
-  const angle = Math.PI / 6; // 30度
-  const cosA = Math.cos(angle);
-  const sinA = Math.sin(angle);
-
-  // 计算所有关键点和边界
-  const { pts, viewBox, fontSize, strokeWidth, markerSize, dimOffset } = useMemo(() => {
-    const w = dimensions.width;
-    const h = dimensions.height;
-    const l = dimensions.length;
-
-    // 斜边的投影长度
-    const dx = l * cosA;
-    const dy = l * sinA;
-
-    // 1. 计算主体顶点 (以 Front Face 左上角为 0,0)
-    const p1 = { x: 0, y: 0 };
-    const p2 = { x: w, y: 0 };
-    const p3 = { x: w, y: h };
-    const p4 = { x: 0, y: h };
-
-    // 后面 (Back Face)
-    const p1_b = { x: dx, y: -dy };
-    const p2_b = { x: w + dx, y: -dy };
-    const p3_b = { x: w + dx, y: h - dy };
-
-    const pts = { p1, p2, p3, p4, p1_b, p2_b, p3_b };
-
-    // 2. 计算缩放因子和样式尺寸
-    const objWidth = Math.max(w, w + dx);
-    const objHeight = Math.max(h, h - dy);
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAD Block Generator</title>
     
-    const scaleBase = Math.max(objWidth, objHeight);
-    const scaleFactor = scaleBase / 1000; 
-
-    // 样式参数
-    const sWidth = Math.max(0.8, 1.0 * scaleFactor); 
-    const fSize = Math.max(12, 24 * scaleFactor);
-    const mSize = Math.max(5, 10 * scaleFactor); // 三角形基准大小
-    const dOffset = fSize * 3.0; 
-
-    // 3. 计算最终绘图边界 (Bounding Box)
-    const leftMarkerX = p1_b.x - mSize * 3;
-    const backMarkerY = p1_b.y - mSize * 3; 
-    const bottomMarkerY = p4.y + mSize * 3;
-
-    const minX = Math.min(p1.x, p4.x, p1_b.x, leftMarkerX) - dOffset - fSize * 2; 
-    const maxX = Math.max(p2.x, p3.x, p2_b.x, p3_b.x) + dOffset;
-    const minY = Math.min(p1.y, p1_b.y, p2_b.y, backMarkerY) - dOffset - fSize * 2;
-    const maxY = Math.max(p3.y, p4.y, p3_b.y, bottomMarkerY) + dOffset + fSize * 2;
-
-    const vbWidth = maxX - minX;
-    const vbHeight = maxY - minY;
-
-    return {
-      pts,
-      viewBox: `${minX} ${minY} ${vbWidth} ${vbHeight}`,
-      fontSize: fSize,
-      strokeWidth: sWidth,
-      markerSize: mSize,
-      dimOffset: dOffset,
-    };
-  }, [dimensions]);
-
-  // 辅助函数：生成坐标字符串
-  const c = (p) => `${p.x},${p.y}`;
-
-  // 增强版三角形渲染函数，支持旋转
-  const renderTriangle = (x, y, rotationDeg, show) => {
-    if (!show) return null;
-    const s = markerSize;
+    <!-- 1. 引入 Tailwind CSS 用于样式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    const h = s * 1.2; // 高度
-    const w = s;       // 宽度
+    <!-- 2. 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     
-    // 相对坐标，尖端指向 (0, h/2)
-    const points = `0,${h/2} -${w/2},-${h/2} ${w/2},-${h/2}`;
+    <!-- 3. 引入 Babel 用于在浏览器中编译 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    return (
-      <polygon 
-        points={points} 
-        fill="black" 
-        transform={`translate(${x}, ${y}) rotate(${rotationDeg})`}
-      />
-    );
-  };
+    <style>
+      body { margin: 0; padding: 0; background: white; }
+    </style>
+</head>
+<body>
+    <!-- React 组件挂载点 -->
+    <div id="root"></div>
 
-  return (
-    <div className="flex flex-col md:flex-row h-screen w-full bg-white overflow-hidden font-sans">
-      
-      {/* --- 右侧绘图区域 --- */}
-      <div className="order-1 md:order-2 w-full h-[45vh] md:h-full md:flex-1 bg-white relative flex items-center justify-center p-4 md:p-8 border-b md:border-b-0 border-gray-200 z-0">
-        <svg 
-          width="100%" 
-          height="100%" 
-          viewBox={viewBox}
-          preserveAspectRatio="xMidYMid meet"
-          style={{ fontFamily: "'SimSun', 'Songti SC', serif", maxWidth: '100%', maxHeight: '100%' }}
-        >
-          <defs>
-            <marker id="dot" markerWidth={strokeWidth * 6} markerHeight={strokeWidth * 6} refX={strokeWidth * 3} refY={strokeWidth * 3}>
-              <circle cx={strokeWidth * 3} cy={strokeWidth * 3} r={strokeWidth * 1.5} fill="red" />
-            </marker>
-          </defs>
+    <!-- React 代码逻辑 -->
+    <script type="text/babel">
+        const { useState, useMemo } = React;
 
-          {/* 主体轮廓 */}
-          <g stroke="black" strokeWidth={strokeWidth} fill="none" strokeLinejoin="round">
-            <path d={`M${c(pts.p1)} L${c(pts.p2)} L${c(pts.p3)} L${c(pts.p4)} Z`} />
-            <path d={`M${c(pts.p1)} L${c(pts.p1_b)} L${c(pts.p2_b)} L${c(pts.p2)}`} />
-            <path d={`M${c(pts.p2)} L${c(pts.p2_b)} L${c(pts.p3_b)} L${c(pts.p3)}`} />
-          </g>
+        // 简单的图标组件，替代 lucide-react
+        const IconEye = ({ size = 16 }) => (
+          <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        );
 
-          {/* 红色标注 */}
-          <g stroke="red" strokeWidth={strokeWidth * 0.5} fill="red" fontSize={fontSize}>
-            {/* T */}
-            <g>
-              <line x1={pts.p1.x} y1={pts.p1.y} x2={pts.p1.x - dimOffset} y2={pts.p1.y} strokeWidth={strokeWidth * 0.3} />
-              <line x1={pts.p4.x} y1={pts.p4.y} x2={pts.p4.x - dimOffset} y2={pts.p4.y} strokeWidth={strokeWidth * 0.3} />
-              <line 
-                x1={pts.p1.x - dimOffset * 0.8} y1={pts.p1.y} 
-                x2={pts.p4.x - dimOffset * 0.8} y2={pts.p4.y} 
-                markerStart="url(#dot)" markerEnd="url(#dot)"
+        const IconEyeOff = ({ size = 16 }) => (
+          <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7c.44 0 .87-.03 1.28-.09"/>
+            <line x1="2" x2="22" y1="2" y2="22"/>
+          </svg>
+        );
+
+        const IconSettings = ({ size = 20, className }) => (
+          <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        );
+
+        const CADBlock = () => {
+          // 基础参数状态
+          const [dimensions, setDimensions] = useState({
+            length: 1000, 
+            width: 300,
+            height: 150,
+          });
+
+          // 标注文字状态
+          const [labels, setLabels] = useState({
+            length: 'L',
+            width: 'W',
+            height: 'T',
+          });
+
+          // 三角显示状态
+          const [markers, setMarkers] = useState({
+            l_edge: true,    // 上L
+            top_mid: true,   // 正面
+            top_right: true, // 右W
+            front_mid: true, // 左W
+            side_mid: true,  // 下L
+            bottom_mid: true,// 背面
+          });
+
+          // 透视角度参数
+          const angle = Math.PI / 6; // 30度
+          const cosA = Math.cos(angle);
+          const sinA = Math.sin(angle);
+
+          // 计算所有关键点和边界
+          const { pts, viewBox, fontSize, strokeWidth, markerSize, dimOffset } = useMemo(() => {
+            const w = dimensions.width;
+            const h = dimensions.height;
+            const l = dimensions.length;
+
+            // 斜边的投影长度
+            const dx = l * cosA;
+            const dy = l * sinA;
+
+            // 1. 计算主体顶点 (以 Front Face 左上角为 0,0)
+            const p1 = { x: 0, y: 0 };
+            const p2 = { x: w, y: 0 };
+            const p3 = { x: w, y: h };
+            const p4 = { x: 0, y: h };
+
+            // 后面 (Back Face)
+            const p1_b = { x: dx, y: -dy };
+            const p2_b = { x: w + dx, y: -dy };
+            const p3_b = { x: w + dx, y: h - dy };
+
+            const pts = { p1, p2, p3, p4, p1_b, p2_b, p3_b };
+
+            // 2. 计算缩放因子和样式尺寸
+            const objWidth = Math.max(w, w + dx);
+            const objHeight = Math.max(h, h - dy);
+            
+            const scaleBase = Math.max(objWidth, objHeight);
+            const scaleFactor = scaleBase / 1000; 
+
+            // 样式参数
+            const sWidth = Math.max(0.8, 1.0 * scaleFactor); 
+            const fSize = Math.max(12, 24 * scaleFactor);
+            const mSize = Math.max(5, 10 * scaleFactor); // 三角形基准大小
+            const dOffset = fSize * 3.0; 
+
+            // 3. 计算最终绘图边界 (Bounding Box)
+            const leftMarkerX = p1_b.x - mSize * 3;
+            const backMarkerY = p1_b.y - mSize * 3; 
+            const bottomMarkerY = p4.y + mSize * 3;
+
+            const minX = Math.min(p1.x, p4.x, p1_b.x, leftMarkerX) - dOffset - fSize * 2; 
+            const maxX = Math.max(p2.x, p3.x, p2_b.x, p3_b.x) + dOffset;
+            const minY = Math.min(p1.y, p1_b.y, p2_b.y, backMarkerY) - dOffset - fSize * 2;
+            const maxY = Math.max(p3.y, p4.y, p3_b.y, bottomMarkerY) + dOffset + fSize * 2;
+
+            const vbWidth = maxX - minX;
+            const vbHeight = maxY - minY;
+
+            return {
+              pts,
+              viewBox: `${minX} ${minY} ${vbWidth} ${vbHeight}`,
+              fontSize: fSize,
+              strokeWidth: sWidth,
+              markerSize: mSize,
+              dimOffset: dOffset,
+            };
+          }, [dimensions]);
+
+          // 辅助函数：生成坐标字符串
+          const c = (p) => `${p.x},${p.y}`;
+
+          // 增强版三角形渲染函数，支持旋转
+          const renderTriangle = (x, y, rotationDeg, show) => {
+            if (!show) return null;
+            const s = markerSize;
+            
+            const h = s * 1.2; // 高度
+            const w = s;       // 宽度
+            
+            // 相对坐标，尖端指向 (0, h/2)
+            const points = `0,${h/2} -${w/2},-${h/2} ${w/2},-${h/2}`;
+
+            return (
+              <polygon 
+                points={points} 
+                fill="black" 
+                transform={`translate(${x}, ${y}) rotate(${rotationDeg})`}
               />
-              <text 
-                x={pts.p1.x - dimOffset * 0.9} 
-                y={pts.p1.y + (pts.p4.y - pts.p1.y)/2} 
-                transform={`rotate(-90, ${pts.p1.x - dimOffset * 0.9}, ${pts.p1.y + (pts.p4.y - pts.p1.y)/2})`}
-                textAnchor="middle"
-                dy={-fontSize * 0.2}
-              >
-                {labels.height}
-              </text>
-            </g>
+            );
+          };
 
-            {/* W */}
-            <g>
-              <line x1={pts.p4.x} y1={pts.p4.y} x2={pts.p4.x} y2={pts.p4.y + dimOffset} strokeWidth={strokeWidth * 0.3} />
-              <line x1={pts.p3.x} y1={pts.p3.y} x2={pts.p3.x} y2={pts.p3.y + dimOffset} strokeWidth={strokeWidth * 0.3} />
-              <line 
-                x1={pts.p4.x} y1={pts.p4.y + dimOffset * 0.8} 
-                x2={pts.p3.x} y2={pts.p3.y + dimOffset * 0.8} 
-                markerStart="url(#dot)" markerEnd="url(#dot)"
-              />
-              <text 
-                x={pts.p4.x + (pts.p3.x - pts.p4.x)/2} 
-                y={pts.p4.y + dimOffset * 0.8} 
-                textAnchor="middle"
-                dy={fontSize * 1.2} 
-                stroke="none"
-              >
-                {labels.width}
-              </text>
-            </g>
-
-            {/* L */}
-            <g>
-              {(() => {
-                 const dist = dimOffset * 0.8;
-                 const dx_p = -dist * sinA; 
-                 const dy_p = -dist * cosA; 
-                 
-                 return (
-                   <>
-                     <line x1={pts.p1.x} y1={pts.p1.y} x2={pts.p1.x + dx_p * 1.5} y2={pts.p1.y + dy_p * 1.5} strokeWidth={strokeWidth * 0.3} />
-                     <line x1={pts.p1_b.x} y1={pts.p1_b.y} x2={pts.p1_b.x + dx_p * 1.5} y2={pts.p1_b.y + dy_p * 1.5} strokeWidth={strokeWidth * 0.3} />
-                     <line 
-                        x1={pts.p1.x + dx_p} y1={pts.p1.y + dy_p} 
-                        x2={pts.p1_b.x + dx_p} y2={pts.p1_b.y + dy_p} 
-                        markerStart="url(#dot)" markerEnd="url(#dot)"
-                     />
-                     <text 
-                        x={(pts.p1.x + pts.p1_b.x)/2 + dx_p} 
-                        y={(pts.p1.y + pts.p1_b.y)/2 + dy_p} 
-                        textAnchor="middle"
-                        alignmentBaseline="middle"
-                        transform={`rotate(-30, ${(pts.p1.x + pts.p1_b.x)/2 + dx_p}, ${(pts.p1.y + pts.p1_b.y)/2 + dy_p})`}
-                        dy={-fontSize * 0.4}
-                        stroke="none"
-                     >
-                       {labels.length}
-                     </text>
-                   </>
-                 )
-              })()}
-            </g>
-          </g>
-
-          {/* --- 三角标记 --- */}
-          <g>
-            {/* 1. 上L (原 左面/L边) */}
-            {(() => {
-              const mx = (pts.p1.x + pts.p1_b.x) / 2;
-              const my = (pts.p1.y + pts.p1_b.y) / 2;
-              const nx = -Math.sin(angle); 
-              const ny = -Math.cos(angle); 
-              const offset = markerSize * 1.5;
-              return renderTriangle(
-                mx + nx * offset, 
-                my + ny * offset, 
-                -30, 
-                markers.l_edge
-              );
-            })()}
-
-            {/* 2. 正面 (原 顶面) */}
-            {renderTriangle(
-              (pts.p1.x + pts.p2_b.x)/2, 
-              (pts.p1.y + pts.p2_b.y)/2, 
-              0, 
-              markers.top_mid
-            )}
-
-            {/* 3. 右W (原 背面/顶面右) */}
-            {renderTriangle(
-              (pts.p1_b.x + pts.p2_b.x)/2, 
-              pts.p1_b.y - markerSize * 1.5, 
-              0, 
-              markers.top_right
-            )}
-
-            {/* 4. 左W (原 正面) */}
-            {renderTriangle(
-              (pts.p1.x + pts.p3.x)/2, 
-              (pts.p1.y + pts.p3.y)/2, 
-              0, 
-              markers.front_mid
-            )}
-
-            {/* 5. 下L (原 右面/侧面中) */}
-            {renderTriangle(
-              (pts.p2.x + pts.p3_b.x)/2, 
-              (pts.p2.y + pts.p3_b.y)/2, 
-              0, 
-              markers.side_mid
-            )}
-
-            {/* 6. 背面 (原 底部) */}
-            {renderTriangle(
-              (pts.p4.x + pts.p3.x)/2, 
-              pts.p4.y + markerSize * 1.5, 
-              180, 
-              markers.bottom_mid
-            )}
-          </g>
-        </svg>
-      </div>
-
-      {/* --- 左侧控制面板 --- */}
-      <div className="order-2 md:order-1 w-full md:w-80 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col z-10 shadow-sm h-full overflow-hidden">
-        <div className="p-4 md:p-5 border-b border-gray-100 flex items-center gap-2 bg-white">
-          <Settings className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg font-bold text-gray-800">CAD 参数设置</h2>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-6 md:space-y-8 pb-20 md:pb-5">
-          {/* 尺寸设置 */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">尺寸 & 标注</h3>
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 mb-2 text-[10px] text-gray-400 text-center">
-              <span>维度</span>
-              <span>数值</span>
-              <span>文字</span>
-            </div>
-
-            {/* Length (L) */}
-            <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center mb-3">
-              <span className="w-6 font-bold text-gray-700 text-sm">L</span>
-              <input 
-                type="number" 
-                value={dimensions.length}
-                onChange={(e) => setDimensions({...dimensions, length: Number(e.target.value)})}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-              <input 
-                type="text" 
-                value={labels.length}
-                onChange={(e) => setLabels({...labels, length: e.target.value})}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-
-            {/* Width (W) */}
-            <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center mb-3">
-              <span className="w-6 font-bold text-gray-700 text-sm">W</span>
-              <input 
-                type="number" 
-                value={dimensions.width}
-                onChange={(e) => setDimensions({...dimensions, width: Number(e.target.value)})}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              <input 
-                type="text" 
-                value={labels.width}
-                onChange={(e) => setLabels({...labels, width: e.target.value})}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-
-            {/* Height (T) */}
-            <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center">
-              <span className="w-6 font-bold text-gray-700 text-sm">T</span>
-              <input 
-                type="number" 
-                value={dimensions.height}
-                onChange={(e) => setDimensions({...dimensions, height: Number(e.target.value)})}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              <input 
-                type="text" 
-                value={labels.height}
-                onChange={(e) => setLabels({...labels, height: e.target.value})}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* 开关设置 */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 pt-4 border-t border-gray-100">标记显示</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { key: 'l_edge', label: '上L' },
-                { key: 'side_mid', label: '下L' },
-                { key: 'front_mid', label: '左W' },
-                { key: 'top_right', label: '右W' },
-                { key: 'top_mid', label: '正面' },
-                { key: 'bottom_mid', label: '背面' },
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => setMarkers({...markers, [item.key]: !markers[item.key]})}
-                  className={`flex items-center justify-between px-3 py-2 rounded border text-xs transition-all ${
-                    markers[item.key] 
-                      ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' 
-                      : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
-                  }`}
+          return (
+            <div className="flex flex-col md:flex-row h-screen w-full bg-white overflow-hidden font-sans">
+              
+              {/* --- 右侧绘图区域 --- */}
+              <div className="order-1 md:order-2 w-full h-[45vh] md:h-full md:flex-1 bg-white relative flex items-center justify-center p-4 md:p-8 border-b md:border-b-0 border-gray-200 z-0">
+                <svg 
+                  width="100%" 
+                  height="100%" 
+                  viewBox={viewBox}
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{ fontFamily: "'SimSun', 'Songti SC', serif", maxWidth: '100%', maxHeight: '100%' }}
                 >
-                  <span>{item.label}</span>
-                  {markers[item.key] ? <Eye size={12} /> : <EyeOff size={12} />}
-                </button>
-              ))}
+                  <defs>
+                    <marker id="dot" markerWidth={strokeWidth * 6} markerHeight={strokeWidth * 6} refX={strokeWidth * 3} refY={strokeWidth * 3}>
+                      <circle cx={strokeWidth * 3} cy={strokeWidth * 3} r={strokeWidth * 1.5} fill="red" />
+                    </marker>
+                  </defs>
+
+                  {/* 主体轮廓 */}
+                  <g stroke="black" strokeWidth={strokeWidth} fill="none" strokeLinejoin="round">
+                    <path d={`M${c(pts.p1)} L${c(pts.p2)} L${c(pts.p3)} L${c(pts.p4)} Z`} />
+                    <path d={`M${c(pts.p1)} L${c(pts.p1_b)} L${c(pts.p2_b)} L${c(pts.p2)}`} />
+                    <path d={`M${c(pts.p2)} L${c(pts.p2_b)} L${c(pts.p3_b)} L${c(pts.p3)}`} />
+                  </g>
+
+                  {/* 红色标注 */}
+                  <g stroke="red" strokeWidth={strokeWidth * 0.5} fill="red" fontSize={fontSize}>
+                    {/* T */}
+                    <g>
+                      <line x1={pts.p1.x} y1={pts.p1.y} x2={pts.p1.x - dimOffset} y2={pts.p1.y} strokeWidth={strokeWidth * 0.3} />
+                      <line x1={pts.p4.x} y1={pts.p4.y} x2={pts.p4.x - dimOffset} y2={pts.p4.y} strokeWidth={strokeWidth * 0.3} />
+                      <line 
+                        x1={pts.p1.x - dimOffset * 0.8} y1={pts.p1.y} 
+                        x2={pts.p4.x - dimOffset * 0.8} y2={pts.p4.y} 
+                        markerStart="url(#dot)" markerEnd="url(#dot)"
+                      />
+                      <text 
+                        x={pts.p1.x - dimOffset * 0.9} 
+                        y={pts.p1.y + (pts.p4.y - pts.p1.y)/2} 
+                        transform={`rotate(-90, ${pts.p1.x - dimOffset * 0.9}, ${pts.p1.y + (pts.p4.y - pts.p1.y)/2})`}
+                        textAnchor="middle"
+                        dy={-fontSize * 0.2}
+                      >
+                        {labels.height}
+                      </text>
+                    </g>
+
+                    {/* W */}
+                    <g>
+                      <line x1={pts.p4.x} y1={pts.p4.y} x2={pts.p4.x} y2={pts.p4.y + dimOffset} strokeWidth={strokeWidth * 0.3} />
+                      <line x1={pts.p3.x} y1={pts.p3.y} x2={pts.p3.x} y2={pts.p3.y + dimOffset} strokeWidth={strokeWidth * 0.3} />
+                      <line 
+                        x1={pts.p4.x} y1={pts.p4.y + dimOffset * 0.8} 
+                        x2={pts.p3.x} y2={pts.p3.y + dimOffset * 0.8} 
+                        markerStart="url(#dot)" markerEnd="url(#dot)"
+                      />
+                      <text 
+                        x={pts.p4.x + (pts.p3.x - pts.p4.x)/2} 
+                        y={pts.p4.y + dimOffset * 0.8} 
+                        textAnchor="middle"
+                        dy={fontSize * 1.2} 
+                        stroke="none"
+                      >
+                        {labels.width}
+                      </text>
+                    </g>
+
+                    {/* L */}
+                    <g>
+                      {(() => {
+                         const dist = dimOffset * 0.8;
+                         const dx_p = -dist * sinA; 
+                         const dy_p = -dist * cosA; 
+                         
+                         return (
+                           <>
+                             <line x1={pts.p1.x} y1={pts.p1.y} x2={pts.p1.x + dx_p * 1.5} y2={pts.p1.y + dy_p * 1.5} strokeWidth={strokeWidth * 0.3} />
+                             <line x1={pts.p1_b.x} y1={pts.p1_b.y} x2={pts.p1_b.x + dx_p * 1.5} y2={pts.p1_b.y + dy_p * 1.5} strokeWidth={strokeWidth * 0.3} />
+                             <line 
+                                x1={pts.p1.x + dx_p} y1={pts.p1.y + dy_p} 
+                                x2={pts.p1_b.x + dx_p} y2={pts.p1_b.y + dy_p} 
+                                markerStart="url(#dot)" markerEnd="url(#dot)"
+                             />
+                             <text 
+                                x={(pts.p1.x + pts.p1_b.x)/2 + dx_p} 
+                                y={(pts.p1.y + pts.p1_b.y)/2 + dy_p} 
+                                textAnchor="middle"
+                                alignmentBaseline="middle"
+                                transform={`rotate(-30, ${(pts.p1.x + pts.p1_b.x)/2 + dx_p}, ${(pts.p1.y + pts.p1_b.y)/2 + dy_p})`}
+                                dy={-fontSize * 0.4}
+                                stroke="none"
+                             >
+                               {labels.length}
+                             </text>
+                           </>
+                         )
+                      })()}
+                    </g>
+                  </g>
+
+                  {/* --- 三角标记 --- */}
+                  <g>
+                    {/* 1. 上L (原 左面/L边) */}
+                    {(() => {
+                      const mx = (pts.p1.x + pts.p1_b.x) / 2;
+                      const my = (pts.p1.y + pts.p1_b.y) / 2;
+                      const nx = -Math.sin(angle); 
+                      const ny = -Math.cos(angle); 
+                      const offset = markerSize * 1.5;
+                      return renderTriangle(
+                        mx + nx * offset, 
+                        my + ny * offset, 
+                        -30, 
+                        markers.l_edge
+                      );
+                    })()}
+
+                    {/* 2. 正面 (原 顶面) */}
+                    {renderTriangle(
+                      (pts.p1.x + pts.p2_b.x)/2, 
+                      (pts.p1.y + pts.p2_b.y)/2, 
+                      0, 
+                      markers.top_mid
+                    )}
+
+                    {/* 3. 右W (原 背面/顶面右) */}
+                    {renderTriangle(
+                      (pts.p1_b.x + pts.p2_b.x)/2, 
+                      pts.p1_b.y - markerSize * 1.5, 
+                      0, 
+                      markers.top_right
+                    )}
+
+                    {/* 4. 左W (原 正面) */}
+                    {renderTriangle(
+                      (pts.p1.x + pts.p3.x)/2, 
+                      (pts.p1.y + pts.p3.y)/2, 
+                      0, 
+                      markers.front_mid
+                    )}
+
+                    {/* 5. 下L (原 右面/侧面中) */}
+                    {renderTriangle(
+                      (pts.p2.x + pts.p3_b.x)/2, 
+                      (pts.p2.y + pts.p3_b.y)/2, 
+                      0, 
+                      markers.side_mid
+                    )}
+
+                    {/* 6. 背面 (原 底部) */}
+                    {renderTriangle(
+                      (pts.p4.x + pts.p3.x)/2, 
+                      pts.p4.y + markerSize * 1.5, 
+                      180, 
+                      markers.bottom_mid
+                    )}
+                  </g>
+                </svg>
+              </div>
+
+              {/* --- 左侧控制面板 --- */}
+              <div className="order-2 md:order-1 w-full md:w-80 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col z-10 shadow-sm h-full overflow-hidden">
+                <div className="p-4 md:p-5 border-b border-gray-100 flex items-center gap-2 bg-white">
+                  <IconSettings className="w-5 h-5 text-gray-600" />
+                  <h2 className="text-lg font-bold text-gray-800">CAD 参数设置</h2>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-6 md:space-y-8 pb-20 md:pb-5">
+                  {/* 尺寸设置 */}
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">尺寸 & 标注</h3>
+                    <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 mb-2 text-[10px] text-gray-400 text-center">
+                      <span>维度</span>
+                      <span>数值</span>
+                      <span>文字</span>
+                    </div>
+
+                    {/* Length (L) */}
+                    <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center mb-3">
+                      <span className="w-6 font-bold text-gray-700 text-sm">L</span>
+                      <input 
+                        type="number" 
+                        value={dimensions.length}
+                        onChange={(e) => setDimensions({...dimensions, length: Number(e.target.value)})}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <input 
+                        type="text" 
+                        value={labels.length}
+                        onChange={(e) => setLabels({...labels, length: e.target.value})}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+
+                    {/* Width (W) */}
+                    <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center mb-3">
+                      <span className="w-6 font-bold text-gray-700 text-sm">W</span>
+                      <input 
+                        type="number" 
+                        value={dimensions.width}
+                        onChange={(e) => setDimensions({...dimensions, width: Number(e.target.value)})}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                      <input 
+                        type="text" 
+                        value={labels.width}
+                        onChange={(e) => setLabels({...labels, width: e.target.value})}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+
+                    {/* Height (T) */}
+                    <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center">
+                      <span className="w-6 font-bold text-gray-700 text-sm">T</span>
+                      <input 
+                        type="number" 
+                        value={dimensions.height}
+                        onChange={(e) => setDimensions({...dimensions, height: Number(e.target.value)})}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                      <input 
+                        type="text" 
+                        value={labels.height}
+                        onChange={(e) => setLabels({...labels, height: e.target.value})}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 开关设置 */}
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 pt-4 border-t border-gray-100">标记显示</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { key: 'l_edge', label: '上L' },
+                        { key: 'side_mid', label: '下L' },
+                        { key: 'front_mid', label: '左W' },
+                        { key: 'top_right', label: '右W' },
+                        { key: 'top_mid', label: '正面' },
+                        { key: 'bottom_mid', label: '背面' },
+                      ].map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => setMarkers({...markers, [item.key]: !markers[item.key]})}
+                          className={`flex items-center justify-between px-3 py-2 rounded border text-xs transition-all ${
+                            markers[item.key] 
+                              ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' 
+                              : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span>{item.label}</span>
+                          {markers[item.key] ? <IconEye size={12} /> : <IconEyeOff size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
-          </div>
-        </div>
-      </div>
+          );
+        };
 
-    </div>
-  );
-};
-
-export default CADBlock;
+        // 将组件渲染到页面上
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<CADBlock />);
+    </script>
+</body>
+</html>
