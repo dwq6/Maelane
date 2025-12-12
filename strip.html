@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>条石</title>
+    <title>条石 - 增强版</title>
     
     <!-- 1. 引入 Tailwind CSS 用于样式 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -27,7 +27,7 @@
     <script type="text/babel">
         const { useState, useMemo } = React;
 
-        // 简单的图标组件，替代 lucide-react
+        // 图标组件
         const IconEye = ({ size = 16 }) => (
           <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
@@ -50,6 +50,15 @@
             <circle cx="12" cy="12" r="3"/>
           </svg>
         );
+        
+        const IconRefresh = ({ size = 16, className }) => (
+          <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+             <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+             <path d="M3 3v5h5"/>
+             <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+             <path d="M16 21h5v-5"/>
+          </svg>
+        );
 
         const CADBlock = () => {
           // 基础参数状态
@@ -65,15 +74,18 @@
             width: 'W',
             height: 'T',
           });
+          
+          // 模式切换状态
+          const [isSwapped, setIsSwapped] = useState(false);
 
           // 三角显示状态
           const [markers, setMarkers] = useState({
-            l_edge: true,    // 上L
-            top_mid: true,   // 正面
-            top_right: true, // 右W
-            front_mid: true, // 左W
-            side_mid: true,  // 下L
-            bottom_mid: true,// 背面
+            l_edge: true,    // 上L -> 左W
+            top_mid: true,   // 正面 -> 上L
+            top_right: true, // 右W -> 背面
+            front_mid: true, // 左W -> 正面
+            side_mid: true,  // 下L -> 右W
+            bottom_mid: true,// 背面 -> 下L
           });
 
           // 透视角度参数
@@ -118,13 +130,22 @@
             const dOffset = fSize * 3.0; 
 
             // 3. 计算最终绘图边界 (Bounding Box)
-            const leftMarkerX = p1_b.x - mSize * 3;
+            // 需要考虑到左侧可能新增的标记位置
+            const leftMarkerX = isSwapped 
+                ? p1.x - mSize * 3 // 切换模式下，标记在左侧竖线左边
+                : p1_b.x - mSize * 3; // 正常模式下，标记在左侧斜边左上
+            
+            // 顶部边界：如果切换模式，W标注(现L)会移到上方，需要更多空间
+            const topDimY = isSwapped 
+                ? p1.y - dOffset - fSize * 2 
+                : p1.y;
+
             const backMarkerY = p1_b.y - mSize * 3; 
             const bottomMarkerY = p4.y + mSize * 3;
 
             const minX = Math.min(p1.x, p4.x, p1_b.x, leftMarkerX) - dOffset - fSize * 2; 
             const maxX = Math.max(p2.x, p3.x, p2_b.x, p3_b.x) + dOffset;
-            const minY = Math.min(p1.y, p1_b.y, p2_b.y, backMarkerY) - dOffset - fSize * 2;
+            const minY = Math.min(p1.y, p1_b.y, p2_b.y, backMarkerY, topDimY) - dOffset - fSize * 2;
             const maxY = Math.max(p3.y, p4.y, p3_b.y, bottomMarkerY) + dOffset + fSize * 2;
 
             const vbWidth = maxX - minX;
@@ -138,7 +159,7 @@
               markerSize: mSize,
               dimOffset: dOffset,
             };
-          }, [dimensions]);
+          }, [dimensions, isSwapped]);
 
           // 辅助函数：生成坐标字符串
           const c = (p) => `${p.x},${p.y}`;
@@ -151,7 +172,6 @@
             const h = s * 1.2; // 高度
             const w = s;       // 宽度
             
-            // 相对坐标，尖端指向 (0, h/2)
             const points = `0,${h/2} -${w/2},-${h/2} ${w/2},-${h/2}`;
 
             return (
@@ -161,6 +181,35 @@
                 transform={`translate(${x}, ${y}) rotate(${rotationDeg})`}
               />
             );
+          };
+
+          // 动态标签映射
+          const getLabel = (type) => {
+             if (!isSwapped) {
+                 // 默认模式
+                 if (type === 'L') return 'L';
+                 if (type === 'W') return 'W';
+                 if (type === 'T') return 'T';
+             } else {
+                 // 切换模式
+                 if (type === 'L') return 'T'; // L变T
+                 if (type === 'W') return 'L'; // W变L
+                 if (type === 'T') return 'W'; // T变W
+             }
+             return '';
+          };
+          
+          // 动态标记名称映射
+          const getMarkerLabel = (key) => {
+              const map = {
+                  l_edge:     isSwapped ? '左W' : '上L',
+                  side_mid:   isSwapped ? '右W' : '下L',
+                  front_mid:  isSwapped ? '正面' : '左W',
+                  top_right:  isSwapped ? '背面' : '右W',
+                  top_mid:    isSwapped ? '上L' : '正面',
+                  bottom_mid: isSwapped ? '下L' : '背面',
+              };
+              return map[key];
           };
 
           return (
@@ -190,7 +239,9 @@
 
                   {/* 红色标注 */}
                   <g stroke="red" strokeWidth={strokeWidth * 0.5} fill="red" fontSize={fontSize}>
-                    {/* T */}
+                    
+                    {/* 1. 垂直方向标注 (Side) */}
+                    {/* 默认: Height (T) | 切换: Width (W) */}
                     <g>
                       <line x1={pts.p1.x} y1={pts.p1.y} x2={pts.p1.x - dimOffset} y2={pts.p1.y} strokeWidth={strokeWidth * 0.3} />
                       <line x1={pts.p4.x} y1={pts.p4.y} x2={pts.p4.x - dimOffset} y2={pts.p4.y} strokeWidth={strokeWidth * 0.3} />
@@ -207,31 +258,58 @@
                         dy={-fontSize * 0.2}
                         stroke="none"
                       >
-                        {labels.height}
+                        {isSwapped ? labels.width : labels.height}
                       </text>
                     </g>
 
-                    {/* W */}
+                    {/* 2. 水平方向标注 (Front Top/Bottom) */}
+                    {/* 默认: Width (W) 在底部 | 切换: Length (L) 在顶部 */}
                     <g>
-                      <line x1={pts.p4.x} y1={pts.p4.y} x2={pts.p4.x} y2={pts.p4.y + dimOffset} strokeWidth={strokeWidth * 0.3} />
-                      <line x1={pts.p3.x} y1={pts.p3.y} x2={pts.p3.x} y2={pts.p3.y + dimOffset} strokeWidth={strokeWidth * 0.3} />
-                      <line 
-                        x1={pts.p4.x} y1={pts.p4.y + dimOffset * 0.8} 
-                        x2={pts.p3.x} y2={pts.p3.y + dimOffset * 0.8} 
-                        markerStart="url(#dot)" markerEnd="url(#dot)"
-                      />
-                      <text 
-                        x={pts.p4.x + (pts.p3.x - pts.p4.x)/2} 
-                        y={pts.p4.y + dimOffset * 0.8} 
-                        textAnchor="middle"
-                        dy={fontSize * 1.2} 
-                        stroke="none"
-                      >
-                        {labels.width}
-                      </text>
+                      {isSwapped ? (
+                          // 切换模式：L 在顶部 (p1-p2)
+                          <>
+                              <line x1={pts.p1.x} y1={pts.p1.y} x2={pts.p1.x} y2={pts.p1.y - dimOffset} strokeWidth={strokeWidth * 0.3} />
+                              <line x1={pts.p2.x} y1={pts.p2.y} x2={pts.p2.x} y2={pts.p2.y - dimOffset} strokeWidth={strokeWidth * 0.3} />
+                              <line 
+                              x1={pts.p1.x} y1={pts.p1.y - dimOffset * 0.8} 
+                              x2={pts.p2.x} y2={pts.p2.y - dimOffset * 0.8} 
+                              markerStart="url(#dot)" markerEnd="url(#dot)"
+                              />
+                              <text 
+                              x={pts.p1.x + (pts.p2.x - pts.p1.x)/2} 
+                              y={pts.p1.y - dimOffset * 0.8} 
+                              textAnchor="middle"
+                              dy={-fontSize * 0.5} 
+                              stroke="none"
+                              >
+                              {labels.length}
+                              </text>
+                          </>
+                      ) : (
+                          // 默认模式：W 在底部 (p4-p3)
+                          <>
+                              <line x1={pts.p4.x} y1={pts.p4.y} x2={pts.p4.x} y2={pts.p4.y + dimOffset} strokeWidth={strokeWidth * 0.3} />
+                              <line x1={pts.p3.x} y1={pts.p3.y} x2={pts.p3.x} y2={pts.p3.y + dimOffset} strokeWidth={strokeWidth * 0.3} />
+                              <line 
+                              x1={pts.p4.x} y1={pts.p4.y + dimOffset * 0.8} 
+                              x2={pts.p3.x} y2={pts.p3.y + dimOffset * 0.8} 
+                              markerStart="url(#dot)" markerEnd="url(#dot)"
+                              />
+                              <text 
+                              x={pts.p4.x + (pts.p3.x - pts.p4.x)/2} 
+                              y={pts.p4.y + dimOffset * 0.8} 
+                              textAnchor="middle"
+                              dy={fontSize * 1.2} 
+                              stroke="none"
+                              >
+                              {labels.width}
+                              </text>
+                          </>
+                      )}
                     </g>
 
-                    {/* L */}
+                    {/* 3. 斜边标注 (Oblique) */}
+                    {/* 默认: Length (L) | 切换: Height (T) */}
                     <g>
                       {(() => {
                          const dist = dimOffset * 0.8;
@@ -256,7 +334,7 @@
                                 dy={-fontSize * 0.4}
                                 stroke="none"
                              >
-                               {labels.length}
+                               {isSwapped ? labels.height : labels.length}
                              </text>
                            </>
                          )
@@ -266,22 +344,38 @@
 
                   {/* --- 三角标记 --- */}
                   <g>
-                    {/* 1. 上L (原 左面/L边) */}
+                    {/* 1. l_edge: 上L 或 左W */}
                     {(() => {
-                      const mx = (pts.p1.x + pts.p1_b.x) / 2;
-                      const my = (pts.p1.y + pts.p1_b.y) / 2;
-                      const nx = -Math.sin(angle); 
-                      const ny = -Math.cos(angle); 
-                      const offset = markerSize * 1.5;
-                      return renderTriangle(
-                        mx + nx * offset, 
-                        my + ny * offset, 
-                        -30, 
-                        markers.l_edge
-                      );
+                      if (isSwapped) {
+                          // 切换后：变成“左W”，位置在最左边的黑色竖线外面，指向竖线
+                          // 竖线是 p1 到 p4
+                          const mx = pts.p1.x; // x坐标相同
+                          const my = (pts.p1.y + pts.p4.y) / 2;
+                          const offset = markerSize * 1.5;
+                          // 指向右侧，rotation -90
+                          return renderTriangle(
+                              mx - offset,
+                              my,
+                              -90,
+                              markers.l_edge
+                          );
+                      } else {
+                          // 默认：上L，在左侧斜边上
+                          const mx = (pts.p1.x + pts.p1_b.x) / 2;
+                          const my = (pts.p1.y + pts.p1_b.y) / 2;
+                          const nx = -Math.sin(angle); 
+                          const ny = -Math.cos(angle); 
+                          const offset = markerSize * 1.5;
+                          return renderTriangle(
+                            mx + nx * offset, 
+                            my + ny * offset, 
+                            -30, 
+                            markers.l_edge
+                          );
+                      }
                     })()}
 
-                    {/* 2. 正面 (原 顶面) */}
+                    {/* 2. top_mid: 正面 或 上L */}
                     {renderTriangle(
                       (pts.p1.x + pts.p2_b.x)/2, 
                       (pts.p1.y + pts.p2_b.y)/2, 
@@ -289,7 +383,7 @@
                       markers.top_mid
                     )}
 
-                    {/* 3. 右W (原 背面/顶面右) */}
+                    {/* 3. top_right: 右W 或 背面 */}
                     {renderTriangle(
                       (pts.p1_b.x + pts.p2_b.x)/2, 
                       pts.p1_b.y - markerSize * 1.5, 
@@ -297,7 +391,7 @@
                       markers.top_right
                     )}
 
-                    {/* 4. 左W (原 正面) */}
+                    {/* 4. front_mid: 左W 或 正面 */}
                     {renderTriangle(
                       (pts.p1.x + pts.p3.x)/2, 
                       (pts.p1.y + pts.p3.y)/2, 
@@ -305,7 +399,7 @@
                       markers.front_mid
                     )}
 
-                    {/* 5. 下L (原 右面/侧面中) */}
+                    {/* 5. side_mid: 下L 或 右W */}
                     {renderTriangle(
                       (pts.p2.x + pts.p3_b.x)/2, 
                       (pts.p2.y + pts.p3_b.y)/2, 
@@ -313,7 +407,7 @@
                       markers.side_mid
                     )}
 
-                    {/* 6. 背面 (原 底部) */}
+                    {/* 6. bottom_mid: 背面 或 下L */}
                     {renderTriangle(
                       (pts.p4.x + pts.p3.x)/2, 
                       pts.p4.y + markerSize * 1.5, 
@@ -326,9 +420,23 @@
 
               {/* --- 左侧控制面板 --- */}
               <div className="order-2 md:order-1 w-full md:w-80 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col z-10 shadow-sm h-full overflow-hidden">
-                <div className="p-4 md:p-5 border-b border-gray-100 flex items-center gap-2 bg-white">
-                  <IconSettings className="w-5 h-5 text-gray-600" />
-                  <h2 className="text-lg font-bold text-gray-800">条石参数设置</h2>
+                <div className="p-4 md:p-5 border-b border-gray-100 flex items-center justify-between bg-white">
+                  <div className="flex items-center gap-2">
+                      <IconSettings className="w-5 h-5 text-gray-600" />
+                      <h2 className="text-lg font-bold text-gray-800">条石参数设置</h2>
+                  </div>
+                  {/* 切换按钮 */}
+                  <button 
+                      onClick={() => setIsSwapped(!isSwapped)}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                          isSwapped 
+                          ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                  >
+                      <IconRefresh size={12} />
+                      {isSwapped ? '切换回默认' : '切换视图模式'}
+                  </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-6 md:space-y-8 pb-20 md:pb-5">
@@ -341,9 +449,9 @@
                       <span>文字</span>
                     </div>
 
-                    {/* Length (L) */}
+                    {/* Length (L) -> T if swapped */}
                     <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center mb-3">
-                      <span className="w-6 font-bold text-gray-700 text-sm">L</span>
+                      <span className="w-6 font-bold text-gray-700 text-sm text-center">{getLabel('L')}</span>
                       <input 
                         type="number" 
                         value={dimensions.length}
@@ -358,9 +466,9 @@
                       />
                     </div>
 
-                    {/* Width (W) */}
+                    {/* Width (W) -> L if swapped */}
                     <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center mb-3">
-                      <span className="w-6 font-bold text-gray-700 text-sm">W</span>
+                      <span className="w-6 font-bold text-gray-700 text-sm text-center">{getLabel('W')}</span>
                       <input 
                         type="number" 
                         value={dimensions.width}
@@ -375,9 +483,9 @@
                       />
                     </div>
 
-                    {/* Height (T) */}
+                    {/* Height (T) -> W if swapped */}
                     <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center">
-                      <span className="w-6 font-bold text-gray-700 text-sm">T</span>
+                      <span className="w-6 font-bold text-gray-700 text-sm text-center">{getLabel('T')}</span>
                       <input 
                         type="number" 
                         value={dimensions.height}
@@ -398,12 +506,12 @@
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 pt-4 border-t border-gray-100">标记显示</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {[
-                        { key: 'l_edge', label: '上L' },
-                        { key: 'side_mid', label: '下L' },
-                        { key: 'front_mid', label: '左W' },
-                        { key: 'top_right', label: '右W' },
-                        { key: 'top_mid', label: '正面' },
-                        { key: 'bottom_mid', label: '背面' },
+                        { key: 'l_edge' },
+                        { key: 'side_mid' },
+                        { key: 'front_mid' },
+                        { key: 'top_right' },
+                        { key: 'top_mid' },
+                        { key: 'bottom_mid' },
                       ].map((item) => (
                         <button
                           key={item.key}
@@ -414,7 +522,7 @@
                               : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
                           }`}
                         >
-                          <span>{item.label}</span>
+                          <span>{getMarkerLabel(item.key)}</span>
                           {markers[item.key] ? <IconEye size={12} /> : <IconEyeOff size={12} />}
                         </button>
                       ))}
