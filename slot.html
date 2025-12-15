@@ -32,7 +32,7 @@
             overflow-y: auto; max-height: 45vh;
         }
         .control-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 10px; margin-bottom: 15px;
         }
         .input-group { display: flex; flex-direction: column; gap: 4px; }
@@ -44,6 +44,14 @@
         .input-group input:focus, .input-group select:focus { border-color: #1890ff; }
         .input-group input:disabled { background-color: #f5f5f5; color: #666; font-weight: normal; cursor: not-allowed; }
         
+        /* 自定义文字输入框样式 */
+        .custom-text-input {
+            margin-top: 4px;
+            border-color: #ffadd2 !important; /* 粉色边框提示这是自定义输入 */
+            display: none; /* 默认隐藏 */
+        }
+        .custom-text-input.active { display: block; }
+
         .checkbox-wrapper {
             display: flex; align-items: center; background: white;
             border: 1px solid #ddd; border-radius: 4px; padding: 8px;
@@ -103,43 +111,54 @@
                 <label>总长 L (宽度)</label>
                 <input type="number" id="totalL" value="1400">
             </div>
+            
             <div class="input-group">
                 <label>开槽宽度</label>
                 <input type="number" id="slotWidth" value="6">
             </div>
+            
             <div class="input-group">
-                <label>槽间隔</label>
+                <label>槽间隔 (数值)</label>
                 <input type="number" id="slotGap" value="114">
             </div>
+            
+            <div class="input-group">
+                <label>间隔标注文字 (可选)</label>
+                <input type="text" id="gapCustomText" placeholder="默认显示数值">
+            </div>
+
             <div class="input-group">
                 <label>首槽起始 (自动)</label>
                 <input type="number" id="startOffset" value="0" disabled>
             </div>
+
             <div class="input-group">
-                <label>槽深 (仅文字)</label>
-                <input type="number" id="slotDepth" value="5">
-            </div>
-            <div class="input-group">
-                <label>编号前缀</label>
-                <input type="text" id="textPrefix" value="3-1">
+                <label>底部文字</label>
+                <input type="text" id="bottomTextContent" value="图3-1 开槽6*5">
             </div>
             
+            <!-- L 标注设置 -->
             <div class="input-group">
                 <label>L 标注格式</label>
-                <select id="lDisplayMode">
+                <select id="lDisplayMode" onchange="toggleCustomInputs()">
                     <option value="val">显示数值 (1400)</option>
                     <option value="l_val">显示 L=数值</option>
                     <option value="l_only">只显示 L</option>
+                    <option value="custom">自定义文字</option>
                 </select>
+                <input type="text" id="lCustomText" class="custom-text-input" placeholder="输入L标注文字">
             </div>
+
+            <!-- W 标注设置 -->
             <div class="input-group">
                 <label>W 标注格式</label>
-                <select id="wDisplayMode">
+                <select id="wDisplayMode" onchange="toggleCustomInputs()">
                     <option value="val">显示数值 (618)</option>
                     <option value="w_val">显示 W=数值</option>
-                    <!-- 新增选项 -->
                     <option value="w_only">只显示 W</option>
+                    <option value="custom">自定义文字</option>
                 </select>
+                <input type="text" id="wCustomText" class="custom-text-input" placeholder="输入W标注文字">
             </div>
             
             <div class="input-group">
@@ -186,10 +205,32 @@
     const svgContent = document.getElementById('svgContent');
     const startOffsetInput = document.getElementById('startOffset');
     
+    // 初始化事件监听
     document.querySelectorAll('input:not([disabled]), select').forEach(el => {
         el.addEventListener('change', draw);
         el.addEventListener('input', draw);
     });
+
+    function toggleCustomInputs() {
+        const wMode = document.getElementById('wDisplayMode').value;
+        const lMode = document.getElementById('lDisplayMode').value;
+        
+        const wInput = document.getElementById('wCustomText');
+        const lInput = document.getElementById('lCustomText');
+        
+        if (wMode === 'custom') {
+            wInput.classList.add('active');
+        } else {
+            wInput.classList.remove('active');
+        }
+        
+        if (lMode === 'custom') {
+            lInput.classList.add('active');
+        } else {
+            lInput.classList.remove('active');
+        }
+        draw();
+    }
 
     function draw() {
         // 1. 获取数据
@@ -201,8 +242,6 @@
         const L = parseFloat(document.getElementById('totalL').value) || 1400;
         const sw = parseFloat(document.getElementById('slotWidth').value) || 6;
         const gap = parseFloat(document.getElementById('slotGap').value) || 114;
-        const depth = document.getElementById('slotDepth').value;
-        const prefix = document.getElementById('textPrefix').value;
         
         const lMode = document.getElementById('lDisplayMode').value;
         const wMode = document.getElementById('wDisplayMode').value;
@@ -213,6 +252,12 @@
 
         const showTriangles = document.getElementById('showTriangles').checked;
         const showBottomText = document.getElementById('showBottomText').checked;
+        
+        // 获取自定义文字
+        const gapCustomText = document.getElementById('gapCustomText').value;
+        const wCustomText = document.getElementById('wCustomText').value;
+        const lCustomText = document.getElementById('lCustomText').value;
+        const bottomTextContent = document.getElementById('bottomTextContent').value;
 
         // 自动计算起始数值
         const calcBase = isVertical ? L : W;
@@ -302,7 +347,11 @@
             let currentY = startOff;
 
             if (currentY > 0.1) {
-                drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), currentY, true, -15);
+                // 头部 Gap
+                let gapLabel = currentY;
+                if (gapCustomText) gapLabel = gapCustomText;
+
+                drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), gapLabel, true, -15);
                 createLine(0, toY(currentY), drawL, toY(currentY), 'black', 1);
                 
                 createLine(extLineStartDefault, 0, 0, 0, 'red', 0.5); 
@@ -328,7 +377,11 @@
                     if (nextY > W) nextY = W;
                     const dist = Math.round((nextY - currentY)*100)/100;
                     
-                    drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), dist, true, -15);
+                    // 中间 Gap
+                    let gapLabel = dist;
+                    if (gapCustomText) gapLabel = gapCustomText;
+
+                    drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), gapLabel, true, -15);
                     createLine(extLineStartDefault, toY(nextY), 0, toY(nextY), 'red', 0.5);
                     createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
                     drawAdaptiveTriangle(currentY, nextY, false);
@@ -344,7 +397,11 @@
             let currentX = startOff;
 
             if (currentX > 0.1) {
-                drawDimLine(0, dimY_Gap, toX(currentX), dimY_Gap, currentX, false, -15);
+                // 头部 Gap
+                let gapLabel = currentX;
+                if (gapCustomText) gapLabel = gapCustomText;
+
+                drawDimLine(0, dimY_Gap, toX(currentX), dimY_Gap, gapLabel, false, -15);
                 createLine(toX(currentX), 0, toX(currentX), drawW, 'black', 1);
                 
                 createLine(0, extLineStartDefault, 0, 0, 'red', 0.5);
@@ -370,7 +427,11 @@
                     if (nextX > L) nextX = L;
                     const dist = Math.round((nextX - currentX)*100)/100;
                     
-                    drawDimLine(toX(currentX), dimY_Gap, toX(nextX), dimY_Gap, dist, false, -15);
+                    // 中间 Gap
+                    let gapLabel = dist;
+                    if (gapCustomText) gapLabel = gapCustomText;
+
+                    drawDimLine(toX(currentX), dimY_Gap, toX(nextX), dimY_Gap, gapLabel, false, -15);
                     createLine(toX(nextX), extLineStartDefault, toX(nextX), 0, 'red', 0.5);
                     createLine(toX(nextX), 0, toX(nextX), drawW, 'black', 1);
                     
@@ -383,7 +444,8 @@
         // 5. 总尺寸 W
         let wLabel = W;
         if (wMode === 'w_val') wLabel = `${labelForW}=${W}`;
-        if (wMode === 'w_only') wLabel = labelForW; // 新增逻辑
+        if (wMode === 'w_only') wLabel = labelForW;
+        if (wMode === 'custom') wLabel = wCustomText || '';
         
         const dimTotalX = -120; 
         drawArrowDimLine(dimTotalX, 0, dimTotalX, drawW, wLabel, true, -20, true);
@@ -394,6 +456,7 @@
         let lLabel = L;
         if (lMode === 'l_val') lLabel = `${labelForL}=${L}`;
         if (lMode === 'l_only') lLabel = labelForL;
+        if (lMode === 'custom') lLabel = lCustomText || '';
 
         const dimTopY = isVertical ? -110 : -60;
         
@@ -403,7 +466,6 @@
 
         // 7. 底部文字
         if (showBottomText) {
-            const bottomText = `${prefix} 开槽 ${sw}*${depth}`;
             const textEl = createSvgElement('text', {
                 id: 'bottomLabel',
                 x: drawL / 2,
@@ -412,7 +474,7 @@
                 'font-family': 'SimHei, sans-serif',
                 'font-size': '40px',
                 fill: 'red'
-            }, bottomText);
+            }, bottomTextContent);
         }
         
         // ================= 自动调整画布大小 =================
@@ -495,7 +557,7 @@
         const midY = (y1 + y2) / 2;
         
         const textAttrs = {
-            'font-family': 'Times New Roman',
+            'font-family': 'Times New Roman, SimHei',
             'font-size': '20px',
             fill: 'red',
             'text-anchor': 'middle',
@@ -544,13 +606,18 @@
             ctx.restore();
             
             const a = document.createElement('a');
-            const prefix = document.getElementById('textPrefix').value;
+            const bottomText = document.getElementById('bottomTextContent').value;
             const dir = document.getElementById('slotDirection').value === 'vertical' ? '竖向' : '横向';
             
+            // 简单的文件名清理，防止非法字符
+            let safeName = bottomText.replace(/[\\/:*?"<>|]/g, '_');
+            if (safeName.length > 20) safeName = safeName.substring(0, 20);
+            if (safeName.length === 0) safeName = "开槽图";
+
             const showBottomText = document.getElementById('showBottomText').checked;
             const suffix = showBottomText ? '' : '_无字';
             
-            a.download = `${prefix}_${dir}开槽图${suffix}.jpg`;
+            a.download = `${safeName}_${dir}${suffix}.jpg`;
             a.href = canvas.toDataURL('image/jpeg', 0.9);
             document.body.appendChild(a);
             a.click();
@@ -558,7 +625,8 @@
         };
     }
     
-    window.onload = draw;
+    // 初始化调用
+    toggleCustomInputs();
 </script>
 </body>
 </html>
