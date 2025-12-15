@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D-2</title>
+    <title>3D板材配置器 V2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- React -->
@@ -22,6 +22,16 @@
       input[type=number]::-webkit-outer-spin-button { 
         -webkit-appearance: none; margin: 0; 
       }
+      /* 自定义滑块样式 */
+      input[type=range] {
+        -webkit-appearance: none; width: 100%; background: transparent;
+      }
+      input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; margin-top: -6px;
+      }
+      input[type=range]::-webkit-slider-runnable-track {
+        width: 100%; height: 4px; cursor: pointer; background: #e5e7eb; border-radius: 2px;
+      }
     </style>
 </head>
 <body>
@@ -33,6 +43,7 @@
       // --- 图标 ---
       const IconUpload = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>);
       const IconTrash = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>);
+      const IconSettings = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>);
 
       // --- 3D 辅助 ---
       const createTextSprite = (message) => {
@@ -88,7 +99,7 @@
       };
 
       // --- 3D 场景组件 ---
-      const ThreeScene = ({ dims, labels, textureUrl }) => {
+      const ThreeScene = ({ dims, labels, textureUrl, textureSettings }) => {
         const mountRef = useRef(null);
         const sceneRef = useRef(null);
         const cameraRef = useRef(null);
@@ -96,11 +107,10 @@
         const meshRef = useRef(null);
         const dimsGroupRef = useRef(null);
         
-        // 使用 state 存储加载好的纹理对象，确保 React 感知变化
         const [loadedTexture, setLoadedTexture] = useState(null);
         const [isReady, setIsReady] = useState(false);
 
-        // 1. 初始化场景 (只运行一次)
+        // 1. 初始化场景
         useEffect(() => {
           if (!mountRef.current) return;
           const width = mountRef.current.clientWidth;
@@ -120,7 +130,7 @@
           renderer.setPixelRatio(window.devicePixelRatio);
           renderer.shadowMap.enabled = true;
           renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-          renderer.outputEncoding = THREE.sRGBEncoding; // 关键：防止颜色过暗或过亮
+          renderer.outputEncoding = THREE.sRGBEncoding;
           mountRef.current.appendChild(renderer.domElement);
           rendererRef.current = renderer;
 
@@ -146,7 +156,7 @@
           const controls = new THREE.OrbitControls(camera, renderer.domElement);
           controls.enableDamping = true;
 
-          // Mesh (初始白膜)
+          // Mesh
           const geometry = new THREE.BoxGeometry(1, 1, 1);
           const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
           const cube = new THREE.Mesh(geometry, material);
@@ -197,24 +207,24 @@
           };
         }, []);
 
-        // 2. 纹理加载器 (监听 URL 变化)
+        // 2. 纹理加载
         useEffect(() => {
           if (!textureUrl) {
               setLoadedTexture(null);
               return;
           }
-          
-          // 显示加载状态（可选）
-          console.log("Loading texture:", textureUrl);
-          
           const loader = new THREE.TextureLoader();
           loader.load(textureUrl, (tex) => {
               tex.encoding = THREE.sRGBEncoding;
-              setLoadedTexture(tex); // 触发组件重新渲染
+              // 开启各向异性过滤，防止侧面模糊
+              if (rendererRef.current) {
+                  tex.anisotropy = rendererRef.current.capabilities.getMaxAnisotropy();
+              }
+              setLoadedTexture(tex);
           });
         }, [textureUrl]);
 
-        // 3. 核心更新逻辑 (监听 尺寸 或 纹理对象 变化)
+        // 3. 更新逻辑
         useEffect(() => {
           if (!meshRef.current || !dimsGroupRef.current) return;
           
@@ -228,47 +238,48 @@
           mesh.scale.set(sx, sy, sz);
           mesh.position.y = sy / 2;
 
-          // B. 更新材质 (智能平铺)
+          // B. 更新材质
           if (loadedTexture) {
-              const tileScale = 500; // 500mm 对应一张图片
-              const repL = dims.length / tileScale;
-              const repW = dims.width / tileScale;
-              const repH = dims.height / tileScale;
+              const { mode, scale: texScale } = textureSettings;
+              
+              // 计算重复次数
+              let repL = 1, repW = 1, repH = 1;
+              let wrapMode = THREE.ClampToEdgeWrapping; // 默认拉伸 (Stretch)
 
-              // 检查当前材质是否已经是数组（即是否已经应用了纹理）
-              // 如果是，我们直接更新 repeat 参数，性能更高
-              if (Array.isArray(mesh.material) && mesh.material.length === 6 && mesh.material[0].map) {
-                  // Right/Left (Z, Y)
-                  mesh.material[0].map.repeat.set(repW, repH);
-                  mesh.material[1].map.repeat.set(repW, repH);
-                  // Top/Bottom (X, Z)
-                  mesh.material[2].map.repeat.set(repL, repW);
-                  mesh.material[3].map.repeat.set(repL, repW);
-                  // Front/Back (X, Y)
-                  mesh.material[4].map.repeat.set(repL, repH);
-                  mesh.material[5].map.repeat.set(repL, repH);
-              } else {
-                  // 第一次应用纹理，创建材质数组
-                  const getMat = (u, v) => {
-                      const t = loadedTexture.clone(); // 克隆纹理以独立设置 repeat
-                      t.wrapS = THREE.RepeatWrapping;
-                      t.wrapT = THREE.RepeatWrapping;
-                      t.repeat.set(u, v);
-                      t.needsUpdate = true;
-                      return new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 });
-                  };
-
-                  const matSide = getMat(repW, repH);
-                  const matTop = getMat(repL, repW);
-                  const matFront = getMat(repL, repH);
-
-                  mesh.material = [
-                      matSide, matSide, // Right, Left
-                      matTop, matTop,   // Top, Bottom
-                      matFront, matFront // Front, Back
-                  ];
-                  mesh.material.needsUpdate = true;
+              if (mode !== 'stretch') {
+                  // 平铺模式
+                  wrapMode = mode === 'mirror' ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping;
+                  repL = dims.length / texScale;
+                  repW = dims.width / texScale;
+                  repH = dims.height / texScale;
               }
+
+              // 辅助函数：生成材质
+              const getMat = (u, v) => {
+                  const t = loadedTexture.clone(); 
+                  t.wrapS = wrapMode;
+                  t.wrapT = wrapMode;
+                  t.repeat.set(u, v);
+                  t.needsUpdate = true;
+                  return new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 });
+              };
+
+              // 应用六个面
+              // Right/Left (Z, Y) - width, height
+              const matSide = getMat(repW, repH);
+              // Top/Bottom (X, Z) - length, width
+              const matTop = getMat(repL, repW);
+              // Front/Back (X, Y) - length, height
+              const matFront = getMat(repL, repH);
+
+              mesh.material = [
+                  matSide, matSide, 
+                  matTop, matTop,   
+                  matFront, matFront 
+              ];
+              // 强制更新
+              mesh.material.forEach(m => m.needsUpdate = true);
+              
           } else {
               // 恢复白膜
               if (Array.isArray(mesh.material)) {
@@ -289,7 +300,7 @@
           group.add(createDimensionLine(new THREE.Vector3(halfX, groundY, -halfZ), new THREE.Vector3(halfX, groundY, halfZ), new THREE.Vector3(offsetDist, 0, 0), labels.width));
           group.add(createDimensionLine(new THREE.Vector3(-halfX, 0, -halfZ), new THREE.Vector3(-halfX, sy, -halfZ), new THREE.Vector3(-offsetDist, 0, 0), labels.height));
 
-        }, [dims, labels, loadedTexture]); // 依赖 loadedTexture 而不是 textureUrl
+        }, [dims, labels, loadedTexture, textureSettings]);
 
         return (
           <div ref={mountRef} className="w-full h-full relative bg-gray-200">
@@ -302,11 +313,16 @@
         const [dims, setDims] = useState({ length: 1000, width: 300, height: 150 });
         const [labels, setLabels] = useState({ length: 'L', width: 'W', height: 'T' });
         const [textureUrl, setTextureUrl] = useState(null);
+        
+        // 新增：纹理设置状态
+        const [textureSettings, setTextureSettings] = useState({
+            mode: 'stretch', // stretch, repeat, mirror
+            scale: 500       // 平铺时的基准尺寸
+        });
 
         const handleImageUpload = (e) => {
             const file = e.target.files[0];
             if (file) {
-                // 释放旧的 URL 对象，防止内存泄漏
                 if (textureUrl) URL.revokeObjectURL(textureUrl);
                 setTextureUrl(URL.createObjectURL(file));
             }
@@ -315,7 +331,7 @@
         return (
           <div className="flex flex-col md:flex-row h-screen w-full bg-white font-sans text-gray-800">
             <div className="relative order-1 md:order-2 flex-1 h-[50vh] md:h-full">
-              <ThreeScene dims={dims} labels={labels} textureUrl={textureUrl} />
+              <ThreeScene dims={dims} labels={labels} textureUrl={textureUrl} textureSettings={textureSettings} />
               <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-2 rounded shadow-sm border border-gray-200 text-xs text-gray-500 pointer-events-none">
                 <p className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-600"></span> 红色文字为 3D 标注</p>
                 <p className="mt-1">🖱️ 左键旋转 | 右键平移 | 滚轮缩放</p>
@@ -397,12 +413,54 @@
                           <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                       </label>
                    ) : (
-                       <div className="relative w-full h-32 rounded-lg overflow-hidden border border-gray-200 group">
-                           <img src={textureUrl} alt="Texture Preview" className="w-full h-full object-cover" />
-                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => setTextureUrl(null)} className="flex items-center gap-2 bg-white text-red-600 px-3 py-1.5 rounded-full text-xs font-bold shadow hover:bg-red-50">
-                                  <IconTrash /> 移除纹理
-                              </button>
+                       <div className="space-y-4">
+                           <div className="relative w-full h-32 rounded-lg overflow-hidden border border-gray-200 group">
+                               <img src={textureUrl} alt="Texture Preview" className="w-full h-full object-cover" />
+                               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => setTextureUrl(null)} className="flex items-center gap-2 bg-white text-red-600 px-3 py-1.5 rounded-full text-xs font-bold shadow hover:bg-red-50">
+                                      <IconTrash /> 移除纹理
+                                  </button>
+                               </div>
+                           </div>
+                           
+                           {/* 纹理设置面板 */}
+                           <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                              <div className="flex items-center gap-2 mb-3 text-gray-700">
+                                  <IconSettings />
+                                  <span className="text-xs font-bold">纹理设置</span>
+                              </div>
+                              
+                              <div className="space-y-3">
+                                  <div>
+                                      <label className="block text-[10px] text-gray-500 mb-1">铺贴模式</label>
+                                      <select 
+                                          value={textureSettings.mode}
+                                          onChange={(e) => setTextureSettings({...textureSettings, mode: e.target.value})}
+                                          className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 bg-white outline-none focus:border-blue-500"
+                                      >
+                                          <option value="stretch">↔️ 拉伸铺满 (无接缝，推荐)</option>
+                                          <option value="mirror">🪞 镜像平铺 (消除硬边)</option>
+                                          <option value="repeat">🔁 普通平铺 (原图重复)</option>
+                                      </select>
+                                  </div>
+
+                                  {textureSettings.mode !== 'stretch' && (
+                                      <div>
+                                          <div className="flex justify-between mb-1">
+                                              <label className="block text-[10px] text-gray-500">纹理单元尺寸</label>
+                                              <span className="text-[10px] text-gray-400">{textureSettings.scale}mm</span>
+                                          </div>
+                                          <input 
+                                              type="range" 
+                                              min="100" max="2000" step="50"
+                                              value={textureSettings.scale}
+                                              onChange={(e) => setTextureSettings({...textureSettings, scale: Number(e.target.value)})}
+                                              className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                          />
+                                          <p className="text-[10px] text-gray-400 mt-1">拖动滑块调整纹理大小，数值越大重复越少。</p>
+                                      </div>
+                                  )}
+                              </div>
                            </div>
                        </div>
                    )}
