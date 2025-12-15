@@ -2,11 +2,17 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>黑底转白底工具by文奇</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>黑底转白</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; overflow: hidden; touch-action: none; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+
         .slider-thumb::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -15,215 +21,705 @@
             background: #2563eb;
             cursor: pointer;
             border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
+
+        /* Text Box Styles */
+        .overlay-item {
+            position: absolute;
+            background-color: white;
+            border: 1px dashed transparent;
+            cursor: move;
+            transform-origin: center center;
+            z-index: 10;
+            touch-action: none;
+        }
+        
+        /* Text specific */
+        .type-text {
+            padding: 2px 4px;
+            font-family: "Microsoft YaHei", sans-serif;
+            font-weight: bold;
+            color: black;
+            white-space: nowrap;
+            line-height: 1.1;
+            min-width: 10px;
+        }
+
+        /* Rect specific */
+        .type-rect {
+            /* No specific styles needed, size set by style width/height */
+        }
+        
+        .overlay-item:hover, .overlay-item.active {
+            border-color: #2563eb;
+            z-index: 20;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+        
+        .overlay-item.active {
+            background-color: #eff6ff; /* Light blue hint when active */
+        }
+        /* Rects should stay white but have border when active, override bg color for rects to keep them useful as masks */
+        .type-rect.active {
+            background-color: white; 
+            box-shadow: 0 0 0 2px #2563eb; /* Stronger border for rects */
+        }
+
+        /* Canvas Container */
+        #canvas-viewport {
+            overflow: auto;
+            background-color: #e5e7eb;
+            background-image: 
+                linear-gradient(45deg, #ddd 25%, transparent 25%), 
+                linear-gradient(-45deg, #ddd 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ddd 75%), 
+                linear-gradient(-45deg, transparent 75%, #ddd 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: pan-x pan-y;
+        }
+        
+        #editor-stage {
+            position: relative;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+
+        #placeholder { cursor: pointer; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen py-8 px-4">
+<body class="h-screen flex flex-col bg-gray-50">
 
-    <div class="max-w-3xl mx-auto space-y-6">
-        <!-- Header -->
-        <div class="text-center space-y-2">
-            <h1 class="text-3xl font-bold text-gray-900">CAD图纸 黑底转白底工具</h1>
-            <p class="text-gray-500">上传黑色背景的CAD截图，一键转换为适合打印的白底黑字图片</p>
+    <!-- Header -->
+    <div class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 flex-shrink-0 z-20 shadow-sm">
+        <div class="flex items-center gap-2">
+            <div class="bg-blue-600 text-white p-1 rounded">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <h1 class="text-base font-bold text-gray-800">CAD修复 <span class="text-xs font-normal text-gray-500">V6.1</span></h1>
         </div>
 
-        <!-- Main Card -->
-        <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200 p-6">
-            
-            <!-- Controls -->
-            <div class="flex flex-col md:flex-row gap-6 mb-6 items-start justify-between bg-gray-50 p-5 rounded-lg border border-gray-100">
-                
-                <!-- Left Controls -->
-                <div class="flex-1 w-full space-y-5">
-                    <!-- Threshold -->
-                    <div>
-                        <div class="flex justify-between mb-2">
-                            <label class="text-sm font-semibold text-gray-700">背景识别阈值 (灵敏度)</label>
-                            <span id="thresholdValue" class="text-blue-600 font-bold">100</span>
-                        </div>
-                        <input type="range" id="threshold" min="10" max="200" value="100" 
-                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb">
-                        <p class="text-xs text-gray-500 mt-2">值越小，保留的线条越多；值越大，去背景越干净。</p>
-                    </div>
-
-                    <!-- Mode -->
-                    <div class="flex items-center gap-4">
-                        <span class="text-sm font-semibold text-gray-700">输出模式:</span>
-                        <div class="flex bg-white rounded-lg border border-gray-200 p-1">
-                            <button id="btnBinary" class="px-4 py-1.5 text-sm rounded-md transition-all bg-blue-100 text-blue-700 font-medium">黑白线条</button>
-                            <button id="btnColor" class="px-4 py-1.5 text-sm rounded-md transition-all text-gray-600 hover:bg-gray-50">保留原色</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Buttons -->
-                <div class="flex flex-col gap-3 min-w-[160px] w-full md:w-auto">
-                    <label class="cursor-pointer block w-full">
-                        <input type="file" id="fileInput" accept="image/*" class="hidden" />
-                        <div class="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm w-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            上传图片
-                        </div>
-                    </label>
-                    
-                    <button id="downloadBtn" disabled class="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-400 rounded-lg font-medium text-sm w-full cursor-not-allowed transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        下载结果
-                    </button>
-                </div>
-            </div>
-
-            <!-- Preview Area -->
-            <div id="previewContainer" class="relative min-h-[300px] bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                <!-- Placeholder -->
-                <div id="placeholder" class="text-center text-gray-400 p-8">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-3 opacity-50"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                    <p>点击上方按钮上传图片</p>
-                    <p class="text-sm mt-2">支持 JPG, PNG, BMP</p>
-                </div>
-                
-                <!-- Canvas Wrapper -->
-                <div id="canvasWrapper" class="hidden w-full overflow-auto max-h-[600px] flex justify-center bg-gray-200 p-4">
-                    <canvas id="canvas" class="max-w-full h-auto shadow-md border border-gray-200"></canvas>
-                </div>
-            </div>
+        <div class="flex items-center gap-2">
+            <button id="downloadBtn" disabled class="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-xs shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                保存
+            </button>
         </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="flex flex-col lg:flex-row flex-1 overflow-hidden">
         
-        <!-- Footer -->
-        <div class="space-y-2 pb-8">
-            <div class="text-xs text-gray-500 text-center">
-                提示：如果结果中红色的字消失了，请尝试调低“阈值”。如果背景有噪点，请调高“阈值”。
+        <!-- Canvas Viewport -->
+        <div id="canvas-viewport" class="flex-1 relative order-1 lg:order-2 lg:h-full h-[50vh] border-b lg:border-b-0 lg:border-l border-gray-200">
+            
+            <!-- Empty State -->
+            <div id="placeholder" class="text-center p-8 w-full h-full flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-sm mb-3 text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                </div>
+                <h3 class="text-base font-bold text-gray-700">点击上传图片</h3>
             </div>
-            <div class="text-xs text-gray-400 text-center flex items-center justify-center gap-1 font-medium">
-               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-               <span>本工具由 杜文奇 制作</span>
+
+            <!-- Editor Stage -->
+            <div id="editor-stage" class="hidden bg-white">
+                <canvas id="mainCanvas" class="block"></canvas>
+            </div>
+            
+            <!-- Floating Zoom Controls -->
+            <div class="absolute bottom-4 right-4 flex flex-col gap-2 bg-white/90 backdrop-blur p-1.5 rounded-lg shadow-lg border border-gray-200 z-20">
+                <button id="zoomInBtn" class="p-2 text-gray-600 hover:bg-gray-100 rounded"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                <span id="zoomLevel" class="text-[10px] font-mono text-center text-gray-500">100%</span>
+                <button id="zoomOutBtn" class="p-2 text-gray-600 hover:bg-gray-100 rounded"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                <button id="fitScreenBtn" class="p-2 text-blue-600 hover:bg-blue-50 rounded font-bold text-xs">适应</button>
+            </div>
+        </div>
+
+        <!-- Controls Sidebar -->
+        <div class="w-full lg:w-80 bg-white flex flex-col overflow-y-auto order-2 lg:order-1 flex-shrink-0 h-[50vh] lg:h-full shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] lg:shadow-none z-10 relative">
+            
+            <div class="p-4 space-y-6">
+                
+                <!-- Panel: Selected Item Properties (Dynamic) -->
+                <div id="propertiesPanel" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-4 shadow-sm animate-fade-in">
+                    <div class="flex items-center justify-between mb-3 border-b border-blue-200 pb-2">
+                        <h3 class="text-xs font-bold text-blue-800 flex items-center gap-2 uppercase tracking-wider">
+                            <span class="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
+                            当前选中项
+                        </h3>
+                        <button id="closePropsBtn" class="text-xs text-blue-600 hover:text-blue-800 font-bold px-2">
+                            取消选中
+                        </button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <!-- Text Content (Only for Text) -->
+                        <div id="propTextGroup" class="space-y-1">
+                            <label class="text-xs font-bold text-gray-500">文字内容</label>
+                            <input type="text" id="propTextInput" class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" placeholder="输入文字...">
+                        </div>
+
+                        <!-- Size Control (For Text) -->
+                        <div id="propSizeGroup" class="space-y-1">
+                            <div class="flex justify-between">
+                                <label class="text-xs font-bold text-gray-500">字号大小</label>
+                                <span id="propSizeVal" class="text-xs text-blue-600 font-bold">30px</span>
+                            </div>
+                            <input type="range" id="propSizeInput" min="10" max="200" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <!-- Dimensions Control (For Rect) -->
+                        <div id="propRectGroup" class="space-y-3 hidden">
+                            <div class="space-y-1">
+                                <div class="flex justify-between">
+                                    <label class="text-xs font-bold text-gray-500">宽度</label>
+                                    <span id="propWidthVal" class="text-xs text-blue-600 font-bold">100px</span>
+                                </div>
+                                <input type="range" id="propWidthInput" min="10" max="500" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between">
+                                    <label class="text-xs font-bold text-gray-500">高度</label>
+                                    <span id="propHeightVal" class="text-xs text-blue-600 font-bold">50px</span>
+                                </div>
+                                <input type="range" id="propHeightInput" min="5" max="500" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                            </div>
+                        </div>
+
+                        <!-- Common Controls -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="propRotateBtn" class="flex items-center justify-center gap-1 py-2 bg-white text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-xs transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                                逆转90°
+                            </button>
+                            <button id="propDeleteBtn" class="flex items-center justify-center gap-1 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 font-bold text-xs transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel: Tools -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">添加工具</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="addTextBtn" disabled class="flex flex-col items-center justify-center gap-2 p-4 bg-gray-800 text-white rounded-xl active:scale-95 transition-transform shadow-md disabled:opacity-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon></svg>
+                            <span class="text-xs font-bold">文字遮盖</span>
+                        </button>
+                        <button id="addRectBtn" disabled class="flex flex-col items-center justify-center gap-2 p-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl active:scale-95 transition-transform shadow-sm hover:border-gray-300 disabled:opacity-50">
+                            <div class="w-6 h-6 border-2 border-current bg-gray-100"></div>
+                            <span class="text-xs font-bold">白色矩形</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel: Image Settings -->
+                <div class="space-y-3 pt-2 border-t border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">图像设置</h3>
+                        <label class="text-xs text-blue-600 cursor-pointer font-medium hover:underline">
+                            <input type="file" id="fileInput" accept="image/*" class="hidden" />
+                            重新上传
+                        </label>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-3">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs font-medium text-gray-600">去黑底阈值</label>
+                                <span id="thresholdValue" class="text-xs text-blue-600 font-bold">100</span>
+                            </div>
+                            <input type="range" id="threshold" min="10" max="200" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button id="btnBinary" class="flex-1 py-2 text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium">黑白线条</button>
+                            <button id="btnColor" class="flex-1 py-2 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium">保留原色</button>
+                        </div>
+
+                        <button id="btnUpscale" disabled class="w-full py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded hover:bg-purple-100 transition-colors text-xs font-bold disabled:opacity-50">
+                            <span id="upscaleText">2x 高清锐化</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Footer Signature -->
+                <div class="text-center mt-8 pb-4">
+                    <p class="text-xs text-gray-400 font-medium tracking-widest">文奇制作</p>
+                </div>
+
             </div>
         </div>
     </div>
 
     <script>
-        // Elements
+        // --- Elements ---
         const fileInput = document.getElementById('fileInput');
+        const placeholder = document.getElementById('placeholder');
+        const viewport = document.getElementById('canvas-viewport');
+        const editorStage = document.getElementById('editor-stage');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Panels
+        const propertiesPanel = document.getElementById('propertiesPanel');
+        
+        // Global Controls
         const thresholdInput = document.getElementById('threshold');
-        const thresholdValue = document.getElementById('thresholdValue');
+        const thresholdDisplay = document.getElementById('thresholdValue');
         const btnBinary = document.getElementById('btnBinary');
         const btnColor = document.getElementById('btnColor');
+        const btnUpscale = document.getElementById('btnUpscale');
+        const upscaleText = document.getElementById('upscaleText');
+        const addTextBtn = document.getElementById('addTextBtn');
+        const addRectBtn = document.getElementById('addRectBtn');
         const downloadBtn = document.getElementById('downloadBtn');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const placeholder = document.getElementById('placeholder');
-        const canvasWrapper = document.getElementById('canvasWrapper');
+        
+        // Property Controls
+        const closePropsBtn = document.getElementById('closePropsBtn');
+        const propTextGroup = document.getElementById('propTextGroup');
+        const propSizeGroup = document.getElementById('propSizeGroup');
+        const propRectGroup = document.getElementById('propRectGroup');
+        
+        const propTextInput = document.getElementById('propTextInput');
+        const propSizeInput = document.getElementById('propSizeInput');
+        const propSizeVal = document.getElementById('propSizeVal');
+        const propWidthInput = document.getElementById('propWidthInput');
+        const propWidthVal = document.getElementById('propWidthVal');
+        const propHeightInput = document.getElementById('propHeightInput');
+        const propHeightVal = document.getElementById('propHeightVal');
+        
+        const propRotateBtn = document.getElementById('propRotateBtn');
+        const propDeleteBtn = document.getElementById('propDeleteBtn');
 
-        // State
+        // Zoom Controls
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const fitScreenBtn = document.getElementById('fitScreenBtn');
+        const zoomLevelDisplay = document.getElementById('zoomLevel');
+
+        // --- State ---
         let originalImage = null;
-        let currentMode = 'binary'; // 'binary' or 'color'
+        let currentMode = 'binary';
+        let isUpscaled = false;
+        let scaleFactor = 1; 
+        let viewZoom = 1.0; 
+        let activeItem = null; // Can be Text or Rect
 
-        // Event Listeners
-        fileInput.addEventListener('change', handleFileUpload);
-        thresholdInput.addEventListener('input', (e) => {
-            thresholdValue.textContent = e.target.value;
-            processImage();
-        });
+        // --- Initialization ---
         
-        btnBinary.addEventListener('click', () => setMode('binary'));
-        btnColor.addEventListener('click', () => setMode('color'));
-        
-        downloadBtn.addEventListener('click', () => {
-            if (!originalImage) return;
-            const link = document.createElement('a');
-            link.download = 'cad-converted.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        });
+        placeholder.addEventListener('click', () => fileInput.click());
 
-        function setMode(mode) {
-            currentMode = mode;
-            // Update UI
-            if (mode === 'binary') {
-                btnBinary.className = "px-4 py-1.5 text-sm rounded-md transition-all bg-blue-100 text-blue-700 font-medium";
-                btnColor.className = "px-4 py-1.5 text-sm rounded-md transition-all text-gray-600 hover:bg-gray-50";
-            } else {
-                btnColor.className = "px-4 py-1.5 text-sm rounded-md transition-all bg-blue-100 text-blue-700 font-medium";
-                btnBinary.className = "px-4 py-1.5 text-sm rounded-md transition-all text-gray-600 hover:bg-gray-50";
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    handleFile(blob);
+                }
             }
-            processImage();
-        }
+        });
 
-        function handleFileUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files[0]) handleFile(e.target.files[0]);
+        });
 
+        function handleFile(file) {
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
                     originalImage = img;
-                    // Show canvas, hide placeholder
-                    placeholder.classList.add('hidden');
-                    canvasWrapper.classList.remove('hidden');
-                    // Enable download
-                    downloadBtn.disabled = false;
-                    downloadBtn.classList.remove('text-gray-400', 'cursor-not-allowed', 'border-gray-300');
-                    downloadBtn.classList.add('text-gray-700', 'hover:bg-gray-50', 'border-gray-300');
+                    isUpscaled = false;
+                    scaleFactor = 1;
+                    upscaleText.textContent = "2x 高清锐化";
+                    btnUpscale.classList.remove('bg-purple-600', 'text-white');
+                    btnUpscale.classList.add('bg-purple-50', 'text-purple-700');
+                    btnUpscale.disabled = false;
                     
-                    processImage();
+                    initEditor();
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
 
+        function initEditor() {
+            placeholder.classList.add('hidden');
+            editorStage.classList.remove('hidden');
+            
+            addTextBtn.disabled = false;
+            addRectBtn.disabled = false;
+            downloadBtn.disabled = false;
+
+            const existingItems = document.querySelectorAll('.overlay-item');
+            existingItems.forEach(el => el.remove());
+
+            processImage();
+            setTimeout(fitToScreen, 100);
+        }
+
+        // --- Zoom Logic ---
+        
+        function setZoom(val) {
+            viewZoom = val;
+            if (viewZoom < 0.1) viewZoom = 0.1;
+            if (viewZoom > 5.0) viewZoom = 5.0;
+            
+            editorStage.style.transform = `scale(${viewZoom})`;
+            editorStage.style.margin = "100px"; 
+            
+            zoomLevelDisplay.textContent = Math.round(viewZoom * 100) + '%';
+        }
+
+        zoomInBtn.addEventListener('click', () => setZoom(viewZoom + 0.1));
+        zoomOutBtn.addEventListener('click', () => setZoom(viewZoom - 0.1));
+        fitScreenBtn.addEventListener('click', fitToScreen);
+
+        function fitToScreen() {
+            if (!canvas.width) return;
+            const vw = viewport.clientWidth - 40; 
+            const vh = viewport.clientHeight - 40;
+            
+            const scaleW = vw / canvas.width;
+            const scaleH = vh / canvas.height;
+            
+            setZoom(Math.min(scaleW, scaleH, 1.0)); 
+        }
+
+        // --- Image Processing ---
+
+        thresholdInput.addEventListener('input', (e) => {
+            thresholdDisplay.textContent = e.target.value;
+            processImage();
+        });
+
+        btnBinary.addEventListener('click', () => {
+            currentMode = 'binary';
+            btnBinary.className = "flex-1 py-2 text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium";
+            btnColor.className = "flex-1 py-2 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium";
+            processImage();
+        });
+
+        btnColor.addEventListener('click', () => {
+            currentMode = 'color';
+            btnColor.className = "flex-1 py-2 text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium";
+            btnBinary.className = "flex-1 py-2 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium";
+            processImage();
+        });
+
         function processImage() {
             if (!originalImage) return;
 
-            const threshold = parseInt(thresholdInput.value);
+            const w = originalImage.width * scaleFactor;
+            const h = originalImage.height * scaleFactor;
 
-            // Reset canvas size
-            canvas.width = originalImage.width;
-            canvas.height = originalImage.height;
+            canvas.width = w;
+            canvas.height = h;
+            editorStage.style.width = w + 'px';
+            editorStage.style.height = h + 'px';
 
-            // Draw original
-            ctx.drawImage(originalImage, 0, 0);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(originalImage, 0, 0, w, h);
 
-            // Get pixel data
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, w, h);
             const data = imageData.data;
+            const threshold = parseInt(thresholdInput.value);
 
             for (let i = 0; i < data.length; i += 4) {
                 const r = data[i];
                 const g = data[i + 1];
                 const b = data[i + 2];
-                // const a = data[i + 3];
-
-                // Simple logic: if pixel is dark, make it white. 
-                // If pixel is bright (lines), make it black (or keep color).
-                
-                // Calculate max brightness to detect colored lines on black bg
                 const maxVal = Math.max(r, g, b);
 
                 if (maxVal < threshold) {
-                    // It's background (dark) -> Make White
-                    data[i] = 255;     // R
-                    data[i + 1] = 255; // G
-                    data[i + 2] = 255; // B
-                    // Alpha remains same (usually 255)
+                    data[i] = 255; data[i+1] = 255; data[i+2] = 255;
                 } else {
-                    // It's foreground (lines)
                     if (currentMode === 'binary') {
-                        // Turn Black
-                        data[i] = 0;
-                        data[i + 1] = 0;
-                        data[i + 2] = 0;
-                    } else {
-                        // Keep Color
-                        // Optional: Enhance visibility? 
-                        // For now, keep original pixel values
+                        data[i] = 0; data[i+1] = 0; data[i+2] = 0;
                     }
                 }
             }
 
+            if (isUpscaled) applySharpening(data, w, h);
             ctx.putImageData(imageData, 0, 0);
         }
+
+        btnUpscale.addEventListener('click', () => {
+            if (isUpscaled) return;
+            isUpscaled = true;
+            scaleFactor = 2;
+            btnUpscale.classList.remove('bg-purple-50', 'text-purple-700');
+            btnUpscale.classList.add('bg-purple-600', 'text-white');
+            upscaleText.textContent = "已高清化";
+            btnUpscale.disabled = true;
+            processImage();
+            fitToScreen();
+        });
+
+        function applySharpening(data, w, h) {
+            const copy = new Uint8ClampedArray(data);
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    const idx = (y * w + x) * 4;
+                    if (copy[idx] > 250 && copy[idx+1] > 250 && copy[idx+2] > 250) continue;
+                    for (let c = 0; c < 3; c++) {
+                        const val = 5 * copy[idx + c]
+                            - copy[((y-1)*w + x) * 4 + c]
+                            - copy[((y+1)*w + x) * 4 + c]
+                            - copy[(y*w + (x-1)) * 4 + c]
+                            - copy[(y*w + (x+1)) * 4 + c];
+                        data[idx + c] = Math.min(255, Math.max(0, val));
+                    }
+                }
+            }
+        }
+
+        // --- Item Creation (Text & Rect) ---
+
+        addTextBtn.addEventListener('click', () => {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            createItem('text', cx - 50, cy - 20);
+        });
+
+        addRectBtn.addEventListener('click', () => {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            createItem('rect', cx - 50, cy - 25);
+        });
+
+        function createItem(type, x, y) {
+            const div = document.createElement('div');
+            div.className = 'overlay-item';
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+            div.style.transform = 'rotate(0deg)';
+            div.dataset.rotation = "0"; 
+            div.dataset.type = type;
+
+            if (type === 'text') {
+                div.classList.add('type-text');
+                div.textContent = "输入文字";
+                div.style.fontSize = "30px";
+            } else {
+                div.classList.add('type-rect');
+                div.style.width = "100px";
+                div.style.height = "50px";
+            }
+
+            addDragEvents(div);
+
+            div.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setActiveItem(div);
+            });
+
+            editorStage.appendChild(div);
+            setActiveItem(div);
+        }
+
+        function setActiveItem(el) {
+            document.querySelectorAll('.overlay-item').forEach(b => b.classList.remove('active'));
+            
+            if (el) {
+                el.classList.add('active');
+                activeItem = el;
+                
+                // Show Panel
+                propertiesPanel.classList.remove('hidden');
+
+                // Configure Panel based on Type
+                const type = el.dataset.type;
+                if (type === 'text') {
+                    propTextGroup.classList.remove('hidden');
+                    propSizeGroup.classList.remove('hidden');
+                    propRectGroup.classList.add('hidden');
+                    
+                    propTextInput.value = el.textContent;
+                    const size = parseInt(window.getComputedStyle(el).fontSize);
+                    propSizeInput.value = size;
+                    propSizeVal.textContent = size + 'px';
+                } else {
+                    propTextGroup.classList.add('hidden');
+                    propSizeGroup.classList.add('hidden');
+                    propRectGroup.classList.remove('hidden');
+                    
+                    const w = parseInt(el.style.width);
+                    const h = parseInt(el.style.height);
+                    propWidthInput.value = w;
+                    propWidthVal.textContent = w + 'px';
+                    propHeightInput.value = h;
+                    propHeightVal.textContent = h + 'px';
+                }
+                
+            } else {
+                activeItem = null;
+                propertiesPanel.classList.add('hidden');
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.overlay-item') && 
+                !e.target.closest('#propertiesPanel') && 
+                !e.target.closest('#addTextBtn') &&
+                !e.target.closest('#addRectBtn')) {
+                setActiveItem(null);
+            }
+        });
+
+        closePropsBtn.addEventListener('click', () => setActiveItem(null));
+
+        // --- Property Listeners ---
+
+        propTextInput.addEventListener('input', (e) => {
+            if(activeItem && activeItem.dataset.type === 'text') activeItem.textContent = e.target.value;
+        });
+
+        propSizeInput.addEventListener('input', (e) => {
+            if(activeItem && activeItem.dataset.type === 'text') {
+                activeItem.style.fontSize = e.target.value + 'px';
+                propSizeVal.textContent = e.target.value + 'px';
+            }
+        });
+
+        propWidthInput.addEventListener('input', (e) => {
+            if(activeItem && activeItem.dataset.type === 'rect') {
+                activeItem.style.width = e.target.value + 'px';
+                propWidthVal.textContent = e.target.value + 'px';
+            }
+        });
+
+        propHeightInput.addEventListener('input', (e) => {
+            if(activeItem && activeItem.dataset.type === 'rect') {
+                activeItem.style.height = e.target.value + 'px';
+                propHeightVal.textContent = e.target.value + 'px';
+            }
+        });
+
+        propRotateBtn.addEventListener('click', () => {
+            if(activeItem) {
+                let currentRot = parseInt(activeItem.dataset.rotation || 0);
+                currentRot -= 90;
+                activeItem.dataset.rotation = currentRot;
+                activeItem.style.transform = `rotate(${currentRot}deg)`;
+            }
+        });
+
+        const deleteActive = () => {
+            if(activeItem) {
+                activeItem.remove();
+                setActiveItem(null);
+            }
+        };
+
+        propDeleteBtn.addEventListener('click', deleteActive);
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && activeItem) {
+                if (document.activeElement !== propTextInput) {
+                    deleteActive();
+                }
+            }
+        });
+
+        // --- Drag Logic ---
+        
+        function addDragEvents(box) {
+            const startDrag = (clientX, clientY) => {
+                setActiveItem(box);
+                const startX = clientX;
+                const startY = clientY;
+                const initialLeft = parseFloat(box.style.left || 0);
+                const initialTop = parseFloat(box.style.top || 0);
+
+                const move = (cx, cy) => {
+                    const dx = (cx - startX) / viewZoom;
+                    const dy = (cy - startY) / viewZoom;
+                    box.style.left = (initialLeft + dx) + 'px';
+                    box.style.top = (initialTop + dy) + 'px';
+                };
+
+                const stop = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    document.removeEventListener('touchmove', onTouchMove);
+                    document.removeEventListener('touchend', onTouchEnd);
+                };
+
+                const onMouseMove = (e) => move(e.clientX, e.clientY);
+                const onTouchMove = (e) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); };
+                const onMouseUp = stop;
+                const onTouchEnd = stop;
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                document.addEventListener('touchmove', onTouchMove, {passive: false});
+                document.addEventListener('touchend', onTouchEnd);
+            };
+
+            box.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+            box.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
+        }
+
+        // --- Download Logic ---
+
+        downloadBtn.addEventListener('click', () => {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tCtx = tempCanvas.getContext('2d');
+
+            tCtx.drawImage(canvas, 0, 0);
+
+            const items = document.querySelectorAll('.overlay-item');
+            items.forEach(item => {
+                const style = window.getComputedStyle(item);
+                const type = item.dataset.type;
+                
+                const width = item.offsetWidth;
+                const height = item.offsetHeight;
+                
+                const x = parseFloat(item.style.left) + width / 2;
+                const y = parseFloat(item.style.top) + height / 2;
+                
+                const angle = parseInt(item.dataset.rotation || 0);
+
+                tCtx.save();
+                tCtx.translate(x, y);
+                tCtx.rotate(angle * Math.PI / 180);
+
+                // Draw White Background (For both Text and Rect)
+                tCtx.fillStyle = "white";
+                tCtx.fillRect(-width/2, -height/2, width, height);
+
+                // Draw Text Content (Only if text)
+                if (type === 'text') {
+                    tCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+                    tCtx.fillStyle = "black";
+                    tCtx.textAlign = "center";
+                    tCtx.textBaseline = "middle";
+                    tCtx.fillText(item.textContent, 0, 2); 
+                }
+
+                tCtx.restore();
+            });
+
+            const link = document.createElement('a');
+            link.download = 'cad-fixed.png';
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+        });
+
     </script>
 </body>
 </html>
