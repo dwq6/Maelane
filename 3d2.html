@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D-2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React -->
+    <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+    <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.5/babel.min.js"></script>
+    
+    <!-- Three.js (r128) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+      body { margin: 0; overflow: hidden; background: #f3f4f6; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      input[type=number]::-webkit-inner-spin-button, 
+      input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; margin: 0; 
+      }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect, useRef, useMemo } = React;
+
+      // --- 图标 ---
+      const IconUpload = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>);
+      const IconTrash = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>);
+
+      // --- 3D 辅助 ---
+      const createTextSprite = (message) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const scale = 4;
+        canvas.width = 256 * scale;
+        canvas.height = 128 * scale;
+        ctx.fillStyle = "rgba(0,0,0,0)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = `bold ${40 * scale}px Arial, sans-serif`;
+        ctx.fillStyle = "#dc2626"; 
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false }));
+        sprite.scale.set(4, 2, 1); 
+        sprite.renderOrder = 999;
+        return sprite;
+      };
+
+      const createDimensionLine = (start, end, offsetVec, labelText) => {
+          const group = new THREE.Group();
+          const p1 = start.clone().add(offsetVec);
+          const p2 = end.clone().add(offsetVec);
+          const lineMat = new THREE.LineBasicMaterial({ color: 0xdc2626 });
+          const refMat = new THREE.LineBasicMaterial({ color: 0xdc2626, opacity: 0.3, transparent: true });
+
+          group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([p1, p2]), lineMat));
+          group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, p1]), refMat));
+          group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([end, p2]), refMat));
+
+          const tickSize = 0.3;
+          const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
+          let tickDir = new THREE.Vector3(0, 1, 0); 
+          if (Math.abs(dir.y) > 0.9) tickDir = new THREE.Vector3(1, 0, 0);
+          
+          const t1_a = p1.clone().add(tickDir.clone().multiplyScalar(tickSize/2));
+          const t1_b = p1.clone().sub(tickDir.clone().multiplyScalar(tickSize/2));
+          const t2_a = p2.clone().add(tickDir.clone().multiplyScalar(tickSize/2));
+          const t2_b = p2.clone().sub(tickDir.clone().multiplyScalar(tickSize/2));
+          group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([t1_a, t1_b]), lineMat));
+          group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([t2_a, t2_b]), lineMat));
+
+          const sprite = createTextSprite(labelText);
+          const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+          midPoint.add(offsetVec.clone().normalize().multiplyScalar(0.6));
+          sprite.position.copy(midPoint);
+          group.add(sprite);
+          return group;
+      };
+
+      // --- 3D 场景组件 ---
+      const ThreeScene = ({ dims, labels, textureUrl }) => {
+        const mountRef = useRef(null);
+        const sceneRef = useRef(null);
+        const cameraRef = useRef(null);
+        const rendererRef = useRef(null);
+        const meshRef = useRef(null);
+        const dimsGroupRef = useRef(null);
+        
+        // 使用 state 存储加载好的纹理对象，确保 React 感知变化
+        const [loadedTexture, setLoadedTexture] = useState(null);
+        const [isReady, setIsReady] = useState(false);
+
+        // 1. 初始化场景 (只运行一次)
+        useEffect(() => {
+          if (!mountRef.current) return;
+          const width = mountRef.current.clientWidth;
+          const height = mountRef.current.clientHeight;
+          if (width === 0) return;
+
+          const scene = new THREE.Scene();
+          scene.background = new THREE.Color(0xe5e7eb);
+          sceneRef.current = scene;
+
+          const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+          camera.position.set(20, 15, 20);
+          cameraRef.current = camera;
+
+          const renderer = new THREE.WebGLRenderer({ antialias: true });
+          renderer.setSize(width, height);
+          renderer.setPixelRatio(window.devicePixelRatio);
+          renderer.shadowMap.enabled = true;
+          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+          renderer.outputEncoding = THREE.sRGBEncoding; // 关键：防止颜色过暗或过亮
+          mountRef.current.appendChild(renderer.domElement);
+          rendererRef.current = renderer;
+
+          // Lights
+          const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+          scene.add(ambientLight);
+          const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+          dirLight.position.set(10, 20, 10);
+          dirLight.castShadow = true;
+          dirLight.shadow.mapSize.width = 2048;
+          dirLight.shadow.mapSize.height = 2048;
+          scene.add(dirLight);
+          const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+          fillLight.position.set(-10, 5, -10);
+          scene.add(fillLight);
+
+          // Grid
+          const gridHelper = new THREE.GridHelper(50, 50, 0x9ca3af, 0xd1d5db);
+          gridHelper.position.y = -0.01;
+          scene.add(gridHelper);
+
+          // Controls
+          const controls = new THREE.OrbitControls(camera, renderer.domElement);
+          controls.enableDamping = true;
+
+          // Mesh (初始白膜)
+          const geometry = new THREE.BoxGeometry(1, 1, 1);
+          const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+          const cube = new THREE.Mesh(geometry, material);
+          cube.castShadow = true;
+          cube.receiveShadow = true;
+          scene.add(cube);
+          meshRef.current = cube;
+
+          const edges = new THREE.LineSegments(
+              new THREE.EdgesGeometry(geometry), 
+              new THREE.LineBasicMaterial({ color: 0x1f2937 })
+          );
+          cube.add(edges);
+
+          const dimsGroup = new THREE.Group();
+          scene.add(dimsGroup);
+          dimsGroupRef.current = dimsGroup;
+
+          setIsReady(true);
+
+          let frameId;
+          const animate = () => {
+            frameId = requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+          };
+          animate();
+
+          const resizeObserver = new ResizeObserver(() => {
+              if (!mountRef.current || !renderer || !camera) return;
+              const newW = mountRef.current.clientWidth;
+              const newH = mountRef.current.clientHeight;
+              if (newW > 0) {
+                  camera.aspect = newW / newH;
+                  camera.updateProjectionMatrix();
+                  renderer.setSize(newW, newH);
+              }
+          });
+          resizeObserver.observe(mountRef.current);
+
+          return () => {
+            cancelAnimationFrame(frameId);
+            resizeObserver.disconnect();
+            if (mountRef.current && renderer.domElement) {
+              mountRef.current.removeChild(renderer.domElement);
+            }
+            renderer.dispose();
+          };
+        }, []);
+
+        // 2. 纹理加载器 (监听 URL 变化)
+        useEffect(() => {
+          if (!textureUrl) {
+              setLoadedTexture(null);
+              return;
+          }
+          
+          // 显示加载状态（可选）
+          console.log("Loading texture:", textureUrl);
+          
+          const loader = new THREE.TextureLoader();
+          loader.load(textureUrl, (tex) => {
+              tex.encoding = THREE.sRGBEncoding;
+              setLoadedTexture(tex); // 触发组件重新渲染
+          });
+        }, [textureUrl]);
+
+        // 3. 核心更新逻辑 (监听 尺寸 或 纹理对象 变化)
+        useEffect(() => {
+          if (!meshRef.current || !dimsGroupRef.current) return;
+          
+          const mesh = meshRef.current;
+          const scale = 100;
+          const sx = dims.length / scale;
+          const sy = dims.height / scale;
+          const sz = dims.width / scale;
+
+          // A. 更新几何体
+          mesh.scale.set(sx, sy, sz);
+          mesh.position.y = sy / 2;
+
+          // B. 更新材质 (智能平铺)
+          if (loadedTexture) {
+              const tileScale = 500; // 500mm 对应一张图片
+              const repL = dims.length / tileScale;
+              const repW = dims.width / tileScale;
+              const repH = dims.height / tileScale;
+
+              // 检查当前材质是否已经是数组（即是否已经应用了纹理）
+              // 如果是，我们直接更新 repeat 参数，性能更高
+              if (Array.isArray(mesh.material) && mesh.material.length === 6 && mesh.material[0].map) {
+                  // Right/Left (Z, Y)
+                  mesh.material[0].map.repeat.set(repW, repH);
+                  mesh.material[1].map.repeat.set(repW, repH);
+                  // Top/Bottom (X, Z)
+                  mesh.material[2].map.repeat.set(repL, repW);
+                  mesh.material[3].map.repeat.set(repL, repW);
+                  // Front/Back (X, Y)
+                  mesh.material[4].map.repeat.set(repL, repH);
+                  mesh.material[5].map.repeat.set(repL, repH);
+              } else {
+                  // 第一次应用纹理，创建材质数组
+                  const getMat = (u, v) => {
+                      const t = loadedTexture.clone(); // 克隆纹理以独立设置 repeat
+                      t.wrapS = THREE.RepeatWrapping;
+                      t.wrapT = THREE.RepeatWrapping;
+                      t.repeat.set(u, v);
+                      t.needsUpdate = true;
+                      return new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 });
+                  };
+
+                  const matSide = getMat(repW, repH);
+                  const matTop = getMat(repL, repW);
+                  const matFront = getMat(repL, repH);
+
+                  mesh.material = [
+                      matSide, matSide, // Right, Left
+                      matTop, matTop,   // Top, Bottom
+                      matFront, matFront // Front, Back
+                  ];
+                  mesh.material.needsUpdate = true;
+              }
+          } else {
+              // 恢复白膜
+              if (Array.isArray(mesh.material)) {
+                  mesh.material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+                  mesh.material.needsUpdate = true;
+              }
+          }
+
+          // C. 更新标注
+          const group = dimsGroupRef.current;
+          group.clear();
+          const halfX = sx / 2;
+          const halfZ = sz / 2;
+          const offsetDist = 1.5;
+          const groundY = 0.02;
+
+          group.add(createDimensionLine(new THREE.Vector3(-halfX, groundY, halfZ), new THREE.Vector3(halfX, groundY, halfZ), new THREE.Vector3(0, 0, offsetDist), labels.length));
+          group.add(createDimensionLine(new THREE.Vector3(halfX, groundY, -halfZ), new THREE.Vector3(halfX, groundY, halfZ), new THREE.Vector3(offsetDist, 0, 0), labels.width));
+          group.add(createDimensionLine(new THREE.Vector3(-halfX, 0, -halfZ), new THREE.Vector3(-halfX, sy, -halfZ), new THREE.Vector3(-offsetDist, 0, 0), labels.height));
+
+        }, [dims, labels, loadedTexture]); // 依赖 loadedTexture 而不是 textureUrl
+
+        return (
+          <div ref={mountRef} className="w-full h-full relative bg-gray-200">
+              {!isReady && <div className="absolute inset-0 flex items-center justify-center text-gray-500 font-bold">正在初始化...</div>}
+          </div>
+        );
+      };
+
+      const App = () => {
+        const [dims, setDims] = useState({ length: 1000, width: 300, height: 150 });
+        const [labels, setLabels] = useState({ length: 'L', width: 'W', height: 'T' });
+        const [textureUrl, setTextureUrl] = useState(null);
+
+        const handleImageUpload = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // 释放旧的 URL 对象，防止内存泄漏
+                if (textureUrl) URL.revokeObjectURL(textureUrl);
+                setTextureUrl(URL.createObjectURL(file));
+            }
+        };
+
+        return (
+          <div className="flex flex-col md:flex-row h-screen w-full bg-white font-sans text-gray-800">
+            <div className="relative order-1 md:order-2 flex-1 h-[50vh] md:h-full">
+              <ThreeScene dims={dims} labels={labels} textureUrl={textureUrl} />
+              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-2 rounded shadow-sm border border-gray-200 text-xs text-gray-500 pointer-events-none">
+                <p className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-600"></span> 红色文字为 3D 标注</p>
+                <p className="mt-1">🖱️ 左键旋转 | 右键平移 | 滚轮缩放</p>
+              </div>
+            </div>
+
+            <div className="order-2 md:order-1 w-full md:w-96 bg-white border-r border-gray-200 flex flex-col shadow-xl z-10">
+              <div className="p-5 border-b border-gray-100">
+                <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2"><span>🧊</span> 3D 条石配置</h1>
+              </div>
+              <div className="flex-1 overflow-y-auto p-5">
+                <div className="mb-8">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">尺寸 & 标注</h3>
+                  
+                  {/* Length */}
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                           <span className="bg-gray-200 text-gray-700 text-xs font-bold px-1.5 py-0.5 rounded">X</span>
+                           <span className="text-xs font-semibold text-gray-600">长度 (Length)</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                          <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">数值 (mm)</label>
+                              <input type="number" value={dims.length} onChange={(e) => setDims({...dims, length: Number(e.target.value)})} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                          </div>
+                          <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">标注文字</label>
+                              <input type="text" value={labels.length} onChange={(e) => setLabels({...labels, length: e.target.value})} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 font-mono focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Width */}
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                           <span className="bg-gray-200 text-gray-700 text-xs font-bold px-1.5 py-0.5 rounded">Z</span>
+                           <span className="text-xs font-semibold text-gray-600">宽度 (Width)</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                          <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">数值 (mm)</label>
+                              <input type="number" value={dims.width} onChange={(e) => setDims({...dims, width: Number(e.target.value)})} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                          </div>
+                          <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">标注文字</label>
+                              <input type="text" value={labels.width} onChange={(e) => setLabels({...labels, width: e.target.value})} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 font-mono focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Height */}
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                           <span className="bg-gray-200 text-gray-700 text-xs font-bold px-1.5 py-0.5 rounded">Y</span>
+                           <span className="text-xs font-semibold text-gray-600">高度 (Height)</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                          <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">数值 (mm)</label>
+                              <input type="number" value={dims.height} onChange={(e) => setDims({...dims, height: Number(e.target.value)})} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                          </div>
+                          <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">标注文字</label>
+                              <input type="text" value={labels.height} onChange={(e) => setLabels({...labels, height: e.target.value})} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 font-mono focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                          </div>
+                      </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-gray-100">
+                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">表面材质</h3>
+                   {!textureUrl ? (
+                       <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <IconUpload />
+                              <p className="mb-2 text-sm text-gray-500 mt-2"><span className="font-semibold">点击上传图片</span></p>
+                              <p className="text-xs text-gray-400">支持 JPG, PNG (自动平铺修复)</p>
+                          </div>
+                          <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                      </label>
+                   ) : (
+                       <div className="relative w-full h-32 rounded-lg overflow-hidden border border-gray-200 group">
+                           <img src={textureUrl} alt="Texture Preview" className="w-full h-full object-cover" />
+                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => setTextureUrl(null)} className="flex items-center gap-2 bg-white text-red-600 px-3 py-1.5 rounded-full text-xs font-bold shadow hover:bg-red-50">
+                                  <IconTrash /> 移除纹理
+                              </button>
+                           </div>
+                       </div>
+                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+</body>
+</html>
