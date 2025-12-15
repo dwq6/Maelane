@@ -99,9 +99,10 @@
             const h = dimensions.height;
             const l = dimensions.length;
 
-            // 斜边的投影长度
-            const dx = l * cosA;
-            const dy = l * sinA;
+            // 斜边的投影长度 - 柜式投影标准比例 0.5 (1/2)
+            const depthScale = 0.5;
+            const dx = l * depthScale * cosA;
+            const dy = l * depthScale * sinA;
 
             // 1. 计算主体顶点 (以 Front Face 左上角为 0,0)
             const p1 = { x: 0, y: 0 };
@@ -443,11 +444,11 @@
                   {/* 尺寸设置 */}
                   <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">尺寸 & 标注</h3>
-                    {/* 修正表头对齐：使用与行相同的 grid 定义 */}
-                    <div className="grid grid-cols-[auto_1fr_1fr] gap-2 mb-2 text-[10px] text-gray-400 text-center">
-                      <span className="w-6">维度</span>
-                      <span>数值</span>
-                      <span>文字</span>
+                    {/* 修正表头对齐：移除 text-center，分别设置对齐 */}
+                    <div className="grid grid-cols-[auto_1fr_1fr] gap-2 mb-2 text-[10px] text-gray-400">
+                      <span className="w-6 text-center">维度</span>
+                      <span className="text-left pl-1">数值</span>
+                      <span className="text-left pl-1">文字</span>
                     </div>
 
                     {/* 
@@ -472,7 +473,7 @@
                              ? setLabels({...labels, height: val})
                              : setLabels({...labels, length: val})
                         }}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
 
@@ -498,7 +499,7 @@
                              ? setLabels({...labels, length: val})
                              : setLabels({...labels, width: val})
                         }}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
 
@@ -524,7 +525,7 @@
                              ? setLabels({...labels, width: val})
                              : setLabels({...labels, height: val})
                         }}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
                   </div>
