@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>条石 - 增强版</title>
+    <title>条石</title>
     
     <!-- 1. 引入 Tailwind CSS 用于样式 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -443,13 +443,18 @@
                   {/* 尺寸设置 */}
                   <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">尺寸 & 标注</h3>
-                    <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 mb-2 text-[10px] text-gray-400 text-center">
-                      <span>维度</span>
+                    {/* 修正表头对齐：使用与行相同的 grid 定义 */}
+                    <div className="grid grid-cols-[auto_1fr_1fr] gap-2 mb-2 text-[10px] text-gray-400 text-center">
+                      <span className="w-6">维度</span>
                       <span>数值</span>
                       <span>文字</span>
                     </div>
 
-                    {/* Length (L) -> T if swapped */}
+                    {/* 
+                       Row 1: 
+                       - 默认: Length (L)
+                       - 切换: 显示 T (Height的文字), 数值仍控制 Length
+                    */}
                     <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center mb-3">
                       <span className="w-6 font-bold text-gray-700 text-sm text-center">{getLabel('L')}</span>
                       <input 
@@ -460,13 +465,22 @@
                       />
                       <input 
                         type="text" 
-                        value={labels.length}
-                        onChange={(e) => setLabels({...labels, length: e.target.value})}
+                        value={isSwapped ? labels.height : labels.length}
+                        onChange={(e) => {
+                           const val = e.target.value;
+                           isSwapped 
+                             ? setLabels({...labels, height: val})
+                             : setLabels({...labels, length: val})
+                        }}
                         className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
 
-                    {/* Width (W) -> L if swapped */}
+                    {/* 
+                       Row 2:
+                       - 默认: Width (W)
+                       - 切换: 显示 L (Length的文字), 数值仍控制 Width
+                    */}
                     <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center mb-3">
                       <span className="w-6 font-bold text-gray-700 text-sm text-center">{getLabel('W')}</span>
                       <input 
@@ -477,13 +491,22 @@
                       />
                       <input 
                         type="text" 
-                        value={labels.width}
-                        onChange={(e) => setLabels({...labels, width: e.target.value})}
+                        value={isSwapped ? labels.length : labels.width}
+                        onChange={(e) => {
+                           const val = e.target.value;
+                           isSwapped 
+                             ? setLabels({...labels, length: val})
+                             : setLabels({...labels, width: val})
+                        }}
                         className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
 
-                    {/* Height (T) -> W if swapped */}
+                    {/* 
+                       Row 3:
+                       - 默认: Height (T)
+                       - 切换: 显示 W (Width的文字), 数值仍控制 Height
+                    */}
                     <div className="grid grid-cols-[auto_1fr_1fr] gap-2 items-center">
                       <span className="w-6 font-bold text-gray-700 text-sm text-center">{getLabel('T')}</span>
                       <input 
@@ -494,8 +517,13 @@
                       />
                       <input 
                         type="text" 
-                        value={labels.height}
-                        onChange={(e) => setLabels({...labels, height: e.target.value})}
+                        value={isSwapped ? labels.width : labels.height}
+                        onChange={(e) => {
+                           const val = e.target.value;
+                           isSwapped 
+                             ? setLabels({...labels, width: val})
+                             : setLabels({...labels, height: val})
+                        }}
                         className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-red-600 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     </div>
