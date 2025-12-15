@@ -1,229 +1,345 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>黑底转白底工具by杜文奇</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        .slider-thumb::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #2563eb;
-            cursor: pointer;
-            border-radius: 50%;
-        }
-    </style>
-</head>
-<body class="bg-gray-100 min-h-screen py-8 px-4">
+看截图，你文件里保存的代码还是以 `import React` 开头的。**这段代码浏览器是看不懂的**，所以它直接把代码当成文字显示出来了。
 
-    <div class="max-w-3xl mx-auto space-y-6">
-        <!-- Header -->
-        <div class="text-center space-y-2">
-            <h1 class="text-3xl font-bold text-gray-900">CAD图纸 黑底转白底工具</h1>
-            <p class="text-gray-500">上传黑色背景的CAD截图，一键转换为适合打印的白底黑字图片</p>
-        </div>
+请**彻底删除**你那个文件里的所有内容（或者新建一个空白的 txt 文件，改名为 `CAD工具.html`），然后复制下面这段**全新的代码**。
 
-        <!-- Main Card -->
-        <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200 p-6">
-            
-            <!-- Controls -->
-            <div class="flex flex-col md:flex-row gap-6 mb-6 items-start justify-between bg-gray-50 p-5 rounded-lg border border-gray-100">
-                
-                <!-- Left Controls -->
-                <div class="flex-1 w-full space-y-5">
-                    <!-- Threshold -->
-                    <div>
-                        <div class="flex justify-between mb-2">
-                            <label class="text-sm font-semibold text-gray-700">背景识别阈值 (灵敏度)</label>
-                            <span id="thresholdValue" class="text-blue-600 font-bold">100</span>
-                        </div>
-                        <input type="range" id="threshold" min="10" max="200" value="100" 
-                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb">
-                        <p class="text-xs text-gray-500 mt-2">值越小，保留的线条越多；值越大，去背景越干净。</p>
-                    </div>
+这段代码我特意改成了**纯 HTML 版本**（不含 React，也不需要联网加载样式），**保存后双击就能直接运行**。
 
-                    <!-- Mode -->
-                    <div class="flex items-center gap-4">
-                        <span class="text-sm font-semibold text-gray-700">输出模式:</span>
-                        <div class="flex bg-white rounded-lg border border-gray-200 p-1">
-                            <button id="btnBinary" class="px-4 py-1.5 text-sm rounded-md transition-all bg-blue-100 text-blue-700 font-medium">黑白线条</button>
-                            <button id="btnColor" class="px-4 py-1.5 text-sm rounded-md transition-all text-gray-600 hover:bg-gray-50">保留原色</button>
-                        </div>
-                    </div>
-                </div>
+````artifact
+id: cad-invert-html-standalone
+name: CAD Drawing Inverter (Offline Version)
+type: html
+content: |-
+  <!DOCTYPE html>
+  <html lang="zh-CN">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>CAD图纸黑底转白底工具 - 杜文奇制作</title>
+      <style>
+          body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              background-color: #f3f4f6;
+              color: #1f2937;
+              margin: 0;
+              padding: 20px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              min-height: 100vh;
+          }
+          .container {
+              max-width: 800px;
+              width: 100%;
+              background: white;
+              border-radius: 12px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+              overflow: hidden;
+              margin-top: 20px;
+          }
+          .header {
+              text-align: center;
+              margin-bottom: 20px;
+          }
+          .header h1 {
+              font-size: 24px;
+              margin-bottom: 8px;
+              color: #111827;
+          }
+          .header p {
+              color: #6b7280;
+              font-size: 14px;
+              margin: 0;
+          }
+          .controls {
+              background-color: #f9fafb;
+              padding: 20px;
+              border-bottom: 1px solid #e5e7eb;
+              display: flex;
+              flex-wrap: wrap;
+              gap: 20px;
+              align-items: flex-start;
+              justify-content: space-between;
+          }
+          .control-group {
+              flex: 1;
+              min-width: 250px;
+          }
+          .label-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+              font-size: 14px;
+              font-weight: 600;
+              color: #374151;
+          }
+          .slider {
+              width: 100%;
+              height: 6px;
+              background: #d1d5db;
+              border-radius: 4px;
+              outline: none;
+              -webkit-appearance: none;
+          }
+          .slider::-webkit-slider-thumb {
+              -webkit-appearance: none;
+              width: 20px;
+              height: 20px;
+              background: #2563eb;
+              border-radius: 50%;
+              cursor: pointer;
+          }
+          .btn-group {
+              display: flex;
+              background: white;
+              border: 1px solid #e5e7eb;
+              border-radius: 6px;
+              padding: 4px;
+              width: fit-content;
+              margin-top: 10px;
+          }
+          .btn-mode {
+              padding: 6px 12px;
+              font-size: 14px;
+              border: none;
+              background: none;
+              cursor: pointer;
+              border-radius: 4px;
+              color: #6b7280;
+          }
+          .btn-mode.active {
+              background-color: #eff6ff;
+              color: #1d4ed8;
+              font-weight: 600;
+          }
+          .action-buttons {
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+              min-width: 150px;
+          }
+          .btn {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 10px 16px;
+              border-radius: 6px;
+              font-size: 14px;
+              font-weight: 500;
+              cursor: pointer;
+              transition: background-color 0.2s;
+              border: 1px solid transparent;
+          }
+          .btn-primary {
+              background-color: #2563eb;
+              color: white;
+          }
+          .btn-primary:hover {
+              background-color: #1d4ed8;
+          }
+          .btn-outline {
+              background-color: white;
+              border-color: #d1d5db;
+              color: #374151;
+          }
+          .btn-outline:hover {
+              background-color: #f9fafb;
+          }
+          .btn:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+          }
+          .preview-area {
+              min-height: 300px;
+              background-color: #f3f4f6;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 20px;
+              overflow: auto;
+          }
+          .placeholder {
+              text-align: center;
+              color: #9ca3af;
+          }
+          canvas {
+              max-width: 100%;
+              height: auto;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+              border: 1px solid #e5e7eb;
+          }
+          .footer {
+              margin-top: 20px;
+              text-align: center;
+              font-size: 12px;
+              color: #9ca3af;
+          }
+          .hidden {
+              display: none !important;
+          }
+      </style>
+  </head>
+  <body>
 
-                <!-- Right Buttons -->
-                <div class="flex flex-col gap-3 min-w-[160px] w-full md:w-auto">
-                    <label class="cursor-pointer block w-full">
-                        <input type="file" id="fileInput" accept="image/*" class="hidden" />
-                        <div class="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm w-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            上传图片
-                        </div>
-                    </label>
-                    
-                    <button id="downloadBtn" disabled class="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-400 rounded-lg font-medium text-sm w-full cursor-not-allowed transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        下载结果
-                    </button>
-                </div>
-            </div>
+      <div class="header">
+          <h1>CAD图纸 黑底转白底工具</h1>
+          <p>上传黑色背景的CAD截图，一键转换为适合打印的白底黑字图片</p>
+      </div>
 
-            <!-- Preview Area -->
-            <div id="previewContainer" class="relative min-h-[300px] bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                <!-- Placeholder -->
-                <div id="placeholder" class="text-center text-gray-400 p-8">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-3 opacity-50"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                    <p>点击上方按钮上传图片</p>
-                    <p class="text-sm mt-2">支持 JPG, PNG, BMP</p>
-                </div>
-                
-                <!-- Canvas Wrapper -->
-                <div id="canvasWrapper" class="hidden w-full overflow-auto max-h-[600px] flex justify-center bg-gray-200 p-4">
-                    <canvas id="canvas" class="max-w-full h-auto shadow-md border border-gray-200"></canvas>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="space-y-2 pb-8">
-            <div class="text-xs text-gray-500 text-center">
-                提示：如果结果中红色的字消失了，请尝试调低“阈值”。如果背景有噪点，请调高“阈值”。
-            </div>
-            <div class="text-xs text-gray-400 text-center flex items-center justify-center gap-1 font-medium">
-               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-               <span>本工具由 杜文奇 制作</span>
-            </div>
-        </div>
-    </div>
+      <div class="container">
+          <div class="controls">
+              <div class="control-group">
+                  <div class="label-row">
+                      <span>背景识别阈值 (灵敏度)</span>
+                      <span id="thresholdValue" style="color: #2563eb;">100</span>
+                  </div>
+                  <input type="range" id="threshold" class="slider" min="10" max="200" value="100">
+                  <p style="font-size: 12px; color: #6b7280; margin-top: 5px;">值越小，保留的线条越多；值越大，去背景越干净。</p>
 
-    <script>
-        // Elements
-        const fileInput = document.getElementById('fileInput');
-        const thresholdInput = document.getElementById('threshold');
-        const thresholdValue = document.getElementById('thresholdValue');
-        const btnBinary = document.getElementById('btnBinary');
-        const btnColor = document.getElementById('btnColor');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const placeholder = document.getElementById('placeholder');
-        const canvasWrapper = document.getElementById('canvasWrapper');
+                  <div style="margin-top: 15px;">
+                      <span style="font-size: 14px; font-weight: 600; color: #374151;">输出模式:</span>
+                      <div class="btn-group">
+                          <button class="btn-mode active" id="btnBinary">黑白线条</button>
+                          <button class="btn-mode" id="btnColor">保留原色</button>
+                      </div>
+                  </div>
+              </div>
 
-        // State
-        let originalImage = null;
-        let currentMode = 'binary'; // 'binary' or 'color'
+              <div class="action-buttons">
+                  <label class="btn btn-primary">
+                      <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                      <span>📂 上传图片</span>
+                  </label>
+                  <button id="downloadBtn" class="btn btn-outline" disabled>
+                      <span>⬇️ 下载结果</span>
+                  </button>
+              </div>
+          </div>
 
-        // Event Listeners
-        fileInput.addEventListener('change', handleFileUpload);
-        thresholdInput.addEventListener('input', (e) => {
-            thresholdValue.textContent = e.target.value;
-            processImage();
-        });
-        
-        btnBinary.addEventListener('click', () => setMode('binary'));
-        btnColor.addEventListener('click', () => setMode('color'));
-        
-        downloadBtn.addEventListener('click', () => {
-            if (!originalImage) return;
-            const link = document.createElement('a');
-            link.download = 'cad-converted.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        });
+          <div class="preview-area" id="previewContainer">
+              <div id="placeholder" class="placeholder">
+                  <div style="font-size: 40px; margin-bottom: 10px;">🖼️</div>
+                  <p>点击上方按钮上传图片</p>
+                  <p style="font-size: 12px;">支持 JPG, PNG, BMP</p>
+              </div>
+              <canvas id="canvas" class="hidden"></canvas>
+          </div>
+      </div>
 
-        function setMode(mode) {
-            currentMode = mode;
-            // Update UI
-            if (mode === 'binary') {
-                btnBinary.className = "px-4 py-1.5 text-sm rounded-md transition-all bg-blue-100 text-blue-700 font-medium";
-                btnColor.className = "px-4 py-1.5 text-sm rounded-md transition-all text-gray-600 hover:bg-gray-50";
-            } else {
-                btnColor.className = "px-4 py-1.5 text-sm rounded-md transition-all bg-blue-100 text-blue-700 font-medium";
-                btnBinary.className = "px-4 py-1.5 text-sm rounded-md transition-all text-gray-600 hover:bg-gray-50";
-            }
-            processImage();
-        }
+      <div class="footer">
+          <p>提示：如果结果中红色的字消失了，请尝试调低“阈值”。如果背景有噪点，请调高“阈值”。</p>
+          <p style="margin-top: 5px;">👤 本工具由 杜文奇 制作</p>
+      </div>
 
-        function handleFileUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+      <script>
+          const fileInput = document.getElementById('fileInput');
+          const thresholdInput = document.getElementById('threshold');
+          const thresholdValue = document.getElementById('thresholdValue');
+          const btnBinary = document.getElementById('btnBinary');
+          const btnColor = document.getElementById('btnColor');
+          const downloadBtn = document.getElementById('downloadBtn');
+          const canvas = document.getElementById('canvas');
+          const ctx = canvas.getContext('2d');
+          const placeholder = document.getElementById('placeholder');
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    originalImage = img;
-                    // Show canvas, hide placeholder
-                    placeholder.classList.add('hidden');
-                    canvasWrapper.classList.remove('hidden');
-                    // Enable download
-                    downloadBtn.disabled = false;
-                    downloadBtn.classList.remove('text-gray-400', 'cursor-not-allowed', 'border-gray-300');
-                    downloadBtn.classList.add('text-gray-700', 'hover:bg-gray-50', 'border-gray-300');
-                    
-                    processImage();
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+          let originalImage = null;
+          let currentMode = 'binary'; // 'binary' or 'color'
 
-        function processImage() {
-            if (!originalImage) return;
+          // 监听上传
+          fileInput.addEventListener('change', (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
 
-            const threshold = parseInt(thresholdInput.value);
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                  const img = new Image();
+                  img.onload = () => {
+                      originalImage = img;
+                      placeholder.classList.add('hidden');
+                      canvas.classList.remove('hidden');
+                      downloadBtn.disabled = false;
+                      processImage();
+                  };
+                  img.src = event.target.result;
+              };
+              reader.readAsDataURL(file);
+          });
 
-            // Reset canvas size
-            canvas.width = originalImage.width;
-            canvas.height = originalImage.height;
+          // 监听滑动条
+          thresholdInput.addEventListener('input', (e) => {
+              thresholdValue.textContent = e.target.value;
+              processImage();
+          });
 
-            // Draw original
-            ctx.drawImage(originalImage, 0, 0);
+          // 监听模式切换
+          btnBinary.addEventListener('click', () => {
+              currentMode = 'binary';
+              btnBinary.classList.add('active');
+              btnColor.classList.remove('active');
+              processImage();
+          });
 
-            // Get pixel data
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
+          btnColor.addEventListener('click', () => {
+              currentMode = 'color';
+              btnColor.classList.add('active');
+              btnBinary.classList.remove('active');
+              processImage();
+          });
 
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                // const a = data[i + 3];
+          // 监听下载
+          downloadBtn.addEventListener('click', () => {
+              if (!originalImage) return;
+              const link = document.createElement('a');
+              link.download = 'cad-converted.png';
+              link.href = canvas.toDataURL('image/png');
+              link.click();
+          });
 
-                // Simple logic: if pixel is dark, make it white. 
-                // If pixel is bright (lines), make it black (or keep color).
-                
-                // Calculate max brightness to detect colored lines on black bg
-                const maxVal = Math.max(r, g, b);
+          // 核心处理逻辑
+          function processImage() {
+              if (!originalImage) return;
 
-                if (maxVal < threshold) {
-                    // It's background (dark) -> Make White
-                    data[i] = 255;     // R
-                    data[i + 1] = 255; // G
-                    data[i + 2] = 255; // B
-                    // Alpha remains same (usually 255)
-                } else {
-                    // It's foreground (lines)
-                    if (currentMode === 'binary') {
-                        // Turn Black
-                        data[i] = 0;
-                        data[i + 1] = 0;
-                        data[i + 2] = 0;
-                    } else {
-                        // Keep Color
-                        // Optional: Enhance visibility? 
-                        // For now, keep original pixel values
-                    }
-                }
-            }
+              const threshold = parseInt(thresholdInput.value);
 
-            ctx.putImageData(imageData, 0, 0);
-        }
-    </script>
-</body>
-</html>
+              // 设置画布尺寸
+              canvas.width = originalImage.width;
+              canvas.height = originalImage.height;
+
+              // 绘制原图
+              ctx.drawImage(originalImage, 0, 0);
+
+              // 获取像素数据
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const data = imageData.data;
+
+              for (let i = 0; i < data.length; i += 4) {
+                  const r = data[i];
+                  const g = data[i + 1];
+                  const b = data[i + 2];
+
+                  // 计算最大亮度（针对黑色背景上的亮色线条）
+                  const maxVal = Math.max(r, g, b);
+
+                  if (maxVal < threshold) {
+                      // 背景（暗色） -> 变白
+                      data[i] = 255;     // R
+                      data[i + 1] = 255; // G
+                      data[i + 2] = 255; // B
+                  } else {
+                      // 前景（亮色/线条）
+                      if (currentMode === 'binary') {
+                          // 变黑
+                          data[i] = 0;
+                          data[i + 1] = 0;
+                          data[i + 2] = 0;
+                      } 
+                      // 如果是 color 模式，保持原色，不做处理
+                  }
+              }
+
+              // 将处理后的数据放回画布
+              ctx.putImageData(imageData, 0, 0);
+          }
+      </script>
+  </body>
+  </html>
+````
