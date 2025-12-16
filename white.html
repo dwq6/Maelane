@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>黑底转白 V6.6</title>
+    <title>黑底转白 V6.8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; overflow: hidden; touch-action: none; }
@@ -99,7 +99,7 @@
             <div class="bg-blue-600 text-white p-1 rounded">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
-            <h1 class="text-base font-bold text-gray-800">CAD黑底转白 <span class="text-xs font-normal text-gray-500">V6.6</span></h1>
+            <h1 class="text-base font-bold text-gray-800">CAD黑底转白 <span class="text-xs font-normal text-gray-500">V6.8</span></h1>
         </div>
 
         <div class="flex items-center gap-2">
@@ -160,6 +160,19 @@
                         <div id="propTextGroup" class="space-y-1">
                             <label class="text-xs font-bold text-gray-500">文字内容</label>
                             <input type="text" id="propTextInput" class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" placeholder="输入文字...">
+                        </div>
+
+                        <!-- Color Control (Only for Text) -->
+                        <div id="propColorGroup" class="space-y-1 hidden">
+                            <label class="text-xs font-bold text-gray-500">文字颜色</label>
+                            <div class="flex gap-2">
+                                <button id="colorBlackBtn" class="flex-1 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs font-bold text-gray-800 hover:bg-gray-50 flex items-center justify-center gap-1">
+                                    <span class="w-3 h-3 rounded-full bg-black border border-gray-200"></span> 黑色
+                                </button>
+                                <button id="colorRedBtn" class="flex-1 py-1.5 rounded-lg border-2 border-transparent bg-white text-xs font-bold text-red-600 hover:bg-red-50 flex items-center justify-center gap-1">
+                                    <span class="w-3 h-3 rounded-full bg-red-600"></span> 红色
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Size Control (For Text & Triangle) -->
@@ -243,7 +256,6 @@
 
                         <div class="flex gap-1.5">
                             <button id="btnBinary" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium whitespace-nowrap">黑白线条</button>
-                            <button id="btnColor" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">保留原色</button>
                             <button id="btnOriginal" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">原图模式</button>
                         </div>
 
@@ -280,7 +292,6 @@
         const thresholdDisplay = document.getElementById('thresholdValue');
         
         const btnBinary = document.getElementById('btnBinary');
-        const btnColor = document.getElementById('btnColor');
         const btnOriginal = document.getElementById('btnOriginal');
         
         const btnUpscale = document.getElementById('btnUpscale');
@@ -293,6 +304,10 @@
         // Property Controls
         const closePropsBtn = document.getElementById('closePropsBtn');
         const propTextGroup = document.getElementById('propTextGroup');
+        const propColorGroup = document.getElementById('propColorGroup');
+        const colorBlackBtn = document.getElementById('colorBlackBtn');
+        const colorRedBtn = document.getElementById('colorRedBtn');
+        
         const propSizeGroup = document.getElementById('propSizeGroup');
         const propSizeLabel = document.getElementById('propSizeLabel');
         const propRectGroup = document.getElementById('propRectGroup');
@@ -316,7 +331,7 @@
 
         // --- State ---
         let originalImage = null;
-        let currentMode = 'binary'; // binary, color, original
+        let currentMode = 'binary'; // binary, original
         let isUpscaled = false;
         let scaleFactor = 1; 
         let viewZoom = 1.0; 
@@ -416,10 +431,8 @@
             const inactiveClass = "bg-white text-gray-600 border-gray-300 hover:bg-gray-50";
             
             btnBinary.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'binary' ? activeClass : inactiveClass}`;
-            btnColor.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'color' ? activeClass : inactiveClass}`;
             btnOriginal.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'original' ? activeClass : inactiveClass}`;
 
-            // Disable threshold slider in Original mode
             if (currentMode === 'original') {
                 thresholdControl.classList.add('opacity-50', 'pointer-events-none');
             } else {
@@ -429,12 +442,6 @@
 
         btnBinary.addEventListener('click', () => {
             currentMode = 'binary';
-            updateModeButtons();
-            processImage();
-        });
-
-        btnColor.addEventListener('click', () => {
-            currentMode = 'color';
             updateModeButtons();
             processImage();
         });
@@ -460,11 +467,6 @@
             ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(originalImage, 0, 0, w, h);
 
-            // If Original Mode, stop here (unless upscaling needs post-processing, 
-            // but usually upscaling is done by drawing larger. 
-            // Sharpening is an extra step that can be applied to original too if desired, 
-            // but let's keep it simple: Original = No pixel manipulation).
-            
             const imageData = ctx.getImageData(0, 0, w, h);
             const data = imageData.data;
 
@@ -479,9 +481,8 @@
                     if (maxVal < threshold) {
                         data[i] = 255; data[i+1] = 255; data[i+2] = 255;
                     } else {
-                        if (currentMode === 'binary') {
-                            data[i] = 0; data[i+1] = 0; data[i+2] = 0;
-                        }
+                        // Binary mode: make everything else black
+                        data[i] = 0; data[i+1] = 0; data[i+2] = 0;
                     }
                 }
             }
@@ -507,7 +508,6 @@
             for (let y = 1; y < h - 1; y++) {
                 for (let x = 1; x < w - 1; x++) {
                     const idx = (y * w + x) * 4;
-                    // Don't sharpen white background areas too much to avoid noise
                     if (copy[idx] > 250 && copy[idx+1] > 250 && copy[idx+2] > 250) continue;
                     
                     for (let c = 0; c < 3; c++) {
@@ -554,16 +554,16 @@
             if (type === 'text') {
                 div.classList.add('type-text');
                 div.textContent = "输入文字";
-                div.style.fontSize = "20px";
+                div.style.fontSize = "30px"; // Default Size 30px
+                div.style.color = "black"; 
             } else if (type === 'rect') {
                 div.classList.add('type-rect');
-                div.style.width = "60px";
-                div.style.height = "30px";
+                div.style.width = "80px";  // Default Width 80px
+                div.style.height = "40px"; // Default Height 40px
             } else if (type === 'triangle') {
                 div.classList.add('type-triangle');
                 div.style.width = "20px";
                 div.style.height = "20px";
-                // SVG Triangle: Points DOWN
                 div.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="display:block; overflow:visible;">
                     <path d="M0 0 L100 0 L50 100 Z" fill="black"/>
                 </svg>`;
@@ -594,6 +594,7 @@
                 const type = el.dataset.type;
                 if (type === 'text') {
                     propTextGroup.classList.remove('hidden');
+                    propColorGroup.classList.remove('hidden'); 
                     propSizeGroup.classList.remove('hidden');
                     propRectGroup.classList.add('hidden');
                     
@@ -602,9 +603,12 @@
                     const size = parseInt(window.getComputedStyle(el).fontSize);
                     propSizeInput.value = size;
                     propSizeVal.textContent = size + 'px';
+                    
+                    updateColorButtons(el.style.color || 'black');
+
                 } else if (type === 'triangle') {
-                    // Triangle uses Size group for proportional scaling
                     propTextGroup.classList.add('hidden');
+                    propColorGroup.classList.add('hidden');
                     propSizeGroup.classList.remove('hidden');
                     propRectGroup.classList.add('hidden');
 
@@ -613,8 +617,8 @@
                     propSizeInput.value = w;
                     propSizeVal.textContent = w + 'px';
                 } else {
-                    // Rect uses Rect group
                     propTextGroup.classList.add('hidden');
+                    propColorGroup.classList.add('hidden');
                     propSizeGroup.classList.add('hidden');
                     propRectGroup.classList.remove('hidden');
                     
@@ -629,6 +633,19 @@
             } else {
                 activeItem = null;
                 propertiesPanel.classList.add('hidden');
+            }
+        }
+
+        function updateColorButtons(color) {
+            const isRed = color === 'red' || color === 'rgb(255, 0, 0)' || color === '#ff0000';
+            if (isRed) {
+                colorRedBtn.classList.add('ring-2', 'ring-red-300', 'bg-red-50');
+                colorBlackBtn.classList.remove('ring-2', 'ring-gray-300', 'bg-gray-100');
+                colorBlackBtn.classList.add('border-gray-300');
+            } else {
+                colorBlackBtn.classList.add('ring-2', 'ring-gray-300', 'bg-gray-100');
+                colorBlackBtn.classList.remove('border-gray-300');
+                colorRedBtn.classList.remove('ring-2', 'ring-red-300', 'bg-red-50');
             }
         }
 
@@ -650,7 +667,20 @@
             if(activeItem && activeItem.dataset.type === 'text') activeItem.textContent = e.target.value;
         });
 
-        // Handles both Text Size and Triangle Scale
+        colorBlackBtn.addEventListener('click', () => {
+            if(activeItem && activeItem.dataset.type === 'text') {
+                activeItem.style.color = 'black';
+                updateColorButtons('black');
+            }
+        });
+
+        colorRedBtn.addEventListener('click', () => {
+            if(activeItem && activeItem.dataset.type === 'text') {
+                activeItem.style.color = 'red';
+                updateColorButtons('red');
+            }
+        });
+
         propSizeInput.addEventListener('input', (e) => {
             if(!activeItem) return;
             const val = e.target.value;
@@ -776,7 +806,7 @@
                     tCtx.fillRect(-width/2, -height/2, width, height);
                     // Draw Text
                     tCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-                    tCtx.fillStyle = "black";
+                    tCtx.fillStyle = style.color;
                     tCtx.textAlign = "center";
                     tCtx.textBaseline = "middle";
                     tCtx.fillText(item.textContent, 0, 2); 
