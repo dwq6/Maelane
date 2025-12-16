@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>黑底转白 V6.5</title>
+    <title>黑底转白 V6.6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; overflow: hidden; touch-action: none; }
@@ -99,7 +99,7 @@
             <div class="bg-blue-600 text-white p-1 rounded">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
-            <h1 class="text-base font-bold text-gray-800">CAD黑底转白 <span class="text-xs font-normal text-gray-500">V6.5</span></h1>
+            <h1 class="text-base font-bold text-gray-800">CAD黑底转白 <span class="text-xs font-normal text-gray-500">V6.6</span></h1>
         </div>
 
         <div class="flex items-center gap-2">
@@ -233,7 +233,7 @@
                     </div>
                     
                     <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-3">
-                        <div>
+                        <div id="thresholdControl">
                             <div class="flex justify-between mb-1">
                                 <label class="text-xs font-medium text-gray-600">去黑底阈值</label>
                                 <span id="thresholdValue" class="text-xs text-blue-600 font-bold">100</span>
@@ -241,9 +241,10 @@
                             <input type="range" id="threshold" min="10" max="200" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb">
                         </div>
 
-                        <div class="flex gap-2">
-                            <button id="btnBinary" class="flex-1 py-2 text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium">黑白线条</button>
-                            <button id="btnColor" class="flex-1 py-2 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium">保留原色</button>
+                        <div class="flex gap-1.5">
+                            <button id="btnBinary" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium whitespace-nowrap">黑白线条</button>
+                            <button id="btnColor" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">保留原色</button>
+                            <button id="btnOriginal" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">原图模式</button>
                         </div>
 
                         <button id="btnUpscale" disabled class="w-full py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded hover:bg-purple-100 transition-colors text-xs font-bold disabled:opacity-50">
@@ -274,10 +275,14 @@
         const propertiesPanel = document.getElementById('propertiesPanel');
         
         // Global Controls
+        const thresholdControl = document.getElementById('thresholdControl');
         const thresholdInput = document.getElementById('threshold');
         const thresholdDisplay = document.getElementById('thresholdValue');
+        
         const btnBinary = document.getElementById('btnBinary');
         const btnColor = document.getElementById('btnColor');
+        const btnOriginal = document.getElementById('btnOriginal');
+        
         const btnUpscale = document.getElementById('btnUpscale');
         const upscaleText = document.getElementById('upscaleText');
         const addTextBtn = document.getElementById('addTextBtn');
@@ -311,7 +316,7 @@
 
         // --- State ---
         let originalImage = null;
-        let currentMode = 'binary';
+        let currentMode = 'binary'; // binary, color, original
         let isUpscaled = false;
         let scaleFactor = 1; 
         let viewZoom = 1.0; 
@@ -403,20 +408,40 @@
 
         thresholdInput.addEventListener('input', (e) => {
             thresholdDisplay.textContent = e.target.value;
-            processImage();
+            if (currentMode !== 'original') processImage();
         });
+
+        function updateModeButtons() {
+            const activeClass = "bg-blue-600 text-white border-blue-600";
+            const inactiveClass = "bg-white text-gray-600 border-gray-300 hover:bg-gray-50";
+            
+            btnBinary.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'binary' ? activeClass : inactiveClass}`;
+            btnColor.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'color' ? activeClass : inactiveClass}`;
+            btnOriginal.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'original' ? activeClass : inactiveClass}`;
+
+            // Disable threshold slider in Original mode
+            if (currentMode === 'original') {
+                thresholdControl.classList.add('opacity-50', 'pointer-events-none');
+            } else {
+                thresholdControl.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
 
         btnBinary.addEventListener('click', () => {
             currentMode = 'binary';
-            btnBinary.className = "flex-1 py-2 text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium";
-            btnColor.className = "flex-1 py-2 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium";
+            updateModeButtons();
             processImage();
         });
 
         btnColor.addEventListener('click', () => {
             currentMode = 'color';
-            btnColor.className = "flex-1 py-2 text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium";
-            btnBinary.className = "flex-1 py-2 text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium";
+            updateModeButtons();
+            processImage();
+        });
+
+        btnOriginal.addEventListener('click', () => {
+            currentMode = 'original';
+            updateModeButtons();
             processImage();
         });
 
@@ -435,21 +460,28 @@
             ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(originalImage, 0, 0, w, h);
 
+            // If Original Mode, stop here (unless upscaling needs post-processing, 
+            // but usually upscaling is done by drawing larger. 
+            // Sharpening is an extra step that can be applied to original too if desired, 
+            // but let's keep it simple: Original = No pixel manipulation).
+            
             const imageData = ctx.getImageData(0, 0, w, h);
             const data = imageData.data;
-            const threshold = parseInt(thresholdInput.value);
 
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const maxVal = Math.max(r, g, b);
+            if (currentMode !== 'original') {
+                const threshold = parseInt(thresholdInput.value);
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    const maxVal = Math.max(r, g, b);
 
-                if (maxVal < threshold) {
-                    data[i] = 255; data[i+1] = 255; data[i+2] = 255;
-                } else {
-                    if (currentMode === 'binary') {
-                        data[i] = 0; data[i+1] = 0; data[i+2] = 0;
+                    if (maxVal < threshold) {
+                        data[i] = 255; data[i+1] = 255; data[i+2] = 255;
+                    } else {
+                        if (currentMode === 'binary') {
+                            data[i] = 0; data[i+1] = 0; data[i+2] = 0;
+                        }
                     }
                 }
             }
@@ -475,7 +507,9 @@
             for (let y = 1; y < h - 1; y++) {
                 for (let x = 1; x < w - 1; x++) {
                     const idx = (y * w + x) * 4;
+                    // Don't sharpen white background areas too much to avoid noise
                     if (copy[idx] > 250 && copy[idx+1] > 250 && copy[idx+2] > 250) continue;
+                    
                     for (let c = 0; c < 3; c++) {
                         const val = 5 * copy[idx + c]
                             - copy[((y-1)*w + x) * 4 + c]
