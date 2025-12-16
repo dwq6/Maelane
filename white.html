@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>黑底转白</title>
+    <title>黑底转白 V6.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; overflow: hidden; touch-action: none; }
@@ -27,7 +27,7 @@
         /* Text Box Styles */
         .overlay-item {
             position: absolute;
-            background-color: white;
+            background-color: transparent;
             border: 1px dashed transparent;
             cursor: move;
             transform-origin: center center;
@@ -37,6 +37,7 @@
         
         /* Text specific */
         .type-text {
+            background-color: white;
             padding: 2px 4px;
             font-family: "Microsoft YaHei", sans-serif;
             font-weight: bold;
@@ -48,7 +49,12 @@
 
         /* Rect specific */
         .type-rect {
-            /* No specific styles needed, size set by style width/height */
+            background-color: white;
+        }
+
+        /* Triangle specific */
+        .type-triangle {
+            /* SVG handles the shape */
         }
         
         .overlay-item:hover, .overlay-item.active {
@@ -57,15 +63,6 @@
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
         }
         
-        .overlay-item.active {
-            background-color: #eff6ff; /* Light blue hint when active */
-        }
-        /* Rects should stay white but have border when active, override bg color for rects to keep them useful as masks */
-        .type-rect.active {
-            background-color: white; 
-            box-shadow: 0 0 0 2px #2563eb; /* Stronger border for rects */
-        }
-
         /* Canvas Container */
         #canvas-viewport {
             overflow: auto;
@@ -102,7 +99,7 @@
             <div class="bg-blue-600 text-white p-1 rounded">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
-            <h1 class="text-base font-bold text-gray-800">CAD黑底转白 <span class="text-xs font-normal text-gray-500">V6.1</span></h1>
+            <h1 class="text-base font-bold text-gray-800">CAD黑底转白 <span class="text-xs font-normal text-gray-500">V6.5</span></h1>
         </div>
 
         <div class="flex items-center gap-2">
@@ -165,16 +162,16 @@
                             <input type="text" id="propTextInput" class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" placeholder="输入文字...">
                         </div>
 
-                        <!-- Size Control (For Text) -->
+                        <!-- Size Control (For Text & Triangle) -->
                         <div id="propSizeGroup" class="space-y-1">
                             <div class="flex justify-between">
-                                <label class="text-xs font-bold text-gray-500">字号大小</label>
+                                <label id="propSizeLabel" class="text-xs font-bold text-gray-500">字号大小</label>
                                 <span id="propSizeVal" class="text-xs text-blue-600 font-bold">30px</span>
                             </div>
-                            <input type="range" id="propSizeInput" min="10" max="200" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                            <input type="range" id="propSizeInput" min="10" max="300" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb">
                         </div>
 
-                        <!-- Dimensions Control (For Rect) -->
+                        <!-- Dimensions Control (For Rect Only) -->
                         <div id="propRectGroup" class="space-y-3 hidden">
                             <div class="space-y-1">
                                 <div class="flex justify-between">
@@ -196,7 +193,7 @@
                         <div class="grid grid-cols-2 gap-2">
                             <button id="propRotateBtn" class="flex items-center justify-center gap-1 py-2 bg-white text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-xs transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                                逆转90°
+                                逆转45°
                             </button>
                             <button id="propDeleteBtn" class="flex items-center justify-center gap-1 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 font-bold text-xs transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -212,11 +209,15 @@
                     <div class="grid grid-cols-2 gap-3">
                         <button id="addTextBtn" disabled class="flex flex-col items-center justify-center gap-2 p-4 bg-gray-800 text-white rounded-xl active:scale-95 transition-transform shadow-md disabled:opacity-50">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon></svg>
-                            <span class="text-xs font-bold">文字遮盖</span>
+                            <span class="text-xs font-bold">文字</span>
                         </button>
                         <button id="addRectBtn" disabled class="flex flex-col items-center justify-center gap-2 p-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl active:scale-95 transition-transform shadow-sm hover:border-gray-300 disabled:opacity-50">
                             <div class="w-6 h-6 border-2 border-current bg-gray-100"></div>
-                            <span class="text-xs font-bold">白色矩形</span>
+                            <span class="text-xs font-bold">遮盖</span>
+                        </button>
+                        <button id="addTriangleBtn" disabled class="flex flex-col items-center justify-center gap-2 p-4 bg-white border-2 border-gray-200 text-black rounded-xl active:scale-95 transition-transform shadow-sm hover:border-gray-300 disabled:opacity-50 col-span-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="black" stroke="currentColor" stroke-width="0"><path d="M12 22L2 2h20L12 22z"/></svg>
+                            <span class="text-xs font-bold">磨光</span>
                         </button>
                     </div>
                 </div>
@@ -281,12 +282,14 @@
         const upscaleText = document.getElementById('upscaleText');
         const addTextBtn = document.getElementById('addTextBtn');
         const addRectBtn = document.getElementById('addRectBtn');
+        const addTriangleBtn = document.getElementById('addTriangleBtn');
         const downloadBtn = document.getElementById('downloadBtn');
         
         // Property Controls
         const closePropsBtn = document.getElementById('closePropsBtn');
         const propTextGroup = document.getElementById('propTextGroup');
         const propSizeGroup = document.getElementById('propSizeGroup');
+        const propSizeLabel = document.getElementById('propSizeLabel');
         const propRectGroup = document.getElementById('propRectGroup');
         
         const propTextInput = document.getElementById('propTextInput');
@@ -312,7 +315,7 @@
         let isUpscaled = false;
         let scaleFactor = 1; 
         let viewZoom = 1.0; 
-        let activeItem = null; // Can be Text or Rect
+        let activeItem = null; 
 
         // --- Initialization ---
         
@@ -358,6 +361,7 @@
             
             addTextBtn.disabled = false;
             addRectBtn.disabled = false;
+            addTriangleBtn.disabled = false;
             downloadBtn.disabled = false;
 
             const existingItems = document.querySelectorAll('.overlay-item');
@@ -484,7 +488,7 @@
             }
         }
 
-        // --- Item Creation (Text & Rect) ---
+        // --- Item Creation (Text, Rect, Triangle) ---
 
         addTextBtn.addEventListener('click', () => {
             const cx = canvas.width / 2;
@@ -496,6 +500,12 @@
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
             createItem('rect', cx - 50, cy - 25);
+        });
+
+        addTriangleBtn.addEventListener('click', () => {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            createItem('triangle', cx - 10, cy - 10);
         });
 
         function createItem(type, x, y) {
@@ -510,11 +520,19 @@
             if (type === 'text') {
                 div.classList.add('type-text');
                 div.textContent = "输入文字";
-                div.style.fontSize = "30px";
-            } else {
+                div.style.fontSize = "20px";
+            } else if (type === 'rect') {
                 div.classList.add('type-rect');
-                div.style.width = "100px";
-                div.style.height = "50px";
+                div.style.width = "60px";
+                div.style.height = "30px";
+            } else if (type === 'triangle') {
+                div.classList.add('type-triangle');
+                div.style.width = "20px";
+                div.style.height = "20px";
+                // SVG Triangle: Points DOWN
+                div.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="display:block; overflow:visible;">
+                    <path d="M0 0 L100 0 L50 100 Z" fill="black"/>
+                </svg>`;
             }
 
             addDragEvents(div);
@@ -545,11 +563,23 @@
                     propSizeGroup.classList.remove('hidden');
                     propRectGroup.classList.add('hidden');
                     
+                    propSizeLabel.textContent = "字号大小";
                     propTextInput.value = el.textContent;
                     const size = parseInt(window.getComputedStyle(el).fontSize);
                     propSizeInput.value = size;
                     propSizeVal.textContent = size + 'px';
+                } else if (type === 'triangle') {
+                    // Triangle uses Size group for proportional scaling
+                    propTextGroup.classList.add('hidden');
+                    propSizeGroup.classList.remove('hidden');
+                    propRectGroup.classList.add('hidden');
+
+                    propSizeLabel.textContent = "尺寸大小";
+                    const w = parseInt(el.style.width);
+                    propSizeInput.value = w;
+                    propSizeVal.textContent = w + 'px';
                 } else {
+                    // Rect uses Rect group
                     propTextGroup.classList.add('hidden');
                     propSizeGroup.classList.add('hidden');
                     propRectGroup.classList.remove('hidden');
@@ -572,7 +602,8 @@
             if (!e.target.closest('.overlay-item') && 
                 !e.target.closest('#propertiesPanel') && 
                 !e.target.closest('#addTextBtn') &&
-                !e.target.closest('#addRectBtn')) {
+                !e.target.closest('#addRectBtn') &&
+                !e.target.closest('#addTriangleBtn')) {
                 setActiveItem(null);
             }
         });
@@ -585,10 +616,17 @@
             if(activeItem && activeItem.dataset.type === 'text') activeItem.textContent = e.target.value;
         });
 
+        // Handles both Text Size and Triangle Scale
         propSizeInput.addEventListener('input', (e) => {
-            if(activeItem && activeItem.dataset.type === 'text') {
-                activeItem.style.fontSize = e.target.value + 'px';
-                propSizeVal.textContent = e.target.value + 'px';
+            if(!activeItem) return;
+            const val = e.target.value;
+            propSizeVal.textContent = val + 'px';
+
+            if(activeItem.dataset.type === 'text') {
+                activeItem.style.fontSize = val + 'px';
+            } else if (activeItem.dataset.type === 'triangle') {
+                activeItem.style.width = val + 'px';
+                activeItem.style.height = val + 'px';
             }
         });
 
@@ -609,7 +647,7 @@
         propRotateBtn.addEventListener('click', () => {
             if(activeItem) {
                 let currentRot = parseInt(activeItem.dataset.rotation || 0);
-                currentRot -= 90;
+                currentRot -= 45;
                 activeItem.dataset.rotation = currentRot;
                 activeItem.style.transform = `rotate(${currentRot}deg)`;
             }
@@ -698,17 +736,32 @@
                 tCtx.translate(x, y);
                 tCtx.rotate(angle * Math.PI / 180);
 
-                // Draw White Background (For both Text and Rect)
-                tCtx.fillStyle = "white";
-                tCtx.fillRect(-width/2, -height/2, width, height);
-
-                // Draw Text Content (Only if text)
                 if (type === 'text') {
+                    // Draw White Background
+                    tCtx.fillStyle = "white";
+                    tCtx.fillRect(-width/2, -height/2, width, height);
+                    // Draw Text
                     tCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
                     tCtx.fillStyle = "black";
                     tCtx.textAlign = "center";
                     tCtx.textBaseline = "middle";
                     tCtx.fillText(item.textContent, 0, 2); 
+                } else if (type === 'rect') {
+                    // Draw White Rect
+                    tCtx.fillStyle = "white";
+                    tCtx.fillRect(-width/2, -height/2, width, height);
+                } else if (type === 'triangle') {
+                    // Draw Black Triangle (Pointing DOWN)
+                    tCtx.fillStyle = "black";
+                    tCtx.beginPath();
+                    // Top Left
+                    tCtx.moveTo(-width/2, -height/2);
+                    // Top Right
+                    tCtx.lineTo(width/2, -height/2);
+                    // Bottom Center
+                    tCtx.lineTo(0, height/2);
+                    tCtx.closePath();
+                    tCtx.fill();
                 }
 
                 tCtx.restore();
