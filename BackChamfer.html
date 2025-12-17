@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>背倒+倒角</title>
+    <title>背倒</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -336,9 +336,7 @@
     }
 
     function onWidthChange() {
-        const w = parseInt(widthInput.value) || 0;
-        heightInput.value = w; 
-        calculateRemain();
+        // 修改：切宽改变时不再同步修改切深
         updateAll();
     }
 
