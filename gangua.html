@@ -1,197 +1,729 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>梅兰干挂槽</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<style>body{margin:0;font-family:sans-serif}::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:#f1f1f1}::-webkit-scrollbar-thumb{background:#ccc;border-radius:4px}::-webkit-scrollbar-thumb:hover{background:#aaa}</style>
-</head><body><div id="root"></div><script type="text/babel">
-const { useState, useRef } = React;
-const Icons={Settings:({c})=><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={c}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,Download:({c})=><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={c}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>};
-
-const CADGeneratorV100 = () => {
-  const svgRef = useRef(null);
-  const [params, setParams] = useState({
-    L: 600, W: 450, thickness: 30, textL: 'L', textW: 'W',
-    posType: 'ratio', posValue: 100, vSlotLen: 100, hSlotLen: 100, slotWidth: 10, slotDepth: 15,
-    backSlotWidth: 10, backSlotDepth: 15, topType: 'edge', hasBottomEdge: true, hasBottomBack: false, vSlotCount: 2, backDist: 150,
-    hSlotCount: 2, hasLeftEdge: false, hasRightEdge: false, noteText: 'L > 450', showSlotDist: false,
-    visL: true, visW: true, visThick: true, visSlotLen: true, visSlotW: true, visSlotD: true, visPos: true,
-    showTriangle: true
-  });
-  const [view, setView] = useState({side: false, bottom: false, note: false});
-  const blueColor = "#3b82f6"; 
-  const getAutoRatio = (c) => c === 1 ? 0.5 : 0.25;
-  const getXDist = () => params.posType === 'ratio' ? params.L * getAutoRatio(params.vSlotCount) : params.posValue;
-  const getYDist = () => params.posType === 'ratio' ? params.W * getAutoRatio(params.hSlotCount) : params.posValue;
-  const getPosText = (c) => params.posType === 'ratio' ? (c === 1 ? '1/2' : '1/4') : params.posValue;
-
-  const handleDownload = () => {
-      const svg = svgRef.current; if (!svg) return;
-      let source = new XMLSerializer().serializeToString(svg);
-      if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-      const url = URL.createObjectURL(new Blob([source], {type:"image/svg+xml;charset=utf-8"}));
-      const img = new Image();
-      img.onload = () => {
-          const canvas = document.createElement("canvas"); const scale = 4; 
-          const rect = svg.getBoundingClientRect();
-          canvas.width = rect.width * scale; canvas.height = rect.height * scale;
-          const ctx = canvas.getContext("2d");
-          ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const a = document.createElement("a"); a.download = `CAD_${new Date().getTime()}.png`; a.href = canvas.toDataURL("image/png"); a.click();
-          URL.revokeObjectURL(url);
-      };
-      img.src = url;
-  };
-
-  const padding = 120, extraLeftPadding = 100, gap = 250, rightMargin = 120, sectionViewGap = 250, sectionViewHeight = 150;
-  let vbX, vbY, vbW, vbH;
-  if (view.side) { vbX = -padding; vbW = params.thickness + gap + params.L + padding + rightMargin; } 
-  else { vbX = (params.thickness + gap) - padding - extraLeftPadding; vbW = params.L + padding * 2 + rightMargin + extraLeftPadding; }
-  if (view.bottom) { vbY = -(padding + 40); vbH = params.W + padding * 2 + sectionViewGap + sectionViewHeight + 40; } 
-  else { vbY = -(padding + 40); vbH = params.W + padding * 2 + 40; }
-  const viewBox = `${vbX} ${vbY} ${vbW} ${vbH}`;
-
-  const DimLine = ({ x1, y1, x2, y2, text, offset=0, startOffset=8, textShift=0, pos='top', color='red', hideLine=false, verticalText=false, fontSize=14, visible=true }) => {
-    if (!visible) return null;
-    const overshoot = 5, isBlue = color === blueColor;
-    let lx1, ly1, lx2, ly2, ex1_sx, ex1_sy, ex1_ex, ex1_ey, ex2_sx, ex2_sy, ex2_ex, ex2_ey, tx, ty;
-    if (pos === 'top') {
-      const dimY = Math.min(y1, y2) - offset; lx1=x1; lx2=x2; ly1=dimY; ly2=dimY;
-      ex1_sx=x1; ex1_sy=y1-startOffset; ex1_ex=x1; ex1_ey=dimY-overshoot; ex2_sx=x2; ex2_sy=y2-startOffset; ex2_ex=x2; ex2_ey=dimY-overshoot; tx=(x1+x2)/2; ty=dimY-8-textShift;
-    } else if (pos === 'bottom') {
-      const dimY = Math.max(y1, y2) + offset; lx1=x1; lx2=x2; ly1=dimY; ly2=dimY;
-      ex1_sx=x1; ex1_sy=y1+startOffset; ex1_ex=x1; ex1_ey=dimY+overshoot; ex2_sx=x2; ex2_sy=y2+startOffset; ex2_ex=x2; ex2_ey=dimY+overshoot; tx=(x1+x2)/2; ty=dimY+16+textShift;
-    } else if (pos === 'left') {
-      const dimX = Math.min(x1, x2) - offset; lx1=dimX; lx2=dimX; ly1=y1; ly2=y2;
-      ex1_sx=x1-startOffset; ex1_sy=y1; ex1_ex=dimX-overshoot; ex1_ey=y1; ex2_sx=x2-startOffset; ex2_sy=y2; ex2_ex=dimX-overshoot; ex2_ey=y2; tx=dimX-8-textShift; ty=(y1+y2)/2;
-    } else {
-      const dimX = Math.max(x1, x2) + offset; lx1=dimX; lx2=dimX; ly1=y1; ly2=y2;
-      ex1_sx=x1+startOffset; ex1_sy=y1; ex1_ex=dimX-overshoot; ex1_ey=y1; ex2_sx=x2+startOffset; ex2_sy=y2; ex2_ex=dimX-overshoot; ex2_ey=y2; tx=dimX+8+textShift; ty=(y1+y2)/2;
-    }
-    return (<g className="cad-dim">{!hideLine && <><line x1={ex1_sx} y1={ex1_sy} x2={ex1_ex} y2={ex1_ey} stroke={color} strokeWidth="0.5" /><line x1={ex2_sx} y1={ex2_sy} x2={ex2_ex} y2={ex2_ey} stroke={color} strokeWidth="0.5" /></>}<line x1={lx1} y1={ly1} x2={lx2} y2={ly2} stroke={color} strokeWidth="0.8" markerStart={isBlue?'':"url(#dot-marker)"} markerEnd={isBlue?'':"url(#dot-marker)"} />{isBlue && <><circle cx={lx1} cy={ly1} r="2" fill={color} /><circle cx={lx2} cy={ly2} r="2" fill={color} /></>}<text x={tx} y={ty} fill={color} fontSize={fontSize} fontFamily="Arial" textAnchor="middle" dominantBaseline="middle" transform={verticalText ? `rotate(-90 ${tx} ${ty})` : undefined}>{text}</text></g>);
-  };
-
-  const InnerPosDim = ({ start, end, refPos, text, isVertical, featureLoc, hasStartExt, visible=true }) => {
-      if (!visible) return null;
-      if (isVertical) return (<g><line x1={refPos} y1={start} x2={refPos} y2={end} stroke="red" strokeWidth="0.8" markerEnd="url(#dot-marker)" /><circle cx={refPos} cy={start} r="2.5" fill="red" /><text x={refPos - 10} y={(start + end)/2} fill="red" fontSize="14" textAnchor="middle" dominantBaseline="middle" transform={`rotate(-90 ${refPos - 10} ${(start + end)/2})`}>{text}</text>{featureLoc!==undefined && <><line x1={featureLoc} y1={end} x2={refPos} y2={end} stroke="red" strokeWidth="0.5" /><circle cx={featureLoc} cy={end} r="2.5" fill="red" /></>}
-      {hasStartExt && <line x1={featureLoc} y1={start} x2={refPos} y2={start} stroke="red" strokeWidth="0.5" />}
-      </g>);
-      return (<g><line x1={start} y1={refPos} x2={end} y2={refPos} stroke="red" strokeWidth="0.8" markerEnd="url(#dot-marker)" /><circle cx={start} cy={refPos} r="2.5" fill="red" /><text x={(start + end)/2} y={refPos - 8} fill="red" fontSize="14" textAnchor="middle" dominantBaseline="middle">{text}</text>{featureLoc!==undefined && <><line x1={end} y1={refPos} x2={end} y2={featureLoc} stroke="red" strokeWidth="0.5" /><circle cx={end} cy={featureLoc} r="2.5" fill="red" /></>}{hasStartExt && <line x1={start} y1={refPos} x2={start} y2={featureLoc} stroke="red" strokeWidth="0.5" />}</g>);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>干挂槽</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; font-family: sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+        .input-group label { font-size: 0.75rem; color: #9ca3af; display: block; margin-bottom: 0.25rem; }
+        .input-group input { width: 100%; border: 1px solid #e5e7eb; border-radius: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+        .section-title { font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .btn-toggle { flex: 1; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem; border: 1px solid #d1d5db; background-color: white; color: #4b5563; cursor: pointer; }
+        .btn-toggle.active { background-color: #2563eb; color: white; border-color: #2563eb; }
+        .checkbox-wrapper { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: #6b7280; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
-  const RightVerticalDepthDim = ({ x, y, len, depth, isTop=true, visible=true, isRightSide=false }) => {
-      if (!visible) return null;
-      const dir = isRightSide ? -1 : 1; 
-      const startX = x + (len/2 * dir);
-      const offset = 5;
-      const extLen = 15 + offset;
-      const dimX = startX + ((11 + offset) * dir);
-      const textX = dimX + (12 * dir);
-      const textY = isTop ? y + depth/2 : y - depth/2;
-      const depthEndY = isTop ? y + depth : y - depth;
-      return (<g>
-          <line x1={startX + (5*dir)} y1={y} x2={startX + (extLen*dir)} y2={y} stroke="red" strokeWidth="0.5" />
-          <line x1={x + (5*dir)} y1={depthEndY} x2={startX + (extLen*dir)} y2={depthEndY} stroke="red" strokeWidth="0.5" />
-          <line x1={dimX} y1={y} x2={dimX} y2={depthEndY} stroke="red" strokeWidth="0.8" markerStart="url(#dot-marker)" markerEnd="url(#dot-marker)" />
-          <text x={textX} y={textY} fill="red" fontSize="12" textAnchor="middle" dominantBaseline="middle" transform={`rotate(-90 ${textX} ${textY})`}>{depth}</text>
-      </g>);
-  }
-  const SideSlotDepthDim = ({ x, y, len, depth, isLeft, visible=true }) => {
-      if (!visible) return null;
-      const startY=y+len/2, offset=5, extLen=15+offset, dimY=startY+11+offset, textY=dimY+12, depthEndX=isLeft?x+depth:x-depth;
-      const textX = (x + depthEndX) / 2;
-      const textY_Label = dimY - 5; 
-      return (<g><line x1={x} y1={startY+5} x2={x} y2={startY+extLen} stroke="red" strokeWidth="0.5" /><line x1={depthEndX} y1={y+5} x2={depthEndX} y2={startY+extLen} stroke="red" strokeWidth="0.5" /><line x1={x} y1={dimY} x2={depthEndX} y2={dimY} stroke="red" strokeWidth="0.8" markerStart="url(#dot-marker)" markerEnd="url(#dot-marker)" /><text x={textX} y={textY_Label} fill="red" fontSize="12" textAnchor="middle" dominantBaseline="baseline">{depth}</text></g>);
-  }
-  const SmoothArcSlot = ({ x, y, len, depth, isTop, panelL, posText }) => {
-      const path = isTop ? `M ${x-len/2} ${y} Q ${x} ${y+depth*2} ${x+len/2} ${y}` : `M ${x-len/2} ${y} Q ${x} ${y-depth*2} ${x+len/2} ${y}`;
-      const isRightSide = x > panelL / 2;
-      return (<g><path d={path} fill="white" stroke="black" strokeWidth="1.2" /><line x1={x-len/2} y1={y} x2={x+len/2} y2={y} stroke="black" strokeWidth="2" /><DimLine x1={x-len/2} y1={y} x2={x+len/2} y2={y} text={len} offset={25} startOffset={0} pos={isTop?'top':'bottom'} visible={params.visSlotLen} /><RightVerticalDepthDim x={x} y={y} len={len} depth={depth} isTop={isTop} visible={params.visSlotD} isRightSide={isRightSide} />{x < panelL/2 ? <InnerPosDim start={0} end={x} refPos={isTop?-60:y+60} text={posText} featureLoc={y} hasStartExt={true} visible={params.visPos} /> : <InnerPosDim start={panelL} end={x} refPos={isTop?-60:y+60} text={posText} featureLoc={y} hasStartExt={true} visible={params.visPos} />}</g>);
-  }
-  const SmoothArcSlotSide = ({ x, y, len, depth, isLeft, panelW, posText }) => {
-      const path = isLeft ? `M ${x} ${y-len/2} Q ${x+depth*2} ${y} ${x} ${y+len/2}` : `M ${x} ${y-len/2} Q ${x-depth*2} ${y} ${x} ${y+len/2}`;
-      return (<g><path d={path} fill="white" stroke="black" strokeWidth="1.2" /><line x1={x} y1={y-len/2} x2={x} y2={y+len/2} stroke="black" strokeWidth="2" /><DimLine x1={x} y1={y-len/2} x2={x} y2={y+len/2} text={len} offset={12} startOffset={0} pos={isLeft?'left':'right'} verticalText={true} visible={params.visSlotLen} /><SideSlotDepthDim x={x} y={y} len={len} depth={depth} isLeft={isLeft} visible={params.visSlotD} /><InnerPosDim start={y<panelW/2?0:panelW} end={y} refPos={isLeft?x+50:x-50} text={posText} isVertical={true} featureLoc={x} hasStartExt={true} visible={params.visPos} /></g>);
-  }
-  const BackSlotShape = ({ x, y, w, h, dist, isTop, panelL, panelW, posText }) => {
-      const slotTopY = panelW - dist;
-      return (<g><rect x={x-w/2} y={slotTopY} width={w} height={h} fill="white" stroke="black" strokeWidth="1.2" /><DimLine x1={x-w/2} y1={slotTopY} x2={x+w/2} y2={slotTopY} text={w} offset={15} startOffset={0} pos="top" visible={params.visSlotLen} />
-      {/* 新增：背槽宽度标注 */}
-      <DimLine x1={x-w/2} y1={slotTopY} x2={x-w/2} y2={slotTopY+h} text={h} offset={10} startOffset={0} pos="left" verticalText={true} visible={params.visSlotW} />
-      {x < panelL/2 ? <InnerPosDim start={0} end={x} refPos={panelW+60} text={posText} featureLoc={slotTopY+h} hasStartExt={true} visible={params.visPos} /> : <InnerPosDim start={panelL} end={x} refPos={panelW+60} text={posText} featureLoc={slotTopY+h} hasStartExt={true} visible={params.visPos} />}</g>);
-  }
-  const BottomSectionView = ({ yOffset }) => {
-      const xDist = getXDist(), isSingle = params.vSlotCount === 1, centers = isSingle ? [params.L/2] : [xDist, params.L-xDist];
-      const activeW = params.hasBottomBack ? params.backSlotWidth : params.slotWidth;
-      return (<g transform={`translate(0, ${yOffset})`}><rect x={0} y={0} width={params.L} height={params.thickness} fill="none" stroke="black" strokeWidth="2" />
-          {(params.topType === 'edge' || params.hasBottomEdge || params.hasBottomBack) && centers.map((cx, i) => (<g key={`sec-${i}`}><rect x={cx-params.vSlotLen/2} y={(params.thickness-activeW)/2} width={params.vSlotLen} height={activeW} fill="none" stroke="black" strokeWidth="1" /><DimLine x1={cx-params.vSlotLen/2} y1={params.thickness} x2={cx+params.vSlotLen/2} y2={params.thickness} text={params.vSlotLen} offset={20} startOffset={0} pos="bottom" color="red" visible={params.visSlotLen} /><DimLine x1={cx-params.vSlotLen/2} y1={(params.thickness-activeW)/2} x2={cx-params.vSlotLen/2} y2={(params.thickness+activeW)/2} text={activeW} offset={10} startOffset={0} pos="left" color="red" verticalText={true} visible={params.visSlotW} /><DimLine x1={i===0?0:params.L} y1={params.thickness} x2={cx} y2={(params.thickness+activeW)/2} text={getXDist()} offset={50} startOffset={0} pos="bottom" color="red" visible={params.visPos} />{params.visPos && <circle cx={cx} cy={(params.thickness+activeW)/2} r="2.5" fill="red" />}</g>))}
-          <DimLine x1={0} y1={0} x2={0} y2={params.thickness} text={params.thickness} offset={30} startOffset={0} pos="left" verticalText={true} color="red" visible={params.visThick} />{params.showTriangle && <g transform={`translate(${params.L/2}, -15)`}><polygon points="-5,-5 5,-5 0,5" fill="black" /></g>}</g>);
-  };
-  const generateSideViewPath = () => {
-      let d = `M 0 ${params.W}`;
-      if (params.hasBottomBack) d += ` L 0 ${params.W-params.backDist+params.backSlotWidth} L ${params.backSlotDepth} ${params.W-params.backDist+params.backSlotWidth} L ${params.backSlotDepth} ${params.W-params.backDist} L 0 ${params.W-params.backDist}`;
-      d += ` L 0 0`;
-      if (params.topType === 'edge') d += ` L ${params.thickness/2-params.slotWidth/2} 0 L ${params.thickness/2-params.slotWidth/2} ${params.slotDepth} L ${params.thickness/2+params.slotWidth/2} ${params.slotDepth} L ${params.thickness/2+params.slotWidth/2} 0`;
-      d += ` L ${params.thickness} 0 L ${params.thickness} ${params.W}`;
-      if (params.hasBottomEdge) d += ` L ${params.thickness/2+params.slotWidth/2} ${params.W} L ${params.thickness/2+params.slotWidth/2} ${params.W-params.slotDepth} L ${params.thickness/2-params.slotWidth/2} ${params.W-params.slotDepth} L ${params.thickness/2-params.slotWidth/2} ${params.W}`;
-      d += ` Z`; return d;
-  };
+}
+</script>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden flex flex-col lg:flex-row">
 
-  return (
-    <div className="flex flex-col lg:flex-row h-screen bg-gray-100 overflow-hidden">
-      <div className="flex-1 bg-white lg:order-2 p-2 lg:p-8 overflow-auto flex justify-center items-center border-b lg:border-l border-gray-200 relative">
-          <div className="bg-white shadow-sm border border-gray-100 p-4 w-full h-full flex items-center justify-center">
-              <svg ref={svgRef} width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
-                  <defs><marker id="dot-marker" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><circle cx="3" cy="3" r="2.5" fill="red" /></marker></defs>
-                  <g>{view.side && (<g><path d={generateSideViewPath()} fill="none" stroke="black" strokeWidth="2" strokeLinejoin="round" />
-                      {params.topType === 'edge' && (<g>{params.visSlotW && (<><line x1={0} y1={params.slotDepth} x2={0} y2={50} stroke="red" strokeWidth="0.5" /><line x1={params.thickness/2} y1={params.slotDepth} x2={params.thickness/2} y2={50} stroke="red" strokeWidth="0.5" /><line x1={0} y1={50} x2={params.thickness/2} y2={50} stroke="red" strokeWidth="0.8" /><circle cx={0} cy={50} r="2.5" fill="red" /><circle cx={params.thickness/2} cy={50} r="2.5" fill="red" /><text x={params.thickness/4} y={40} fill="red" fontSize="10" textAnchor="middle">1/2</text></>)}<DimLine x1={params.thickness/2-params.slotWidth/2} y1={0} x2={params.thickness/2+params.slotWidth/2} y2={0} text={params.slotWidth} offset={20} startOffset={0} pos="top" visible={params.visSlotW} />{params.visSlotD && (<><text x={params.thickness+6} y={params.slotDepth/2} fill="red" fontSize="12" dominantBaseline="middle">{params.slotDepth}</text><line x1={params.thickness/2+params.slotWidth/2} y1={params.slotDepth} x2={params.thickness+5} y2={params.slotDepth} stroke="red" strokeWidth="0.5" /><line x1={params.thickness} y1={0} x2={params.thickness+5} y2={0} stroke="red" strokeWidth="0.5" /><line x1={params.thickness+3} y1={0} x2={params.thickness+3} y2={params.slotDepth} stroke="red" strokeWidth="0.8" markerStart="url(#dot-marker)" markerEnd="url(#dot-marker)" /></>)}</g>)}
-                      {params.hasBottomEdge && (<g>{params.visSlotW && (<><line x1={0} y1={params.W-params.slotDepth} x2={0} y2={params.W-50} stroke="red" strokeWidth="0.5" /><line x1={params.thickness/2} y1={params.W-params.slotDepth} x2={params.thickness/2} y2={params.W-50} stroke="red" strokeWidth="0.5" /><line x1={0} y1={params.W-50} x2={params.thickness/2} y2={params.W-50} stroke="red" strokeWidth="0.8" /><circle cx={0} cy={params.W-50} r="2.5" fill="red" /><circle cx={params.thickness/2} cy={params.W-50} r="2.5" fill="red" /><text x={params.thickness/4} y={params.W-60} fill="red" fontSize="10" textAnchor="middle">1/2</text></>)}<DimLine x1={params.thickness/2-params.slotWidth/2} y1={params.W} x2={params.thickness/2+params.slotWidth/2} y2={params.W} text={params.slotWidth} offset={20} startOffset={0} pos="bottom" visible={params.visSlotW} />{params.visSlotD && (<><text x={params.thickness+6} y={params.W-params.slotDepth/2} fill="red" fontSize="12" dominantBaseline="middle">{params.slotDepth}</text><line x1={params.thickness/2+params.slotWidth/2} y1={params.W-params.slotDepth} x2={params.thickness+5} y2={params.W-params.slotDepth} stroke="red" strokeWidth="0.5" /><line x1={params.thickness} y1={params.W} x2={params.thickness+5} y2={params.W} stroke="red" strokeWidth="0.5" /><line x1={params.thickness+3} y1={params.W} x2={params.thickness+3} y2={params.W-params.slotDepth} stroke="red" strokeWidth="0.8" markerStart="url(#dot-marker)" markerEnd="url(#dot-marker)" /></>)}</g>)}
-                      {params.hasBottomBack && (<g><DimLine x1={0} y1={params.W-params.backDist} x2={0} y2={params.W-params.backDist+params.backSlotWidth} text={params.backSlotWidth} offset={40} startOffset={0} pos="left" verticalText={true} visible={params.visSlotW} />{params.visSlotD && (<><line x1={params.backSlotDepth} y1={params.W-params.backDist} x2={params.backSlotDepth} y2={params.W-params.backDist-20} stroke="red" strokeWidth="0.5" /><line x1={0} y1={params.W-params.backDist} x2={0} y2={params.W-params.backDist-20} stroke="red" strokeWidth="0.5" /><line x1={0} y1={params.W-params.backDist-15} x2={params.backSlotDepth} y2={params.W-params.backDist-15} stroke="red" strokeWidth="0.8" markerStart="url(#dot-marker)" markerEnd="url(#dot-marker)" /><text x={params.backSlotDepth/2} y={params.W-params.backDist-25} fill="red" fontSize="14" textAnchor="middle">{params.backSlotDepth}</text></>)}<DimLine x1={params.thickness} y1={params.W} x2={params.backSlotDepth} y2={params.W-params.backDist} text={params.backDist} offset={30} startOffset={0} pos="right" textShift={5} visible={params.visPos} /></g>)}
-                      <DimLine x1={0} y1={0} x2={0} y2={params.W} text={params.textW} offset={60} pos="left" verticalText={true} fontSize={24} visible={params.visW} /><DimLine x1={0} y1={0} x2={params.thickness} y2={0} text={params.thickness} offset={80} startOffset={0} pos="top" visible={params.visThick} />{params.showTriangle && <g transform={`translate(${params.thickness+15}, ${params.W/2}) rotate(90)`}><polygon points="-5,-5 5,-5 0,5" fill="black" /></g>}</g>)}
-                      <g transform={`translate(${params.thickness + gap}, 0)`}><rect x="0" y="0" width={params.L} height={params.W} fill="none" stroke="black" strokeWidth="2" /><DimLine x1={0} y1={0} x2={params.L} y2={0} text={params.textL} offset={80} pos="top" fontSize={24} visible={params.visL} /><DimLine x1={0} y1={0} x2={0} y2={params.W} text={params.textW} offset={40} pos="left" verticalText={true} fontSize={24} visible={params.visW} />
-                          {(() => {
-                              const xDist = getXDist(), isSingle = params.vSlotCount === 1, topSlots = isSingle ? [params.L/2] : [xDist, params.L-xDist];
-                              const dim150AnchorX = isSingle ? (params.L/2 + params.vSlotLen/2) : (params.L - xDist + params.vSlotLen/2);
-                              const posText = getPosText(params.vSlotCount), isTopActive = params.topType === 'edge', isBottomActive = params.hasBottomEdge || params.hasBottomBack;
-                              return (<>{params.topType === 'edge' && topSlots.map((cx, i) => <SmoothArcSlot key={`t-${i}`} x={cx} y={0} len={params.vSlotLen} depth={params.slotDepth} isTop={true} panelL={params.L} posText={posText} />)}
-                                  {params.hasBottomEdge && topSlots.map((cx, i) => <SmoothArcSlot key={`b-${i}`} x={cx} y={params.W} len={params.vSlotLen} depth={params.slotDepth} isTop={false} panelL={params.L} posText={posText} />)}
-                                  {params.hasBottomBack && topSlots.map((cx, i) => <BackSlotShape key={`b-b-${i}`} x={cx} y={params.W} w={params.vSlotLen} h={params.backSlotWidth} dist={params.backDist} isTop={false} panelL={params.L} panelW={params.W} posText={posText} />)}
-                                  {params.hasBottomBack && <DimLine x1={dim150AnchorX} y1={params.W-params.backDist} x2={params.L} y2={params.W} text={params.backDist} offset={70} pos="right" visible={true} textShift={5} startOffset={0} />}
-                                  {params.vSlotCount === 2 && params.showSlotDist && (isTopActive || isBottomActive) && (<g><DimLine x1={xDist+params.vSlotLen/2} y1={isTopActive?0:params.W} x2={(params.L-xDist)-params.vSlotLen/2} y2={isTopActive?0:params.W} text={params.L-2*xDist-params.vSlotLen} offset={110} startOffset={0} pos={isTopActive?'top':'bottom'} color={blueColor} visible={params.visPos} /><DimLine x1={xDist} y1={isTopActive?0:params.W} x2={params.L-xDist} y2={isTopActive?0:params.W} text={params.L-2*xDist} offset={140} startOffset={0} pos={isTopActive?'top':'bottom'} color={blueColor} visible={params.visPos} /></g>)}</>);
-                          })()}
-                          {(() => {
-                              const yDist = getYDist(), isSingle = params.hSlotCount === 1, sideSlots = isSingle ? [params.W/2] : [yDist, params.W-yDist];
-                              const posText = getPosText(params.hSlotCount), isLeftActive = params.hasLeftEdge, isRightActive = params.hasRightEdge;
-                              return (<>{params.hasLeftEdge && sideSlots.map((cy, i) => <SmoothArcSlotSide key={`l-${i}`} x={0} y={cy} len={params.hSlotLen} depth={params.slotDepth} isLeft={true} panelW={params.W} posText={posText} />)}
-                                  {params.hasRightEdge && sideSlots.map((cy, i) => <SmoothArcSlotSide key={`r-${i}`} x={params.L} y={cy} len={params.hSlotLen} depth={params.slotDepth} isLeft={false} panelW={params.W} posText={posText} />)}
-                                  {params.hSlotCount === 2 && params.showSlotDist && (isLeftActive || isRightActive) && (<g><DimLine x1={isLeftActive?0:params.L} y1={yDist+params.hSlotLen/2} x2={isLeftActive?0:params.L} y2={(params.W-yDist)-params.hSlotLen/2} text={params.W-2*yDist-params.hSlotLen} offset={80} startOffset={0} pos={isLeftActive?'left':'right'} color={blueColor} verticalText={true} visible={params.visPos} /><DimLine x1={isLeftActive?0:params.L} y1={yDist} x2={isLeftActive?0:params.L} y2={params.W-yDist} text={params.W-2*yDist} offset={110} startOffset={0} pos={isLeftActive?'left':'right'} color={blueColor} verticalText={true} visible={params.visPos} /></g>)}</>);
-                          })()}
-                          <g transform={`translate(${params.L/2}, ${params.W/2})`}>{params.showTriangle && <polygon points="-5,-5 5,-5 0,5" fill="black" />}{view.note && <text x="0" y="-25" textAnchor="middle" fontSize="24" fill="black" fontFamily="Arial">{params.noteText}</text>}</g>
-                          {view.bottom && <BottomSectionView yOffset={params.W + sectionViewGap} />}
-                      </g>
-                  </g>
-              </svg>
-          </div>
-      </div>
-      <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-r lg:order-1 overflow-y-auto h-1/2 lg:h-full shrink-0 shadow-xl z-10">
-          <div className="p-4 border-b sticky top-0 bg-white z-10 flex items-center justify-between"><div className="flex items-center gap-2"><Icons.Settings c="w-5 h-5 text-blue-600" /><h2 className="font-bold text-gray-800">参数设置</h2></div><button onClick={handleDownload} className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 transition-colors"><Icons.Download c="w-3 h-3" /> 下载图片</button></div>
-          <div className="p-4 space-y-6">
-              <div className="space-y-2"><h3 className="text-xs font-bold text-gray-500 uppercase">视图显示</h3><div className="flex gap-2"><button onClick={() => setView({...view, side: !view.side})} className={`flex-1 py-1 px-2 text-xs rounded border ${view.side ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>{view.side ? '隐藏左侧截面' : '显示左侧截面'}</button><button onClick={() => setView({...view, bottom: !view.bottom})} className={`flex-1 py-1 px-2 text-xs rounded border ${view.bottom ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>{view.bottom ? '隐藏底部截面' : '显示底部截面'}</button></div><div className="flex gap-2 mt-2"><button onClick={() => setView({...view, note: !view.note})} className={`flex-1 py-1 px-2 text-xs rounded border ${view.note ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>{view.note ? '隐藏备注' : '显示备注'}</button><label className="flex-1 flex items-center justify-center space-x-1 py-1 px-2 text-xs rounded border bg-white border-gray-300 cursor-pointer select-none"><input type="checkbox" checked={params.showTriangle} onChange={(e) => setParams({...params, showTriangle: e.target.checked})} className="w-3 h-3 text-blue-600 rounded focus:ring-blue-500" /><span>显示三角标记</span></label></div></div><hr />
-              <div className="space-y-2"><h3 className="text-xs font-bold text-gray-500 uppercase">板材尺寸 & 标注</h3><div className="grid grid-cols-2 gap-2"><div><label className="text-xs text-gray-400">长 (数值)</label><input type="number" value={params.L} onChange={e => setParams({...params, L: +e.target.value})} className="w-full border rounded p-2 text-sm" /></div><div><label className="text-xs text-gray-400">长 (标签)</label><input type="text" value={params.textL} onChange={e => setParams({...params, textL: e.target.value})} className="w-full border rounded p-2 text-sm" /></div><div><label className="text-xs text-gray-400">宽 (数值)</label><input type="number" value={params.W} onChange={e => setParams({...params, W: +e.target.value})} className="w-full border rounded p-2 text-sm" /></div><div><label className="text-xs text-gray-400">宽 (标签)</label><input type="text" value={params.textW} onChange={e => setParams({...params, textW: e.target.value})} className="w-full border rounded p-2 text-sm" /></div><div><label className="text-xs text-gray-400">厚度</label><input type="number" value={params.thickness} onChange={e => setParams({...params, thickness: +e.target.value})} className="w-full border rounded p-2 text-sm" /></div></div></div><hr />
-              <div className="space-y-2"><h3 className="text-xs font-bold text-gray-500 uppercase">开槽数量</h3><div className="flex items-center justify-between"><span className="text-xs text-gray-600">上下边数量:</span><div className="flex bg-gray-100 rounded p-1"><button onClick={() => setParams({...params, vSlotCount: 1})} className={`px-2 py-0.5 text-xs rounded ${params.vSlotCount===1 ? 'bg-white shadow' : ''}`}>1个</button><button onClick={() => setParams({...params, vSlotCount: 2})} className={`px-2 py-0.5 text-xs rounded ${params.vSlotCount===2 ? 'bg-white shadow' : ''}`}>2个</button></div></div><div className="flex items-center justify-between mt-1"><span className="text-xs text-gray-600">左右边数量:</span><div className="flex bg-gray-100 rounded p-1"><button onClick={() => setParams({...params, hSlotCount: 1})} className={`px-2 py-0.5 text-xs rounded ${params.hSlotCount===1 ? 'bg-white shadow' : ''}`}>1个</button><button onClick={() => setParams({...params, hSlotCount: 2})} className={`px-2 py-0.5 text-xs rounded ${params.hSlotCount===2 ? 'bg-white shadow' : ''}`}>2个</button></div></div></div><hr />
-              <div className="space-y-2"><h3 className="text-xs font-bold text-gray-500 uppercase">普通槽尺寸</h3><div className="grid grid-cols-2 gap-2"><div><label className="text-xs text-gray-400">上下槽长</label><input type="number" value={params.vSlotLen} onChange={e => setParams({...params, vSlotLen: +e.target.value})} className="w-full border p-1 text-sm" /></div><div><label className="text-xs text-gray-400">左右槽长</label><input type="number" value={params.hSlotLen} onChange={e => setParams({...params, hSlotLen: +e.target.value})} className="w-full border p-1 text-sm" /></div></div><div className="grid grid-cols-2 gap-2 mt-1"><div><label className="text-xs text-gray-400">槽宽</label><input type="number" value={params.slotWidth} onChange={e => setParams({...params, slotWidth: +e.target.value})} className="w-full border p-1 text-sm" /></div><div><label className="text-xs text-gray-400">槽深</label><input type="number" value={params.slotDepth} onChange={e => setParams({...params, slotDepth: +e.target.value})} className="w-full border p-1 text-sm" /></div></div><div className="flex items-center justify-end pt-1"><label className="flex items-center space-x-2 cursor-pointer select-none"><input type="checkbox" checked={params.visSlotLen} onChange={(e) => {const v = e.target.checked;setParams({...params, visSlotLen: v, visSlotW: v, visSlotD: v});}} className="w-3 h-3 text-blue-600 rounded focus:ring-blue-500" /><span className="text-xs text-gray-600">显示开槽标注</span></label></div></div>
-              {params.hasBottomBack && (<div className="space-y-2 bg-blue-50 p-2 rounded"><h3 className="text-xs font-bold text-blue-800 uppercase">背槽独立尺寸</h3><div className="grid grid-cols-2 gap-2"><div><label className="text-xs text-gray-600">背槽宽</label><input type="number" value={params.backSlotWidth} onChange={e => setParams({...params, backSlotWidth: +e.target.value})} className="w-full border p-1 text-sm" /></div><div><label className="text-xs text-gray-600">背槽深</label><input type="number" value={params.backSlotDepth} onChange={e => setParams({...params, backSlotDepth: +e.target.value})} className="w-full border p-1 text-sm" /></div></div></div>)}<hr />
-              <div className="space-y-2"><h3 className="text-xs font-bold text-gray-500 uppercase">开槽位置</h3><div className="space-y-1"><div className="flex items-center justify-between"><span className="text-xs text-gray-500">顶部边槽</span><input type="checkbox" checked={params.topType === 'edge'} onChange={e => setParams({...params, topType: e.target.checked ? 'edge' : 'none'})} /></div><div className="flex items-center justify-between"><span className="text-xs text-gray-500">底部边槽</span><input type="checkbox" checked={params.hasBottomEdge} onChange={e => setParams({...params, hasBottomEdge: e.target.checked})} /></div><div className="flex items-center justify-between"><span className="text-xs text-gray-500">底部背槽</span><input type="checkbox" checked={params.hasBottomBack} onChange={e => setParams({...params, hasBottomBack: e.target.checked})} /></div><div className="flex items-center justify-between"><span className="text-xs text-gray-500">左侧开槽</span><input type="checkbox" checked={params.hasLeftEdge} onChange={e => setParams({...params, hasLeftEdge: e.target.checked})} /></div><div className="flex items-center justify-between"><span className="text-xs text-gray-500">右侧开槽</span><input type="checkbox" checked={params.hasRightEdge} onChange={e => setParams({...params, hasRightEdge: e.target.checked})} /></div></div>{params.hasBottomBack && <div className="flex items-center justify-between mt-1"><span className="text-xs text-gray-600">背槽距边:</span><input type="number" value={params.backDist} onChange={e => setParams({...params, backDist: +e.target.value})} className="w-16 border p-1 text-sm rounded" /></div>}</div><hr />
-              <div className="space-y-2"><h3 className="text-xs font-bold text-gray-500 uppercase">定位 ({getPosText(params.vSlotCount)})</h3><div className="flex gap-2"><select value={params.posType} onChange={e => setParams({...params, posType: e.target.value})} className="border rounded p-1 text-sm bg-gray-50"><option value="ratio">比例</option><option value="fixed">数值</option></select>{params.posType === 'fixed' && <input type="number" step={1} value={params.posValue} onChange={e => setParams({...params, posValue: +e.target.value})} className="flex-1 border rounded p-1 text-sm" placeholder="输入数值" />}</div><div className="flex items-center justify-between mt-2"><span className="text-xs text-gray-500">显示槽间距 (蓝色)</span><input type="checkbox" checked={params.showSlotDist} onChange={e => setParams({...params, showSlotDist: e.target.checked})} className="w-3 h-3" /></div></div><hr />
-              <div className="pt-2"><label className="text-xs text-gray-500 block mb-1">备注文字</label><input type="text" value={params.noteText} onChange={e => setParams({...params, noteText: e.target.value})} className="w-full border rounded text-sm p-2" placeholder="输入备注内容..." /></div>
-          </div>
-      </div>
+    <!-- 主视图区域 -->
+    <div class="flex-1 bg-white lg:order-2 p-2 lg:p-8 overflow-auto flex justify-center items-center border-b lg:border-l border-gray-200 relative">
+        <div class="bg-white shadow-sm border border-gray-100 p-4 w-full h-full flex items-center justify-center relative">
+            <div id="svg-container" style="width: 100%; height: 100%;"></div>
+        </div>
     </div>
-  );
-};
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<CADGeneratorV100 />);
-</script></body></html>
+
+    <!-- 控制面板 -->
+    <div class="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-r lg:order-1 overflow-y-auto h-1/2 lg:h-full shrink-0 shadow-xl z-10 flex flex-col">
+        <!-- 头部 -->
+        <div class="p-4 border-b sticky top-0 bg-white z-10 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <h2 class="font-bold text-gray-800">参数设置</h2>
+            </div>
+            <button onclick="handleDownload()" class="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                下载图片
+            </button>
+        </div>
+
+        <!-- 参数列表 -->
+        <div class="p-4 space-y-6">
+            <!-- 视图显示 -->
+            <div>
+                <h3 class="section-title">视图显示</h3>
+                <div class="flex gap-2">
+                    <button id="btn-view-side" onclick="toggleView('side')" class="btn-toggle">显示左侧截面</button>
+                    <button id="btn-view-bottom" onclick="toggleView('bottom')" class="btn-toggle">显示底部截面</button>
+                </div>
+                <div class="flex gap-2 mt-2">
+                    <button id="btn-view-note" onclick="toggleView('note')" class="btn-toggle">显示备注</button>
+                    <label class="flex-1 flex items-center justify-center space-x-1 py-1 px-2 text-xs rounded border bg-white border-gray-300 cursor-pointer select-none">
+                        <input type="checkbox" id="chk-triangle" onchange="updateParam('showTriangle', this.checked)" checked class="w-3 h-3 text-blue-600 rounded focus:ring-blue-500">
+                        <span>显示三角标记</span>
+                    </label>
+                </div>
+            </div>
+            <hr class="border-gray-200">
+
+            <!-- 板材尺寸 -->
+            <div>
+                <h3 class="section-title">板材尺寸 & 标注</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="input-group"><label>长 (数值)</label><input type="number" id="inp-L" value="600" oninput="updateParam('L', Number(this.value))"></div>
+                    <div class="input-group"><label>长 (标签)</label><input type="text" id="inp-textL" value="L" oninput="updateParam('textL', this.value)"></div>
+                    <div class="input-group"><label>宽 (数值)</label><input type="number" id="inp-W" value="450" oninput="updateParam('W', Number(this.value))"></div>
+                    <div class="input-group"><label>宽 (标签)</label><input type="text" id="inp-textW" value="W" oninput="updateParam('textW', this.value)"></div>
+                    <div class="input-group"><label>厚度</label><input type="number" id="inp-thickness" value="30" oninput="updateParam('thickness', Number(this.value))"></div>
+                </div>
+            </div>
+            <hr class="border-gray-200">
+
+            <!-- 开槽数量 -->
+            <div>
+                <h3 class="section-title">开槽数量</h3>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-600">上下边数量:</span>
+                    <div class="flex bg-gray-100 rounded p-1">
+                        <button onclick="updateParam('vSlotCount', 1)" id="btn-vSlot-1" class="px-2 py-0.5 text-xs rounded">1个</button>
+                        <button onclick="updateParam('vSlotCount', 2)" id="btn-vSlot-2" class="px-2 py-0.5 text-xs rounded bg-white shadow">2个</button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-gray-600">左右边数量:</span>
+                    <div class="flex bg-gray-100 rounded p-1">
+                        <button onclick="updateParam('hSlotCount', 1)" id="btn-hSlot-1" class="px-2 py-0.5 text-xs rounded">1个</button>
+                        <button onclick="updateParam('hSlotCount', 2)" id="btn-hSlot-2" class="px-2 py-0.5 text-xs rounded bg-white shadow">2个</button>
+                    </div>
+                </div>
+            </div>
+            <hr class="border-gray-200">
+
+            <!-- 普通槽尺寸 -->
+            <div>
+                <h3 class="section-title">普通槽尺寸</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="input-group"><label>上下槽长</label><input type="number" id="inp-vSlotLen" value="100" oninput="updateParam('vSlotLen', Number(this.value))"></div>
+                    <div class="input-group"><label>左右槽长</label><input type="number" id="inp-hSlotLen" value="100" oninput="updateParam('hSlotLen', Number(this.value))"></div>
+                    <div class="input-group"><label>槽宽</label><input type="number" id="inp-slotWidth" value="10" oninput="updateParam('slotWidth', Number(this.value))"></div>
+                    <div class="input-group"><label>槽深</label><input type="number" id="inp-slotDepth" value="15" oninput="updateParam('slotDepth', Number(this.value))"></div>
+                </div>
+                <div class="flex items-center justify-end pt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer select-none">
+                        <input type="checkbox" id="chk-visSlot" checked onchange="updateMultiParam({visSlotLen: this.checked, visSlotW: this.checked, visSlotD: this.checked})" class="w-3 h-3 text-blue-600 rounded focus:ring-blue-500">
+                        <span class="text-xs text-gray-600">显示开槽标注</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 开槽位置模式 -->
+            <div class="space-y-2 bg-gray-50 p-2 rounded">
+                <h3 class="text-xs font-bold text-gray-800 uppercase">开槽位置 (侧面/截面)</h3>
+                <div class="flex gap-2 text-xs">
+                    <button onclick="updateParam('slotPosMode', 'center')" id="btn-pos-center" class="flex-1 py-1 rounded border bg-gray-200 font-bold border-gray-400 text-black">居中 (1/2)</button>
+                    <button onclick="updateParam('slotPosMode', 'custom')" id="btn-pos-custom" class="flex-1 py-1 rounded border bg-white text-gray-600 border-gray-300">距边定位</button>
+                </div>
+                <div id="div-edgeDist" class="mt-2 hidden">
+                    <label class="text-xs text-gray-600">距边距离 (mm)</label>
+                    <input type="number" id="inp-edgeDist" value="10" oninput="updateParam('edgeDist', Number(this.value))" class="w-full border p-1 text-sm rounded mt-1">
+                </div>
+            </div>
+
+            <!-- 背槽独立尺寸 -->
+            <div id="div-backSlotSettings" class="space-y-2 bg-blue-50 p-2 rounded hidden">
+                <h3 class="text-xs font-bold text-blue-800 uppercase">背槽独立尺寸</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="input-group"><label class="text-gray-600">背槽宽</label><input type="number" id="inp-backSlotWidth" value="10" oninput="updateParam('backSlotWidth', Number(this.value))"></div>
+                    <div class="input-group"><label class="text-gray-600">背槽深</label><input type="number" id="inp-backSlotDepth" value="15" oninput="updateParam('backSlotDepth', Number(this.value))"></div>
+                </div>
+            </div>
+            <hr class="border-gray-200">
+
+            <!-- 开槽开关 -->
+            <div>
+                <h3 class="section-title">开槽开关</h3>
+                <div class="space-y-1">
+                    <div class="checkbox-wrapper"><span>顶部边槽</span><input type="checkbox" id="chk-topType" checked onchange="updateParam('topType', this.checked ? 'edge' : 'none')"></div>
+                    <div class="checkbox-wrapper"><span>底部边槽</span><input type="checkbox" id="chk-hasBottomEdge" checked onchange="updateParam('hasBottomEdge', this.checked)"></div>
+                    <div class="checkbox-wrapper"><span>底部背槽</span><input type="checkbox" id="chk-hasBottomBack" onchange="updateParam('hasBottomBack', this.checked)"></div>
+                    <div class="checkbox-wrapper"><span>左侧开槽</span><input type="checkbox" id="chk-hasLeftEdge" onchange="updateParam('hasLeftEdge', this.checked)"></div>
+                    <div class="checkbox-wrapper"><span>右侧开槽</span><input type="checkbox" id="chk-hasRightEdge" onchange="updateParam('hasRightEdge', this.checked)"></div>
+                </div>
+                <div id="div-backDist" class="flex items-center justify-between mt-1 hidden">
+                    <span class="text-xs text-gray-600">背槽距边:</span>
+                    <input type="number" id="inp-backDist" value="150" oninput="updateParam('backDist', Number(this.value))" class="w-16 border p-1 text-sm rounded">
+                </div>
+            </div>
+            <hr class="border-gray-200">
+
+            <!-- 定位 -->
+            <div>
+                <h3 class="section-title" id="lbl-pos-title">定位 (1/2)</h3>
+                <div class="flex gap-2">
+                    <select id="sel-posType" onchange="updateParam('posType', this.value)" class="border rounded p-1 text-sm bg-gray-50">
+                        <option value="ratio">比例</option>
+                        <option value="fixed">数值</option>
+                    </select>
+                    <input type="number" id="inp-posValue" value="100" oninput="updateParam('posValue', Number(this.value))" class="flex-1 border rounded p-1 text-sm hidden" placeholder="输入数值">
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <span class="text-xs text-gray-500">显示槽间距 (蓝色)</span>
+                    <input type="checkbox" id="chk-showSlotDist" onchange="updateParam('showSlotDist', this.checked)" class="w-3 h-3">
+                </div>
+            </div>
+            <hr class="border-gray-200">
+
+            <!-- 备注 -->
+            <div class="pb-4">
+                <label class="text-xs text-gray-500 block mb-1">备注文字</label>
+                <input type="text" id="inp-noteText" value="L > 450" oninput="updateParam('noteText', this.value)" class="w-full border rounded text-sm p-2" placeholder="输入备注内容...">
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- State Management ---
+    const params = {
+        L: 600, W: 450, thickness: 30, textL: 'L', textW: 'W',
+        posType: 'ratio', posValue: 100, vSlotLen: 100, hSlotLen: 100, slotWidth: 10, slotDepth: 15,
+        backSlotWidth: 10, backSlotDepth: 15, topType: 'edge', hasBottomEdge: true, hasBottomBack: false,
+        vSlotCount: 2, backDist: 150, hSlotCount: 2, hasLeftEdge: false, hasRightEdge: false,
+        noteText: 'L > 450', showSlotDist: false,
+        visL: true, visW: true, visThick: true, visSlotLen: true, visSlotW: true, visSlotD: true, visPos: true,
+        showTriangle: true,
+        slotPosMode: 'center', // 'center' or 'custom'
+        edgeDist: 10
+    };
+
+    const view = { side: false, bottom: false, note: false };
+
+    // --- Helpers ---
+    const blueColor = "#3b82f6";
+
+    function getAutoRatio(c) { return c === 1 ? 0.5 : 0.25; }
+    function getXDist() { return params.posType === 'ratio' ? params.L * getAutoRatio(params.vSlotCount) : params.posValue; }
+    function getYDist() { return params.posType === 'ratio' ? params.W * getAutoRatio(params.hSlotCount) : params.posValue; }
+    function getPosText(c) { return params.posType === 'ratio' ? (c === 1 ? '1/2' : '1/4') : params.posValue.toString(); }
+
+    function getSideViewSlotStart() {
+        return params.slotPosMode === 'center'
+            ? (params.thickness - params.slotWidth) / 2
+            : (params.thickness - params.edgeDist - params.slotWidth);
+    }
+
+    // --- Rendering Functions (SVG Components) ---
+
+    function DimLine({ x1, y1, x2, y2, text, offset=0, startOffset=8, textShift=0, pos='top', color='red', hideLine=false, verticalText=false, fontSize=14, visible=true }) {
+        if (!visible) return '';
+        const overshoot = 5;
+        const isBlue = color === blueColor;
+        let lx1, ly1, lx2, ly2, ex1_sx, ex1_sy, ex1_ex, ex1_ey, ex2_sx, ex2_sy, ex2_ex, ex2_ey, tx, ty;
+
+        if (pos === 'top') {
+            const dimY = Math.min(y1, y2) - offset;
+            lx1=x1; lx2=x2; ly1=dimY; ly2=dimY;
+            ex1_sx=x1; ex1_sy=y1-startOffset; ex1_ex=x1; ex1_ey=dimY-overshoot;
+            ex2_sx=x2; ex2_sy=y2-startOffset; ex2_ex=x2; ex2_ey=dimY-overshoot;
+            tx=(x1+x2)/2; ty=dimY-8-textShift;
+        } else if (pos === 'bottom') {
+            const dimY = Math.max(y1, y2) + offset;
+            lx1=x1; lx2=x2; ly1=dimY; ly2=dimY;
+            ex1_sx=x1; ex1_sy=y1+startOffset; ex1_ex=x1; ex1_ey=dimY+overshoot;
+            ex2_sx=x2; ex2_sy=y2+startOffset; ex2_ex=x2; ex2_ey=dimY+overshoot;
+            tx=(x1+x2)/2; ty=dimY+16+textShift;
+        } else if (pos === 'left') {
+            const dimX = Math.min(x1, x2) - offset;
+            lx1=dimX; lx2=dimX; ly1=y1; ly2=y2;
+            ex1_sx=x1-startOffset; ex1_sy=y1; ex1_ex=dimX-overshoot; ex1_ey=y1;
+            ex2_sx=x2-startOffset; ex2_sy=y2; ex2_ex=dimX-overshoot; ex2_ey=y2;
+            tx=dimX-8-textShift; ty=(y1+y2)/2;
+        } else {
+            const dimX = Math.max(x1, x2) + offset;
+            lx1=dimX; lx2=dimX; ly1=y1; ly2=y2;
+            ex1_sx=x1+startOffset; ex1_sy=y1; ex1_ex=dimX+overshoot; ex1_ey=y1;
+            ex2_sx=x2+startOffset; ex2_sy=y2; ex2_ex=dimX+overshoot; ex2_ey=y2;
+            tx=dimX+8+textShift; ty=(y1+y2)/2;
+        }
+
+        const transform = verticalText ? `rotate(-90 ${tx} ${ty})` : '';
+        const marker = isBlue ? '' : 'url(#dot-marker)';
+
+        let svg = '<g class="cad-dim">';
+        if (!hideLine) {
+            svg += `<line x1="${ex1_sx}" y1="${ex1_sy}" x2="${ex1_ex}" y2="${ex1_ey}" stroke="${color}" stroke-width="0.5" />`;
+            svg += `<line x1="${ex2_sx}" y1="${ex2_sy}" x2="${ex2_ex}" y2="${ex2_ey}" stroke="${color}" stroke-width="0.5" />`;
+        }
+        svg += `<line x1="${lx1}" y1="${ly1}" x2="${lx2}" y2="${ly2}" stroke="${color}" stroke-width="0.8" marker-start="${marker}" marker-end="${marker}" />`;
+        if (isBlue) {
+            svg += `<circle cx="${lx1}" cy="${ly1}" r="2" fill="${color}" /><circle cx="${lx2}" cy="${ly2}" r="2" fill="${color}" />`;
+        }
+        svg += `<text x="${tx}" y="${ty}" fill="${color}" font-size="${fontSize}" font-family="Arial" text-anchor="middle" dominant-baseline="middle" transform="${transform}">${text}</text>`;
+        svg += '</g>';
+        return svg;
+    }
+
+    function InnerPosDim({ start, end, refPos, text, isVertical, featureLoc, hasStartExt, visible=true }) {
+        if (!visible) return '';
+        let svg = '<g>';
+        if (isVertical) {
+            svg += `<line x1="${refPos}" y1="${start}" x2="${refPos}" y2="${end}" stroke="red" stroke-width="0.8" marker-end="url(#dot-marker)" />`;
+            svg += `<circle cx="${refPos}" cy="${start}" r="2.5" fill="red" />`;
+            svg += `<text x="${refPos - 10}" y="${(start + end)/2}" fill="red" font-size="14" text-anchor="middle" dominant-baseline="middle" transform="rotate(-90 ${refPos - 10} ${(start + end)/2})">${text}</text>`;
+            if (featureLoc !== undefined) {
+                svg += `<line x1="${featureLoc}" y1="${end}" x2="${refPos}" y2="${end}" stroke="red" stroke-width="0.5" /><circle cx="${featureLoc}" cy="${end}" r="2.5" fill="red" />`;
+            }
+            if (hasStartExt) {
+                svg += `<line x1="${featureLoc}" y1="${start}" x2="${refPos}" y2="${start}" stroke="red" stroke-width="0.5" />`;
+            }
+        } else {
+            svg += `<line x1="${start}" y1="${refPos}" x2="${end}" y2="${refPos}" stroke="red" stroke-width="0.8" marker-end="url(#dot-marker)" />`;
+            svg += `<circle cx="${start}" cy="${refPos}" r="2.5" fill="red" />`;
+            svg += `<text x="${(start + end)/2}" y="${refPos - 8}" fill="red" font-size="14" text-anchor="middle" dominant-baseline="middle">${text}</text>`;
+            if (featureLoc !== undefined) {
+                svg += `<line x1="${end}" y1="${refPos}" x2="${end}" y2="${featureLoc}" stroke="red" stroke-width="0.5" /><circle cx="${end}" cy="${featureLoc}" r="2.5" fill="red" />`;
+            }
+            if (hasStartExt) {
+                svg += `<line x1="${start}" y1="${refPos}" x2="${start}" y2="${featureLoc}" stroke="red" stroke-width="0.5" />`;
+            }
+        }
+        svg += '</g>';
+        return svg;
+    }
+
+    function RightVerticalDepthDim({ x, y, len, depth, isTop=true, visible=true, isRightSide=false }) {
+        if (!visible) return '';
+        const dir = isRightSide ? -1 : 1;
+        const startX = x + (len/2 * dir);
+        const offset = 5;
+        const extLen = 15 + offset;
+        const dimX = startX + ((11 + offset) * dir);
+        const textX = dimX + (12 * dir);
+        const textY = isTop ? y + depth/2 : y - depth/2;
+        const depthEndY = isTop ? y + depth : y - depth;
+
+        return `<g>
+            <line x1="${startX + (5*dir)}" y1="${y}" x2="${startX + (extLen*dir)}" y2="${y}" stroke="red" stroke-width="0.5" />
+            <line x1="${x + (5*dir)}" y1="${depthEndY}" x2="${startX + (extLen*dir)}" y2="${depthEndY}" stroke="red" stroke-width="0.5" />
+            <line x1="${dimX}" y1="${y}" x2="${dimX}" y2="${depthEndY}" stroke="red" stroke-width="0.8" marker-start="url(#dot-marker)" marker-end="url(#dot-marker)" />
+            <text x="${textX}" y="${textY}" fill="red" font-size="12" text-anchor="middle" dominant-baseline="middle" transform="rotate(-90 ${textX} ${textY})">${depth}</text>
+        </g>`;
+    }
+
+    function SideSlotDepthDim({ x, y, len, depth, isLeft, visible=true }) {
+        if (!visible) return '';
+        const startY=y+len/2, offset=5, extLen=15+offset, dimY=startY+11+offset, textY=dimY+12, depthEndX=isLeft?x+depth:x-depth;
+        const textX = (x + depthEndX) / 2;
+        const textY_Label = dimY - 5;
+        return `<g>
+            <line x1="${x}" y1="${startY+5}" x2="${x}" y2="${startY+extLen}" stroke="red" stroke-width="0.5" />
+            <line x1="${depthEndX}" y1="${y+5}" x2="${depthEndX}" y2="${startY+extLen}" stroke="red" stroke-width="0.5" />
+            <line x1="${x}" y1="${dimY}" x2="${depthEndX}" y2="${dimY}" stroke="red" stroke-width="0.8" marker-start="url(#dot-marker)" marker-end="url(#dot-marker)" />
+            <text x="${textX}" y="${textY_Label}" fill="red" font-size="12" text-anchor="middle" dominant-baseline="auto">${depth}</text>
+        </g>`;
+    }
+
+    function SmoothArcSlot({ x, y, len, depth, isTop, panelL, posText }) {
+        const path = isTop ? `M ${x-len/2} ${y} Q ${x} ${y+depth*2} ${x+len/2} ${y}` : `M ${x-len/2} ${y} Q ${x} ${y-depth*2} ${x+len/2} ${y}`;
+        const isRightSide = x > panelL / 2;
+        let svg = `<g><path d="${path}" fill="white" stroke="black" stroke-width="1.2" /><line x1="${x-len/2}" y1="${y}" x2="${x+len/2}" y2="${y}" stroke="black" stroke-width="2" />`;
+        svg += DimLine({ x1: x-len/2, y1: y, x2: x+len/2, y2: y, text: len, offset: 25, startOffset: 0, pos: isTop?'top':'bottom', visible: params.visSlotLen });
+        svg += RightVerticalDepthDim({ x: x, y: y, len: len, depth: depth, isTop: isTop, visible: params.visSlotD, isRightSide: isRightSide });
+        if (x < panelL/2) {
+             svg += InnerPosDim({ start: 0, end: x, refPos: isTop?-60:y+60, text: posText, featureLoc: y, hasStartExt: true, visible: params.visPos });
+        } else {
+             svg += InnerPosDim({ start: panelL, end: x, refPos: isTop?-60:y+60, text: posText, featureLoc: y, hasStartExt: true, visible: params.visPos });
+        }
+        svg += '</g>';
+        return svg;
+    }
+
+    function SmoothArcSlotSide({ x, y, len, depth, isLeft, panelW, posText }) {
+        const path = isLeft ? `M ${x} ${y-len/2} Q ${x+depth*2} ${y} ${x} ${y+len/2}` : `M ${x} ${y-len/2} Q ${x-depth*2} ${y} ${x} ${y+len/2}`;
+        let svg = `<g><path d="${path}" fill="white" stroke="black" stroke-width="1.2" /><line x1="${x}" y1="${y-len/2}" x2="${x}" y2="${y+len/2}" stroke="black" stroke-width="2" />`;
+        svg += DimLine({ x1: x, y1: y-len/2, x2: x, y2: y+len/2, text: len, offset: 12, startOffset: 0, pos: isLeft?'left':'right', verticalText: true, visible: params.visSlotLen });
+        svg += SideSlotDepthDim({ x: x, y: y, len: len, depth: depth, isLeft: isLeft, visible: params.visSlotD });
+        svg += InnerPosDim({ start: y<panelW/2?0:panelW, end: y, refPos: isLeft?x+50:x-50, text: posText, isVertical: true, featureLoc: x, hasStartExt: true, visible: params.visPos });
+        svg += '</g>';
+        return svg;
+    }
+
+    function BackSlotShape({ x, y, w, h, dist, isTop, panelL, panelW, posText }) {
+        const slotY = panelW - dist - h/2;
+        let svg = `<g><rect x="${x-w/2}" y="${slotY}" width="${w}" height="${h}" fill="white" stroke="black" stroke-width="1.2" />`;
+        svg += DimLine({ x1: x-w/2, y1: slotY, x2: x+w/2, y2: slotY, text: w, offset: 15, startOffset: 0, pos: 'top', visible: params.visSlotLen });
+        svg += DimLine({ x1: x-w/2, y1: slotY, x2: x-w/2, y2: slotY+h, text: h, offset: 10, startOffset: 0, pos: 'left', verticalText: true, visible: params.visSlotW });
+        if (x < panelL/2) {
+            svg += InnerPosDim({ start: 0, end: x, refPos: panelW+60, text: posText, featureLoc: slotY+h, hasStartExt: true, visible: params.visPos });
+        } else {
+            svg += InnerPosDim({ start: panelL, end: x, refPos: panelW+60, text: posText, featureLoc: slotY+h, hasStartExt: true, visible: params.visPos });
+        }
+        svg += '</g>';
+        return svg;
+    }
+
+    function BottomSectionView({ yOffset }) {
+        const xDist = getXDist();
+        const isSingle = params.vSlotCount === 1;
+        const centers = isSingle ? [params.L/2] : [xDist, params.L-xDist];
+        const activeW = params.hasBottomBack ? params.backSlotWidth : params.slotWidth;
+        
+        const sectionSlotY = params.slotPosMode === 'center'
+            ? (params.thickness - params.slotWidth) / 2
+            : params.edgeDist;
+        const sectionSlotBottomY = sectionSlotY + params.slotWidth;
+
+        let svg = `<g transform="translate(0, ${yOffset})">`;
+        svg += `<rect x="0" y="0" width="${params.L}" height="${params.thickness}" fill="none" stroke="black" stroke-width="2" />`;
+
+        if (params.topType === 'edge' || params.hasBottomEdge || params.hasBottomBack) {
+            centers.forEach((cx, i) => {
+                svg += `<g>`;
+                svg += `<rect x="${cx-params.vSlotLen/2}" y="${sectionSlotY}" width="${params.vSlotLen}" height="${activeW}" fill="none" stroke="black" stroke-width="1" />`;
+                
+                if (params.slotPosMode === 'center' && params.visSlotW) {
+                    svg += `<g>`;
+                    svg += `<line x1="${cx - params.vSlotLen/2}" y1="0" x2="${cx - params.vSlotLen/2 - 35}" y2="0" stroke="red" stroke-width="0.5" />`;
+                    svg += `<line x1="${cx - params.vSlotLen/2}" y1="${params.thickness/2}" x2="${cx - params.vSlotLen/2 - 35}" y2="${params.thickness/2}" stroke="red" stroke-width="0.5" />`;
+                    svg += `<line x1="${cx - params.vSlotLen/2 - 35}" y1="0" x2="${cx - params.vSlotLen/2 - 35}" y2="${params.thickness/2}" stroke="red" stroke-width="0.8" />`;
+                    svg += `<circle cx="${cx - params.vSlotLen/2 - 35}" cy="0" r="2" fill="red" /><circle cx="${cx - params.vSlotLen/2 - 35}" cy="${params.thickness/2}" r="2" fill="red" />`;
+                    svg += `<text x="${cx - params.vSlotLen/2 - 42}" y="${params.thickness/4}" fill="red" font-size="10" text-anchor="middle" dominant-baseline="middle" transform="rotate(-90 ${cx - params.vSlotLen/2 - 42} ${params.thickness/4})">1/2</text>`;
+                    svg += `</g>`;
+                }
+
+                svg += DimLine({ x1: cx-params.vSlotLen/2, y1: params.thickness, x2: cx+params.vSlotLen/2, y2: params.thickness, text: params.vSlotLen, offset: 20, startOffset: 0, pos: 'bottom', color: 'red', visible: params.visSlotLen });
+
+                if (params.visSlotW) {
+                    if (params.slotPosMode === 'center') {
+                        svg += DimLine({ x1: cx-params.vSlotLen/2, y1: sectionSlotY, x2: cx-params.vSlotLen/2, y2: sectionSlotBottomY, text: activeW, offset: 10, startOffset: 0, pos: 'left', color: 'red', verticalText: true, visible: params.visSlotW });
+                    } else {
+                        svg += DimLine({ x1: cx-params.vSlotLen/2, y1: 0, x2: cx-params.vSlotLen/2, y2: sectionSlotY, text: sectionSlotY, offset: 28, startOffset: 0, pos: 'left', color: 'red', verticalText: true, visible: params.visSlotW });
+                        svg += DimLine({ x1: cx-params.vSlotLen/2, y1: sectionSlotY, x2: cx-params.vSlotLen/2, y2: sectionSlotBottomY, text: activeW, offset: 10, startOffset: 0, pos: 'left', color: 'red', verticalText: true, visible: params.visSlotW });
+                        svg += DimLine({ x1: cx-params.vSlotLen/2, y1: sectionSlotBottomY, x2: cx-params.vSlotLen/2, y2: params.thickness, text: params.thickness - sectionSlotBottomY, offset: 28, startOffset: 0, pos: 'left', color: 'red', verticalText: true, visible: params.visSlotW });
+                    }
+                }
+
+                svg += DimLine({ x1: i===0?0:params.L, y1: params.thickness, x2: cx, y2: (params.thickness+activeW)/2, text: getXDist(), offset: 50, startOffset: 0, pos: 'bottom', color: 'red', visible: params.visPos });
+                if (params.visPos) svg += `<circle cx="${cx}" cy="${(params.thickness+activeW)/2}" r="2.5" fill="red" />`;
+                svg += `</g>`;
+            });
+        }
+
+        svg += DimLine({ x1: 0, y1: 0, x2: 0, y2: params.thickness, text: params.thickness, offset: 45, startOffset: 0, pos: 'left', verticalText: true, color: 'red', visible: params.visThick });
+        if (params.showTriangle) {
+            svg += `<g transform="translate(${params.L/2}, -15)"><polygon points="-5,-5 5,-5 0,5" fill="black" /></g>`;
+        }
+        svg += `</g>`;
+        return svg;
+    }
+
+    function generateSideViewPath() {
+        const sStart = getSideViewSlotStart();
+        const sEnd = sStart + params.slotWidth;
+        
+        let d = `M 0 ${params.W}`;
+        if (params.hasBottomBack) {
+            const centerY = params.W - params.backDist;
+            const halfBW = params.backSlotWidth / 2;
+            d += ` L 0 ${centerY + halfBW} L ${params.backSlotDepth} ${centerY + halfBW} L ${params.backSlotDepth} ${centerY - halfBW} L 0 ${centerY - halfBW}`;
+        }
+        d += ` L 0 0`;
+        if (params.topType === 'edge') {
+            d += ` L ${sStart} 0 L ${sStart} ${params.slotDepth} L ${sEnd} ${params.slotDepth} L ${sEnd} 0`;
+        }
+        d += ` L ${params.thickness} 0 L ${params.thickness} ${params.W}`;
+        if (params.hasBottomEdge) {
+            d += ` L ${sEnd} ${params.W} L ${sEnd} ${params.W-params.slotDepth} L ${sStart} ${params.W-params.slotDepth} L ${sStart} ${params.W}`;
+        }
+        d += ` Z`; 
+        return d;
+    }
+
+    function renderSVG() {
+        const padding = 120, extraLeftPadding = 100, gap = 250, rightMargin = 120, sectionViewGap = 250, sectionViewHeight = 150;
+        let vbX, vbY, vbW, vbH;
+
+        if (view.side) { 
+            vbX = -padding; 
+            vbW = params.thickness + gap + params.L + padding + rightMargin; 
+        } else { 
+            vbX = (params.thickness + gap) - padding - extraLeftPadding; 
+            vbW = params.L + padding * 2 + rightMargin + extraLeftPadding; 
+        }
+
+        if (view.bottom) { 
+            vbY = -(padding + 40); 
+            vbH = params.W + padding * 2 + sectionViewGap + sectionViewHeight + 40; 
+        } else { 
+            vbY = -(padding + 40); 
+            vbH = params.W + padding * 2 + 40; 
+        }
+
+        const viewBox = `${vbX} ${vbY} ${vbW} ${vbH}`;
+        const sStart = getSideViewSlotStart();
+        const sEnd = sStart + params.slotWidth;
+
+        let svgContent = `<svg id="cad-svg" width="100%" height="100%" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`;
+        svgContent += `<defs><marker id="dot-marker" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><circle cx="3" cy="3" r="2.5" fill="red" /></marker></defs>`;
+
+        // --- Side View ---
+        if (view.side) {
+            svgContent += `<g>`;
+            svgContent += `<path d="${generateSideViewPath()}" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round" />`;
+            
+            // Top Edge Slot Indicators
+            if (params.topType === 'edge') {
+                svgContent += `<g>`;
+                if (params.visSlotW) {
+                    if (params.slotPosMode === 'center') {
+                        svgContent += `
+                            <line x1="0" y1="${params.slotDepth}" x2="0" y2="50" stroke="red" stroke-width="0.5" />
+                            <line x1="${params.thickness/2}" y1="${params.slotDepth}" x2="${params.thickness/2}" y2="50" stroke="red" stroke-width="0.5" />
+                            <line x1="0" y1="50" x2="${params.thickness/2}" y2="50" stroke="red" stroke-width="0.8" />
+                            <circle cx="0" cy="50" r="2.5" fill="red" /><circle cx="${params.thickness/2}" cy="50" r="2.5" fill="red" />
+                            <text x="${params.thickness/4}" y="40" fill="red" font-size="10" text-anchor="middle">1/2</text>
+                        `;
+                        svgContent += DimLine({ x1: sStart, y1: 0, x2: sEnd, y2: 0, text: params.slotWidth, offset: 20, startOffset: 0, pos: 'top', visible: params.visSlotW });
+                    } else {
+                        svgContent += DimLine({ x1: 0, y1: 0, x2: sStart, y2: 0, text: sStart, offset: 32, startOffset: 0, pos: 'top', visible: params.visSlotW });
+                        svgContent += DimLine({ x1: sStart, y1: 0, x2: sEnd, y2: 0, text: params.slotWidth, offset: 15, startOffset: 0, pos: 'top', visible: params.visSlotW });
+                        svgContent += DimLine({ x1: sEnd, y1: 0, x2: params.thickness, y2: 0, text: params.thickness - sEnd, offset: 32, startOffset: 0, pos: 'top', visible: params.visSlotW });
+                    }
+                }
+                if (params.visSlotD) {
+                    svgContent += `<text x="${params.thickness+6}" y="${params.slotDepth/2}" fill="red" font-size="12" dominant-baseline="middle">${params.slotDepth}</text>`;
+                    svgContent += `<line x1="${sEnd}" y1="${params.slotDepth}" x2="${params.thickness+5}" y2="${params.slotDepth}" stroke="red" stroke-width="0.5" />`;
+                    svgContent += `<line x1="${params.thickness}" y1="0" x2="${params.thickness+5}" y2="0" stroke="red" stroke-width="0.5" />`;
+                    svgContent += `<line x1="${params.thickness+3}" y1="0" x2="${params.thickness+3}" y2="${params.slotDepth}" stroke="red" stroke-width="0.8" marker-start="url(#dot-marker)" marker-end="url(#dot-marker)" />`;
+                }
+                svgContent += `</g>`;
+            }
+
+            // Bottom Edge Slot Indicators
+            if (params.hasBottomEdge) {
+                svgContent += `<g>`;
+                if (params.visSlotW) {
+                     if (params.slotPosMode === 'center') {
+                        svgContent += `
+                            <line x1="0" y1="${params.W-params.slotDepth}" x2="0" y2="${params.W-50}" stroke="red" stroke-width="0.5" />
+                            <line x1="${params.thickness/2}" y1="${params.W-params.slotDepth}" x2="${params.thickness/2}" y2="${params.W-50}" stroke="red" stroke-width="0.5" />
+                            <line x1="0" y1="${params.W-50}" x2="${params.thickness/2}" y2="${params.W-50}" stroke="red" stroke-width="0.8" />
+                            <circle cx="0" cy="${params.W-50}" r="2.5" fill="red" /><circle cx="${params.thickness/2}" cy="${params.W-50}" r="2.5" fill="red" />
+                            <text x="${params.thickness/4}" y="${params.W-60}" fill="red" font-size="10" text-anchor="middle">1/2</text>
+                        `;
+                        svgContent += DimLine({ x1: sStart, y1: params.W, x2: sEnd, y2: params.W, text: params.slotWidth, offset: 20, startOffset: 0, pos: 'bottom', visible: params.visSlotW });
+                     } else {
+                        svgContent += DimLine({ x1: 0, y1: params.W, x2: sStart, y2: params.W, text: sStart, offset: 32, startOffset: 0, pos: 'bottom', visible: params.visSlotW });
+                        svgContent += DimLine({ x1: sStart, y1: params.W, x2: sEnd, y2: params.W, text: params.slotWidth, offset: 15, startOffset: 0, pos: 'bottom', visible: params.visSlotW });
+                        svgContent += DimLine({ x1: sEnd, y1: params.W, x2: params.thickness, y2: params.W, text: params.thickness - sEnd, offset: 32, startOffset: 0, pos: 'bottom', visible: params.visSlotW });
+                     }
+                }
+                if (params.visSlotD) {
+                    svgContent += `<text x="${params.thickness+6}" y="${params.W-params.slotDepth/2}" fill="red" font-size="12" dominant-baseline="middle">${params.slotDepth}</text>`;
+                    svgContent += `<line x1="${sEnd}" y1="${params.W-params.slotDepth}" x2="${params.thickness+5}" y2="${params.W-params.slotDepth}" stroke="red" stroke-width="0.5" />`;
+                    svgContent += `<line x1="${params.thickness}" y1="${params.W}" x2="${params.thickness+5}" y2="${params.W}" stroke="red" stroke-width="0.5" />`;
+                    svgContent += `<line x1="${params.thickness+3}" y1="${params.W}" x2="${params.thickness+3}" y2="${params.W-params.slotDepth}" stroke="red" stroke-width="0.8" marker-start="url(#dot-marker)" marker-end="url(#dot-marker)" />`;
+                }
+                svgContent += `</g>`;
+            }
+
+            // Bottom Back Slot
+            if (params.hasBottomBack) {
+                svgContent += `<g>`;
+                svgContent += DimLine({ x1: 0, y1: params.W-params.backDist - params.backSlotWidth/2, x2: 0, y2: params.W-params.backDist + params.backSlotWidth/2, text: params.backSlotWidth, offset: 40, startOffset: 0, pos: 'left', verticalText: true, visible: params.visSlotW });
+                
+                if (params.visSlotD) {
+                    const slotTopY = params.W - params.backDist - params.backSlotWidth / 2;
+                    svgContent += `
+                        <line x1="${params.backSlotDepth}" y1="${slotTopY}" x2="${params.backSlotDepth}" y2="${slotTopY-20}" stroke="red" stroke-width="0.5" />
+                        <line x1="0" y1="${slotTopY}" x2="0" y2="${slotTopY-20}" stroke="red" stroke-width="0.5" />
+                        <line x1="0" y1="${slotTopY-15}" x2="${params.backSlotDepth}" y2="${slotTopY-15}" stroke="red" stroke-width="0.8" marker-start="url(#dot-marker)" marker-end="url(#dot-marker)" />
+                        <text x="${params.backSlotDepth/2}" y="${slotTopY-25}" fill="red" font-size="14" text-anchor="middle">${params.backSlotDepth}</text>
+                    `;
+                }
+                svgContent += DimLine({ x1: params.thickness, y1: params.W, x2: params.backSlotDepth, y2: params.W-params.backDist, text: params.backDist, offset: 30, startOffset: 0, pos: 'right', textShift: 5, visible: params.visPos });
+                svgContent += `</g>`;
+            }
+
+            svgContent += DimLine({ x1: 0, y1: 0, x2: 0, y2: params.W, text: params.textW, offset: 60, pos: 'left', verticalText: true, fontSize: 24, visible: params.visW });
+            svgContent += DimLine({ x1: 0, y1: 0, x2: params.thickness, y2: 0, text: params.thickness, offset: 80, startOffset: 0, pos: 'top', visible: params.visThick });
+            
+            if (params.showTriangle) {
+                svgContent += `<g transform="translate(${params.thickness+15}, ${params.W/2}) rotate(90)"><polygon points="-5,-5 5,-5 0,5" fill="black" /></g>`;
+            }
+
+            svgContent += `</g>`;
+        }
+
+        // --- Main Panel View ---
+        svgContent += `<g transform="translate(${params.thickness + gap}, 0)">`;
+        svgContent += `<rect x="0" y="0" width="${params.L}" height="${params.W}" fill="none" stroke="black" stroke-width="2" />`;
+        svgContent += DimLine({ x1: 0, y1: 0, x2: params.L, y2: 0, text: params.textL, offset: 80, pos: 'top', fontSize: 24, visible: params.visL });
+        svgContent += DimLine({ x1: 0, y1: 0, x2: 0, y2: params.W, text: params.textW, offset: 40, pos: 'left', verticalText: true, fontSize: 24, visible: params.visW });
+
+        // Slots
+        const xDist = getXDist();
+        const isSingleV = params.vSlotCount === 1;
+        const topSlots = isSingleV ? [params.L/2] : [xDist, params.L-xDist];
+        const dim150AnchorX = isSingleV ? (params.L/2 + params.vSlotLen/2) : (params.L - xDist + params.vSlotLen/2);
+        const posTextV = getPosText(params.vSlotCount);
+        const isTopActive = params.topType === 'edge';
+        const isBottomActive = params.hasBottomEdge || params.hasBottomBack;
+
+        if (params.topType === 'edge') {
+            topSlots.forEach(cx => {
+                svgContent += SmoothArcSlot({ x: cx, y: 0, len: params.vSlotLen, depth: params.slotDepth, isTop: true, panelL: params.L, posText: posTextV });
+            });
+        }
+        if (params.hasBottomEdge) {
+            topSlots.forEach(cx => {
+                svgContent += SmoothArcSlot({ x: cx, y: params.W, len: params.vSlotLen, depth: params.slotDepth, isTop: false, panelL: params.L, posText: posTextV });
+            });
+        }
+        if (params.hasBottomBack) {
+            topSlots.forEach(cx => {
+                svgContent += BackSlotShape({ x: cx, y: params.W, w: params.vSlotLen, h: params.backSlotWidth, dist: params.backDist, isTop: false, panelL: params.L, panelW: params.W, posText: posTextV });
+            });
+            svgContent += DimLine({ x1: dim150AnchorX, y1: params.W-params.backDist, x2: params.L, y2: params.W, text: params.backDist, offset: 70, pos: 'right', visible: true, textShift: 5, startOffset: 0 });
+        }
+        if (params.vSlotCount === 2 && params.showSlotDist && (isTopActive || isBottomActive)) {
+            svgContent += `<g>`;
+            svgContent += DimLine({ x1: xDist+params.vSlotLen/2, y1: isTopActive?0:params.W, x2: (params.L-xDist)-params.vSlotLen/2, y2: isTopActive?0:params.W, text: params.L-2*xDist-params.vSlotLen, offset: 110, startOffset: 0, pos: isTopActive?'top':'bottom', color: blueColor, visible: params.visPos });
+            svgContent += DimLine({ x1: xDist, y1: isTopActive?0:params.W, x2: params.L-xDist, y2: isTopActive?0:params.W, text: params.L-2*xDist, offset: 140, startOffset: 0, pos: isTopActive?'top':'bottom', color: blueColor, visible: params.visPos });
+            svgContent += `</g>`;
+        }
+
+        const yDist = getYDist();
+        const isSingleH = params.hSlotCount === 1;
+        const sideSlots = isSingleH ? [params.W/2] : [yDist, params.W-yDist];
+        const posTextH = getPosText(params.hSlotCount);
+        const isLeftActive = params.hasLeftEdge;
+        const isRightActive = params.hasRightEdge;
+
+        if (params.hasLeftEdge) {
+            sideSlots.forEach(cy => {
+                svgContent += SmoothArcSlotSide({ x: 0, y: cy, len: params.hSlotLen, depth: params.slotDepth, isLeft: true, panelW: params.W, posText: posTextH });
+            });
+        }
+        if (params.hasRightEdge) {
+            sideSlots.forEach(cy => {
+                svgContent += SmoothArcSlotSide({ x: params.L, y: cy, len: params.hSlotLen, depth: params.slotDepth, isLeft: false, panelW: params.W, posText: posTextH });
+            });
+        }
+        if (params.hSlotCount === 2 && params.showSlotDist && (isLeftActive || isRightActive)) {
+            svgContent += `<g>`;
+            svgContent += DimLine({ x1: isLeftActive?0:params.L, y1: yDist+params.hSlotLen/2, x2: isLeftActive?0:params.L, y2: (params.W-yDist)-params.hSlotLen/2, text: params.W-2*yDist-params.hSlotLen, offset: 80, startOffset: 0, pos: isLeftActive?'left':'right', color: blueColor, verticalText: true, visible: params.visPos });
+            svgContent += DimLine({ x1: isLeftActive?0:params.L, y1: yDist, x2: isLeftActive?0:params.L, y2: params.W-yDist, text: params.W-2*yDist, offset: 110, startOffset: 0, pos: isLeftActive?'left':'right', color: blueColor, verticalText: true, visible: params.visPos });
+            svgContent += `</g>`;
+        }
+
+        svgContent += `<g transform="translate(${params.L/2}, ${params.W/2})">`;
+        if (params.showTriangle) svgContent += `<polygon points="-5,-5 5,-5 0,5" fill="black" />`;
+        if (view.note) svgContent += `<text x="0" y="-25" text-anchor="middle" font-size="24" fill="black" font-family="Arial">${params.noteText}</text>`;
+        svgContent += `</g>`;
+
+        if (view.bottom) {
+            svgContent += BottomSectionView({ yOffset: params.W + sectionViewGap });
+        }
+
+        svgContent += `</g></svg>`;
+
+        document.getElementById('svg-container').innerHTML = svgContent;
+    }
+
+    // --- Interaction ---
+
+    function updateParam(key, value) {
+        params[key] = value;
+        updateUI();
+        renderSVG();
+    }
+
+    function updateMultiParam(updates) {
+        Object.assign(params, updates);
+        renderSVG();
+    }
+
+    function toggleView(key) {
+        view[key] = !view[key];
+        updateUI();
+        renderSVG();
+    }
+
+    function updateUI() {
+        // Update Buttons style based on View State
+        document.getElementById('btn-view-side').className = `btn-toggle ${view.side ? 'active' : ''}`;
+        document.getElementById('btn-view-side').innerText = view.side ? '隐藏左侧截面' : '显示左侧截面';
+        
+        document.getElementById('btn-view-bottom').className = `btn-toggle ${view.bottom ? 'active' : ''}`;
+        document.getElementById('btn-view-bottom').innerText = view.bottom ? '隐藏底部截面' : '显示底部截面';
+
+        document.getElementById('btn-view-note').className = `btn-toggle ${view.note ? 'active' : ''}`;
+        document.getElementById('btn-view-note').innerText = view.note ? '隐藏备注' : '显示备注';
+
+        // Update Slot count buttons
+        document.getElementById('btn-vSlot-1').className = `px-2 py-0.5 text-xs rounded ${params.vSlotCount===1 ? 'bg-white shadow' : ''}`;
+        document.getElementById('btn-vSlot-2').className = `px-2 py-0.5 text-xs rounded ${params.vSlotCount===2 ? 'bg-white shadow' : ''}`;
+        
+        document.getElementById('btn-hSlot-1').className = `px-2 py-0.5 text-xs rounded ${params.hSlotCount===1 ? 'bg-white shadow' : ''}`;
+        document.getElementById('btn-hSlot-2').className = `px-2 py-0.5 text-xs rounded ${params.hSlotCount===2 ? 'bg-white shadow' : ''}`;
+
+        // Visibility of conditional inputs
+        document.getElementById('div-backDist').classList.toggle('hidden', !params.hasBottomBack);
+        document.getElementById('div-backSlotSettings').classList.toggle('hidden', !params.hasBottomBack);
+        
+        // Slot Position Mode
+        const isCenter = params.slotPosMode === 'center';
+        document.getElementById('btn-pos-center').className = `flex-1 py-1 rounded border ${isCenter ? 'bg-gray-200 font-bold border-gray-400 text-black' : 'bg-white text-gray-600 border-gray-300'}`;
+        document.getElementById('btn-pos-custom').className = `flex-1 py-1 rounded border ${!isCenter ? 'bg-gray-200 font-bold border-gray-400 text-black' : 'bg-white text-gray-600 border-gray-300'}`;
+        document.getElementById('div-edgeDist').classList.toggle('hidden', isCenter);
+
+        // Position Label update
+        document.getElementById('lbl-pos-title').innerText = `定位 (${getPosText(params.vSlotCount)})`;
+        document.getElementById('inp-posValue').classList.toggle('hidden', params.posType !== 'fixed');
+    }
+
+    function handleDownload() {
+        const svgElement = document.getElementById('cad-svg');
+        if (!svgElement) return;
+        
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(svgElement);
+        
+        // Add namespace if missing
+        if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+            source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+
+        const url = URL.createObjectURL(new Blob([source], {type:"image/svg+xml;charset=utf-8"}));
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement("canvas"); 
+            const scale = 4; 
+            const rect = svgElement.getBoundingClientRect();
+            canvas.width = rect.width * scale; 
+            canvas.height = rect.height * scale;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+                ctx.fillStyle = "white"; 
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const a = document.createElement("a"); 
+                a.download = `CAD_${new Date().getTime()}.png`; 
+                a.href = canvas.toDataURL("image/png"); 
+                a.click();
+            }
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+    }
+
+    // Initialize
+    updateUI();
+    renderSVG();
+</script>
+</body>
+</html>
