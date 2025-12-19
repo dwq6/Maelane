@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>梅兰干挂槽 CAD 生成器</title>
+    <title>梅兰干挂槽</title>
     <!-- 引入 Tailwind CSS 用于样式布局 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 React 和 ReactDOM -->
@@ -251,7 +251,7 @@
                                 )
                             )}
 
-                            <DimLine x1={i===0?0:params.L} y1={params.thickness} x2={cx} y2={(params.thickness+activeW)/2} text={getXDist()} offset={50} startOffset={0} pos="bottom" color="red" visible={params.visPos} />
+                            <DimLine x1={i===0?0:params.L} y1={params.thickness} x2={cx} y2={(params.thickness+activeW)/2} text={getPosText(params.vSlotCount)} offset={50} startOffset={0} pos="bottom" color="red" visible={params.visPos} />
                             {params.visPos && <circle cx={cx} cy={(params.thickness+activeW)/2} r="2.5" fill="red" />}
                         </g>
                     ))}
