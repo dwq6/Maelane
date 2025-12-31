@@ -4,285 +4,98 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>扇形板</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; 
-            margin: 0; 
-        }
-        .polish-btn {
-            background-color: white;
-            color: #374151;
-            border: 1px solid #e5e7eb;
-        }
-        .polish-btn.active {
-            background-color: #374151;
-            color: white;
-            border-color: #374151;
-            font-weight: 600;
-        }
-        .polish-btn:not(.active):hover {
-            background-color: #f9fafb;
-        }
-        .input-wrapper { position: relative; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         
-        .custom-checkbox {
-            accent-color: #374151;
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-        }
-        
-        /* 分组标题样式 */
-        .group-label {
-            grid-column: span 2;
-            font-size: 11px;
-            font-weight: 700;
-            color: #9ca3af;
-            text-transform: uppercase;
-            margin-top: 8px;
-            margin-bottom: 4px;
-            letter-spacing: 0.05em;
+        /* Animation utilities */
+        .animate-in { animation: animateIn 0.3s ease-out; }
+        @keyframes animateIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
-<body class="bg-gray-50 text-slate-800 min-h-screen flex flex-col lg:flex-row justify-center items-stretch gap-4 p-6">
+<body class="bg-gray-50 text-slate-800">
+    <div id="root"></div>
 
-    <!-- 左侧控制面板 -->
-    <div class="w-full lg:w-96 flex-shrink-0 bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-y-auto max-h-screen">
-        <div class="flex items-center justify-between mb-4 border-b pb-3">
-            <h1 class="font-bold text-lg text-gray-800">扇形板计算器</h1>
-            <button onclick="resetParams()" class="text-xs text-gray-600 flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded transition-colors">
-                <i data-lucide="rotate-ccw" width="12"></i> 重置
-            </button>
-        </div>
+    <script type="text/babel" data-presets="typescript,react">
+        const { useState, useEffect } = React;
 
-        <div class="space-y-4 flex-1">
-            <!-- 几何参数 -->
-            <div>
-                <div class="flex justify-between items-end mb-2">
-                    <label class="text-xs font-bold text-gray-500">输入任意参数 (自动互推)</label>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <!-- 基础尺寸 -->
-                    <div class="group-label">基础尺寸</div>
-                    <div class="input-wrapper">
-                        <input type="number" id="radiusOut" value="2000" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">外半径 (R外)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="radiusIn" value="1200" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">内半径 (R内)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="widthVal" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">宽度 (W)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="thickness" value="30" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">厚度 (T)</span>
-                    </div>
+        // --- Icons Components (Inline SVG to avoid dependency issues) ---
+        const IconBase = ({ size = 24, className = "", children }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const RotateCcw = (p) => <IconBase {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconBase>;
+        const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
+        const Calculator = (p) => <IconBase {...p}><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></IconBase>;
+        const CheckCircle2 = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></IconBase>;
+        const AlertCircle = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></IconBase>;
+        const Eye = (p) => <IconBase {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconBase>;
+        const Ruler = (p) => <IconBase {...p}><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><line x1="14.5" x2="17.5" y1="8.5" y2="11.5"/><line x1="11.5" x2="14.5" y1="11.5" y2="14.5"/><line x1="8.5" x2="11.5" y1="14.5" y2="17.5"/><line x1="5.5" x2="8.5" y1="11.5" y2="8.5"/><line x1="12.5" x2="9.5" y1="15.5" y2="18.5"/></IconBase>;
 
-                    <!-- 弧长与弦长 -->
-                    <div class="group-label">弧长与弦长</div>
-                    <div class="input-wrapper">
-                        <input type="number" id="arcOut" value="1500" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">外弧长 (L外)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="arcIn" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">内弧长 (L内)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="chordOut" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">外弦长 (C外)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="chordIn" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">内弦长 (C内)</span>
-                    </div>
-
-                    <!-- 高度参数 -->
-                    <div class="group-label">高度参数 (支持反推)</div>
-                    <div class="input-wrapper">
-                        <input type="number" id="archOut" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">外弧拱高 (h外)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="archIn" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">内弧拱高 (h内)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="totalHeight" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">总高 (H)</span>
-                    </div>
-                    <div class="input-wrapper">
-                        <input type="number" id="sideVertHeight" placeholder="自动" class="geom-input w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300">
-                        <span class="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">侧边垂高 (Hv)</span>
-                    </div>
-                </div>
-                <div id="statusMsg" class="mt-2 text-xs flex items-start gap-1 text-gray-500 font-medium"></div>
-            </div>
-
-            <!-- 磨光面标记 -->
-            <div class="pt-2 border-t border-gray-100">
-                <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">磨光面标记</label>
-                <div class="grid grid-cols-3 gap-2">
-                    <button class="polish-btn active flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('face', this)">正面</button>
-                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('waiHu', this)">外弧面</button>
-                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('neiHu', this)">内弧面</button>
-                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('leftSide', this)">左侧面</button>
-                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('rightSide', this)">右侧面</button>
-                    <button class="polish-btn flex items-center justify-center p-1.5 rounded text-xs transition-all" onclick="togglePolish('back', this)">背面</button>
-                </div>
-            </div>
-
-             <!-- 显示选项 -->
-             <div class="pt-2 border-t border-gray-100">
-                <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">图纸标注选项</label>
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600">
-                        <input type="checkbox" id="showArchHeight" onchange="draw()" class="custom-checkbox rounded border-gray-300">
-                        <span>显示拱高</span>
-                    </label>
-                    <label class="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600">
-                        <input type="checkbox" id="showTotalHeight" onchange="draw()" checked class="custom-checkbox rounded border-gray-300">
-                        <span>显示总高</span>
-                    </label>
-                    <label class="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600 col-span-2">
-                        <input type="checkbox" id="showSideVertHeight" onchange="draw()" checked class="custom-checkbox rounded border-gray-300">
-                        <span>显示侧边垂高 (上弧底-下弧底)</span>
-                    </label>
-                </div>
-            </div>
-
-            <!-- 计算结果 -->
-            <div id="resultBox" class="hidden mt-2 bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs">
-                <h3 class="font-bold text-gray-700 mb-2 flex items-center gap-1">
-                    <i data-lucide="calculator" width="12"></i> 计算结果
-                </h3>
-                <div class="flex flex-col space-y-1" id="resultContent"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 右侧预览面板 -->
-    <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col min-h-[600px] max-w-5xl relative">
-        <div class="flex justify-between items-center mb-2 border-b pb-2 z-10 bg-white">
-            <h2 class="font-bold text-gray-700 flex items-center gap-2">
-                预览图 <span class="text-xs font-normal text-white bg-gray-400 px-2 py-0.5 rounded-full">自动适应</span>
-            </h2>
-            <button id="downloadBtn" onclick="downloadImage()" disabled class="text-xs bg-gray-800 text-white flex items-center gap-1 px-3 py-1.5 rounded hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
-                <i data-lucide="download" width="14"></i> 下载图纸
-            </button>
-        </div>
-        <div id="svgContainer" class="flex-1 w-full h-full flex items-center justify-start overflow-hidden bg-white"></div>
-    </div>
-
-    <script>
-        lucide.createIcons();
-
-        const state = {
-            polish: {
-                face: true,
-                back: false, 
-                waiHu: false,
-                neiHu: false,
-                leftSide: false,
-                rightSide: false
-            },
-            data: null
-        };
-
-        document.querySelectorAll('.geom-input').forEach(input => {
-            input.addEventListener('input', calculate);
-        });
-
-        function togglePolish(key, btn) {
-            state.polish[key] = !state.polish[key];
-            if (state.polish[key]) btn.classList.add('active');
-            else btn.classList.remove('active');
-            draw();
-        }
-
-        function resetParams() {
-            const ids = ['radiusOut', 'radiusIn', 'widthVal', 'arcOut', 'arcIn', 'chordOut', 'chordIn', 'archOut', 'archIn', 'totalHeight', 'sideVertHeight'];
-            ids.forEach(id => document.getElementById(id).value = '');
-            
-            document.getElementById('radiusOut').value = '2000';
-            document.getElementById('radiusIn').value = '1200';
-            document.getElementById('arcOut').value = '1500';
-            document.getElementById('thickness').value = '30';
-            calculate();
-        }
-
-        function calculate() {
-            const getVal = (id) => {
-                const v = parseFloat(document.getElementById(id).value);
+        // --- Logic (geometry.ts) ---
+        const calculateGeometry = (input) => {
+            const getVal = (val) => {
+                const v = parseFloat(val);
                 return isNaN(v) ? null : v;
             };
 
             let inp = {
-                ro: getVal('radiusOut'),
-                ri: getVal('radiusIn'),
-                w:  getVal('widthVal'),
-                lo: getVal('arcOut'),
-                li: getVal('arcIn'),
-                co: getVal('chordOut'),
-                ci: getVal('chordIn'),
-                ho: getVal('archOut'),
-                hi: getVal('archIn'),
-                ht: getVal('totalHeight'),
-                hsv: getVal('sideVertHeight'),
-                t:  getVal('thickness')
+                ro: getVal(input.ro),
+                ri: getVal(input.ri),
+                w:  getVal(input.w),
+                lo: getVal(input.lo),
+                li: getVal(input.li),
+                co: getVal(input.co),
+                ci: getVal(input.ci),
+                ho: getVal(input.ho),
+                hi: getVal(input.hi),
+                ht: getVal(input.ht),
+                hsv: getVal(input.hsv),
+                t:  getVal(input.t)
             };
 
-            const statusEl = document.getElementById('statusMsg');
-            const resultBox = document.getElementById('resultBox');
-            const downloadBtn = document.getElementById('downloadBtn');
-
-            if (!inp.t) {
-                showError("请输入板厚度");
-                return;
+            if (inp.t === null) {
+                return { valid: false, error: "请输入板厚度 (T)", ro:0, ri:0, w:0, lo:0, li:0, co:0, ci:0, ho:0, hi:0, ht:0, hsv:0, t:0, angle:0, theta:0 };
             }
 
-            // --- 参数推导逻辑 ---
-            
-            // 1. 基础几何: H_total = W + h_in
+            // 1. Basic Geometry: H_total = W + h_in
             if (inp.ht && inp.w && !inp.hi) inp.hi = inp.ht - inp.w;
             if (inp.ht && inp.hi && !inp.w) inp.w = inp.ht - inp.hi;
             if (inp.w && inp.hi && !inp.ht) inp.ht = inp.w + inp.hi;
 
-            // 2. 基础几何: R, r, W
+            // 2. Basic Geometry: R, r, W
             if (inp.ro && inp.ri && !inp.w) inp.w = inp.ro - inp.ri;
             if (inp.ro && inp.w && !inp.ri) inp.ri = inp.ro - inp.w;
             if (inp.ri && inp.w && !inp.ro) inp.ro = inp.ri + inp.w;
 
             let theta = null;
 
-            // 3. 角度推导 (新增高级反推)
-            
-            // 场景: 侧边垂高 + 宽度 -> 角度
+            // 3. Angle Deduction
             if (!theta && inp.w && inp.hsv && inp.hsv <= inp.w) {
                 theta = 2 * Math.acos(inp.hsv / inp.w);
             }
-
-            // 场景: 弦长 + 拱高 -> 半径 + 角度 (外弧)
             if (!theta && !inp.ro && inp.ho && inp.co) {
                 inp.ro = (inp.co * inp.co + 4 * inp.ho * inp.ho) / (8 * inp.ho);
                 theta = 2 * Math.asin(inp.co / (2 * inp.ro));
             }
-            // 场景: 弦长 + 拱高 -> 半径 + 角度 (内弧)
             if (!theta && !inp.ri && inp.hi && inp.ci) {
                 inp.ri = (inp.ci * inp.ci + 4 * inp.hi * inp.hi) / (8 * inp.hi);
                 theta = 2 * Math.asin(inp.ci / (2 * inp.ri));
             }
-
-            // 场景: 半径 + 拱高 -> 角度
             if (!theta && inp.ro && inp.ho) {
                 let cosVal = 1 - inp.ho/inp.ro;
                 if (cosVal >= -1 && cosVal <= 1) theta = 2 * Math.acos(cosVal);
@@ -292,22 +105,20 @@
                 if (cosVal >= -1 && cosVal <= 1) theta = 2 * Math.acos(cosVal);
             }
 
-            // 4. 常规角度推导
+            // 4. Standard Angle Deduction
             if (!theta && inp.lo && inp.ro) theta = inp.lo / inp.ro;
             if (!theta && inp.li && inp.ri) theta = inp.li / inp.ri;
-
             if (!theta && inp.co && inp.ro) {
                 if (inp.co <= 2 * inp.ro) theta = 2 * Math.asin(inp.co / (2 * inp.ro));
             }
             if (!theta && inp.ci && inp.ri) {
                 if (inp.ci <= 2 * inp.ri) theta = 2 * Math.asin(inp.ci / (2 * inp.ri));
             }
-
             if (!theta && inp.lo && inp.li && inp.w) {
-                 theta = (inp.lo - inp.li) / inp.w;
+                theta = (inp.lo - inp.li) / inp.w;
             }
 
-            // 5. 有了角度后，补全半径
+            // 5. Completion
             if (theta && theta > 0) {
                 if (!inp.ro) {
                     if (inp.lo) inp.ro = inp.lo / theta;
@@ -322,8 +133,8 @@
             if (!inp.w && inp.ro && inp.ri) inp.w = inp.ro - inp.ri;
             if (inp.w && !inp.ri && inp.ro) inp.ri = inp.ro - inp.w;
 
-            // 6. 验证与结果生成
-            let error = null;
+            // 6. Validation
+            let error = undefined;
             let ro = inp.ro;
             let ri = inp.ri;
 
@@ -337,97 +148,68 @@
                 else if (theta > Math.PI * 2) error = "角度过大 (>360°)";
             }
 
-            if (!error) {
+            if (!error && ro && ri && theta) {
                 const cosHalf = Math.cos(theta/2);
                 const h_out = ro * (1 - cosHalf);
                 const h_in = ri * (1 - cosHalf);
                 const h_total = ro - (ri * cosHalf);
                 const h_side_vert = (ro - ri) * cosHalf;
 
-                const res = {
+                return {
+                    valid: true,
                     ro: ro, ri: ri,
                     lo: theta * ro, li: theta * ri,
                     co: 2 * ro * Math.sin(theta/2), ci: 2 * ri * Math.sin(theta/2),
                     w: ro - ri, angle: theta * 180 / Math.PI, t: inp.t,
-                    ho: h_out, hi: h_in, ht: h_total, hsv: h_side_vert
+                    ho: h_out, hi: h_in, ht: h_total, hsv: h_side_vert,
+                    theta
                 };
-                state.data = { valid: true, theta: theta, ...res };
-
-                statusEl.innerHTML = `<i data-lucide="check-circle-2" width="12"></i> 生成成功`;
-                statusEl.className = "mt-2 text-xs flex items-center gap-1 text-gray-700 font-medium";
-                resultBox.classList.remove('hidden');
-                
-                const fmt = (n) => n.toFixed(1);
-                // 辅助函数：如果输入框为空，则显示为粗体（表示是计算出的）
-                const isAuto = (val, id) => {
-                    const el = document.getElementById(id);
-                    return (el && el.value == '') ? 'font-mono font-bold text-gray-900' : 'font-mono text-gray-700';
-                };
-                
-                // 填充结果列表
-                document.getElementById('resultContent').innerHTML = `
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">侧边宽(W)</span> <span class="${isAuto(res.w, 'widthVal')}">${fmt(res.w)}</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">圆心角</span> <span class="font-mono text-gray-900">${fmt(res.angle)}°</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">总高度</span> <span class="${isAuto(res.ht, 'totalHeight')}">${fmt(res.ht)}</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">侧边垂高</span> <span class="${isAuto(res.hsv, 'sideVertHeight')}">${fmt(res.hsv)}</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">外弧拱高</span> <span class="${isAuto(res.ho, 'archOut')}">${fmt(res.ho)}</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">内弧拱高</span> <span class="${isAuto(res.hi, 'archIn')}">${fmt(res.hi)}</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">外弦长</span> <span class="${isAuto(res.co, 'chordOut')}">${fmt(res.co)}</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">内弦长</span> <span class="${isAuto(res.ci, 'chordIn')}">${fmt(res.ci)}</span></div>
-                    <div class="flex justify-between border-b border-gray-100 pb-1"><span class="text-gray-400">外弧长</span> <span class="${isAuto(res.lo, 'arcOut')}">${fmt(res.lo)}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">内弧长</span> <span class="${isAuto(res.li, 'arcIn')}">${fmt(res.li)}</span></div>
-                `;
-                downloadBtn.disabled = false;
-                lucide.createIcons();
-                draw();
-            } else {
-                showError(error || "请输入参数");
             }
-        }
 
-        function showError(msg) {
-            state.data = { valid: false };
-            const statusEl = document.getElementById('statusMsg');
-            statusEl.innerHTML = `<i data-lucide="alert-circle" width="12"></i> ${msg}`;
-            statusEl.className = "mt-2 text-xs flex items-center gap-1 text-gray-800 font-medium";
-            document.getElementById('resultBox').classList.add('hidden');
-            document.getElementById('downloadBtn').disabled = true;
-            document.getElementById('svgContainer').innerHTML = `
-                <div class="text-center text-gray-300">
-                    <i data-lucide="box" class="mx-auto mb-2 w-12 h-12 opacity-20"></i>
-                    <p>${msg}</p>
-                </div>
-            `;
-            lucide.createIcons();
-        }
+            return { valid: false, error: error || "Calculaton Error", ro:0, ri:0, w:0, lo:0, li:0, co:0, ci:0, ho:0, hi:0, ht:0, hsv:0, t:0, angle:0, theta:0 };
+        };
 
-        function downloadImage() {
-            const svg = document.getElementById('mainSvg');
-            if (!svg) return;
-            const serializer = new XMLSerializer();
-            const source = serializer.serializeToString(svg);
-            const blob = new Blob([source], {type: "image/svg+xml;charset=utf-8"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `fan_plate_${new Date().getTime()}.svg`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
+        // --- Component: TechnicalPreview (Engineering Drawing) ---
+        const polarToCartesian = (r, angle) => ({
+            x: r * Math.sin(angle),
+            y: -r * Math.cos(angle)
+        });
 
-        function draw() {
-            if (!state.data || !state.data.valid) return;
-            const { theta, ro: R_out, ri: R_in, t: T, lo: L_out, li: L_in, co: C_out, ci: C_in, w: W, ho: H_out, hi: H_in, ht: H_total, hsv: H_side_vert } = state.data;
+        const MarkTriangle = ({x, y, rotation}) => (
+            <path d="M -8 -16 L 8 -16 L 0 0 Z" fill="black" transform={`translate(${x}, ${y}) rotate(${rotation})`} />
+        );
 
-            const showArch = document.getElementById('showArchHeight').checked;
-            const showTotal = document.getElementById('showTotalHeight').checked;
-            const showSideVert = document.getElementById('showSideVertHeight').checked;
+        const RadialDim = ({r, angle, text}) => {
+            const p_start = polarToCartesian(r, angle);
+            const p_end = polarToCartesian(r - 150, angle);
+            const p_text = polarToCartesian(r - 75, angle);
+            const rot = (angle * 180 / Math.PI) + 90;
+            return (
+                <g>
+                    <circle cx={p_start.x} cy={p_start.y} r="3" fill="#333" />
+                    <line x1={p_start.x} y1={p_start.y} x2={p_end.x} y2={p_end.y} stroke="#333" strokeWidth="1" />
+                    <g transform={`translate(${p_text.x}, ${p_text.y}) rotate(${rot})`}>
+                        <text x="0" y="0" textAnchor="middle" dy="-5" fontSize="24" fill="#333">{text}</text>
+                    </g>
+                </g>
+            );
+        };
 
-            const polarToCartesian = (r, angle) => ({
-                x: r * Math.sin(angle),
-                y: -r * Math.cos(angle)
-            });
+        const TechnicalPreview = ({ data, polish, showArch, showTotal, showSideVert }) => {
+            if (!data.valid) {
+                return (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2 opacity-20">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        <p>{data.error || "等待输入参数..."}</p>
+                    </div>
+                );
+            }
+
+            const { theta, ro: R_out, ri: R_in, t: T, lo: L_out, li: L_in, co: C_out, ci: C_in, w: W, ho: H_out, hi: H_in, ht: H_total, hsv: H_side_vert } = data;
 
             const startAngle = -theta / 2;
             const endAngle = theta / 2;
@@ -437,7 +219,6 @@
             const p_in_left = polarToCartesian(R_in, startAngle);
             const p_in_right = polarToCartesian(R_in, endAngle);
 
-            // 3D 投影 (厚度)
             const depthAngle = 45 * Math.PI / 180;
             const depthLen = T * 0.8; 
             const dx = depthLen * Math.sin(depthAngle);
@@ -447,20 +228,15 @@
             const p_out_left_back = project(p_out_left);
             const p_out_right_back = project(p_out_right);
             const p_in_right_back = project(p_in_right);
-            const p_in_left_back = project(p_in_left);
 
-            // 路径定义
             const pathFace = `M ${p_out_left.x} ${p_out_left.y} A ${R_out} ${R_out} 0 0 1 ${p_out_right.x} ${p_out_right.y} L ${p_in_right.x} ${p_in_right.y} A ${R_in} ${R_in} 0 0 0 ${p_in_left.x} ${p_in_left.y} Z`;
             const pathOuter = `M ${p_out_left.x} ${p_out_left.y} L ${p_out_left_back.x} ${p_out_left_back.y} A ${R_out} ${R_out} 0 0 1 ${p_out_right_back.x} ${p_out_right_back.y} L ${p_out_right.x} ${p_out_right.y} A ${R_out} ${R_out} 0 0 0 ${p_out_left.x} ${p_out_left.y} Z`;
             const pathRight = `M ${p_out_right.x} ${p_out_right.y} L ${p_out_right_back.x} ${p_out_right_back.y} L ${p_in_right_back.x} ${p_in_right_back.y} L ${p_in_right.x} ${p_in_right.y} Z`;
 
             const colorWhite = "#ffffff";
             const colorPolish = "#e5e7eb"; 
-            
-            // 尺寸标注坐标计算
-            const top_apex_y = -R_out;
-            const top_chord_y = top_apex_y - 40;
-            
+
+            const top_chord_y = -R_out - 40;
             const dim_arc_r = R_out + 120;
             const p_arc_start = polarToCartesian(dim_arc_r, startAngle);
             const p_arc_end = polarToCartesian(dim_arc_r, endAngle);
@@ -472,199 +248,525 @@
             const p_text_arc_in = polarToCartesian(dim_arc_in_r - 10, 0);
 
             const bottom_chord_y = Math.max(p_in_left.y, p_in_right.y) + 140;
-            
-            // 侧边宽度标注 (Slanted W)
+
             const left_dx = p_out_left.x - p_in_left.x;
             const left_dy = p_out_left.y - p_in_left.y;
-            const len = Math.sqrt(left_dx*left_dx + left_dy*left_dy);
-            const nx = left_dy / len; 
-            const ny = -left_dx / len;
+            const nx = left_dy / W; 
+            const ny = -left_dx / W;
             const offset_w = 120; 
             const p_w_start = { x: p_out_left.x + nx * offset_w, y: p_out_left.y + ny * offset_w };
             const p_w_end = { x: p_in_left.x + nx * offset_w, y: p_in_left.y + ny * offset_w };
             const p_w_text = { x: (p_w_start.x + p_w_end.x)/2, y: (p_w_start.y + p_w_end.y)/2 };
             const w_angle = Math.atan2(p_w_end.y - p_w_start.y, p_w_end.x - p_w_start.x) * 180 / Math.PI;
-            const p_thick_end = p_out_left_back;
 
-            // 磨光面标记
-            const markSize = 16;
-            const markPath = `M ${-markSize/2} ${-markSize} L ${markSize/2} ${-markSize} L 0 0 Z`;
-            let marksSVG = '';
+            // Updated ViewBox Calculation
+            const sideVertDist = 250; // Increased distance to left
+            const totalHeightDist = 190;
+            const textPadding = 160;
 
-            if (state.polish.face) {
-                const r_mid = (R_out + R_in) / 2;
-                const p_mid = polarToCartesian(r_mid, 0);
-                marksSVG += `<path d="${markPath}" fill="black" transform="translate(${p_mid.x}, ${p_mid.y})" />`;
-            }
-            if (state.polish.waiHu) {
-                const p_top = polarToCartesian(R_out + 6, 0);
-                marksSVG += `<path d="${markPath}" fill="black" transform="translate(${p_top.x}, ${p_top.y})" />`;
-            }
-            if (state.polish.back) {
-                const angle_back = 3 * Math.PI / 180;
-                const p_base = polarToCartesian(R_out + 4, angle_back);
-                const p_back = { x: p_base.x + dx, y: p_base.y + dy }; 
-                marksSVG += `<path d="${markPath}" fill="black" transform="translate(${p_back.x}, ${p_back.y}) rotate(30)" />`;
-            }
-            if (state.polish.neiHu) {
-                const p_bot = polarToCartesian(R_in - 6, 0);
-                marksSVG += `<path d="${markPath}" fill="black" transform="translate(${p_bot.x}, ${p_bot.y}) rotate(180)" />`;
-            }
-            if (state.polish.leftSide) {
-                const r_mid = (R_out + R_in) / 2;
-                const p_edge = polarToCartesian(r_mid, startAngle);
-                const ang_out = startAngle - Math.PI/2;
-                const p_mark = { x: p_edge.x + 1 * Math.sin(ang_out), y: p_edge.y - 1 * Math.cos(ang_out) };
-                const rot = (startAngle * 180 / Math.PI) - 90;
-                marksSVG += `<path d="${markPath}" fill="black" transform="translate(${p_mark.x}, ${p_mark.y}) rotate(${rot})" />`;
-            }
-            if (state.polish.rightSide) {
-                const r_mid = (R_out + R_in) / 2;
-                const p_edge = polarToCartesian(r_mid, endAngle);
-                const ang_out = endAngle + Math.PI/2;
-                const p_mark = { x: p_edge.x + 1 * Math.sin(ang_out), y: p_edge.y - 1 * Math.cos(ang_out) };
-                const rot = (endAngle * 180 / Math.PI) + 90;
-                marksSVG += `<path d="${markPath}" fill="black" transform="translate(${p_mark.x}, ${p_mark.y}) rotate(${rot})" />`;
-            }
-
-            // 半径标注函数
-            const createRadialDim = (r, angle, text) => {
-                const p_start = polarToCartesian(r, angle);
-                const p_end = polarToCartesian(r - 150, angle);
-                const p_text = polarToCartesian(r - 75, angle);
-                const rot = (angle * 180 / Math.PI) + 90;
-                return `
-                    <circle cx="${p_start.x}" cy="${p_start.y}" r="3" fill="#333" />
-                    <line x1="${p_start.x}" y1="${p_start.y}" x2="${p_end.x}" y2="${p_end.y}" stroke="#333" stroke-width="1" />
-                    <g transform="translate(${p_text.x}, ${p_text.y}) rotate(${rot})">
-                        <text x="0" y="0" text-anchor="middle" dy="-5" font-size="24" fill="#333">${text}</text>
-                    </g>
-                `;
-            };
-
-            const dim_r_out = createRadialDim(R_out, startAngle + theta * 0.15, `R${R_out.toFixed(0)}`);
-            const dim_r_in = createRadialDim(R_in, endAngle - theta * 0.15, `R${R_in.toFixed(0)}`);
-
-            // 拱高标注绘制逻辑
-            let archHeightSVG = '';
-            if (showArch) {
-                const p_out_arc_mid = { x: 0, y: -R_out };
-                const p_out_chord_mid = { x: 0, y: -R_out * Math.cos(theta/2) };
-                const p_in_arc_mid = { x: 0, y: -R_in };
-                const p_in_chord_mid = { x: 0, y: -R_in * Math.cos(theta/2) };
-
-                archHeightSVG = `
-                    <line x1="0" y1="${p_out_arc_mid.y}" x2="0" y2="${p_out_chord_mid.y}" stroke="#333" stroke-width="1.5" marker-start="url(#arrow-end)" marker-end="url(#arrow-end)" />
-                    <text x="5" y="${(p_out_arc_mid.y + p_out_chord_mid.y)/2}" fill="#333" font-size="20" alignment-baseline="middle" font-weight="bold">h${H_out.toFixed(0)}</text>
-                    <line x1="0" y1="${p_in_arc_mid.y}" x2="0" y2="${p_in_chord_mid.y}" stroke="#333" stroke-width="1.5" marker-start="url(#arrow-end)" marker-end="url(#arrow-end)" />
-                    <text x="5" y="${(p_in_arc_mid.y + p_in_chord_mid.y)/2}" fill="#333" font-size="20" alignment-baseline="middle" font-weight="bold">h${H_in.toFixed(0)}</text>
-                `;
-            }
-
-            // 总高标注绘制逻辑
-            let totalHeightSVG = '';
-            if (showTotal) {
-                const topY = -R_out;
-                const bottomY = -R_in * Math.cos(theta/2);
-                const xPos = p_out_right.x + 180; 
-
-                totalHeightSVG = `
-                    <line x1="${p_out_right.x}" y1="${topY}" x2="${xPos + 10}" y2="${topY}" stroke="#333" stroke-width="0.5" stroke-dasharray="4,4" />
-                    <line x1="${p_in_right.x}" y1="${bottomY}" x2="${xPos + 10}" y2="${bottomY}" stroke="#333" stroke-width="0.5" stroke-dasharray="4,4" />
-                    <line x1="${xPos}" y1="${topY}" x2="${xPos}" y2="${bottomY}" stroke="#333" stroke-width="1.5" marker-start="url(#arrow-end)" marker-end="url(#arrow-end)" />
-                    <g transform="translate(${xPos + 10}, ${(topY + bottomY)/2}) rotate(90)">
-                        <text x="0" y="-5" text-anchor="middle" fill="#333" font-size="26" font-weight="bold">H=${H_total.toFixed(0)}</text>
-                    </g>
-                `;
-            }
+            const pointsX = [
+                p_out_left.x, 
+                p_out_right.x, 
+                p_w_start.x - 60,
+                p_w_end.x - 60,
+                p_out_left_back.x
+            ];
             
-            // 侧边垂高标注逻辑
-            let sideVertHeightSVG = '';
-            let sv_min_x = p_out_left.x; 
-            if (showSideVert) {
-                const y_top = p_out_left.y; 
-                const y_bot = p_in_left.y;  
-                const x_dim_pos = Math.min(p_out_left.x, p_in_left.x) - 180; 
-                sv_min_x = x_dim_pos;
-
-                sideVertHeightSVG = `
-                    <line x1="${p_out_left.x}" y1="${y_top}" x2="${x_dim_pos - 10}" y2="${y_top}" stroke="#333" stroke-width="0.5" stroke-dasharray="4,4" />
-                    <line x1="${p_in_left.x}" y1="${y_bot}" x2="${x_dim_pos - 10}" y2="${y_bot}" stroke="#333" stroke-width="0.5" stroke-dasharray="4,4" />
-                    <line x1="${x_dim_pos}" y1="${y_top}" x2="${x_dim_pos}" y2="${y_bot}" stroke="#333" stroke-width="1.5" marker-start="url(#arrow-end)" marker-end="url(#arrow-end)" />
-                    <g transform="translate(${x_dim_pos - 10}, ${(y_top + y_bot)/2}) rotate(-90)">
-                        <text x="0" y="-5" text-anchor="middle" fill="#333" font-size="26" font-weight="bold">Hv=${H_side_vert.toFixed(0)}</text>
-                    </g>
-                `;
+            if (showTotal) {
+                pointsX.push(p_out_right.x + totalHeightDist + textPadding);
+            } else {
+                pointsX.push(p_out_right.x + 50);
             }
 
-            const pointsX = [p_out_left.x, p_out_right.x, p_out_right.x + 200, p_w_start.x - 60, p_thick_end.x - 50, sv_min_x - 50];
+            if (showSideVert) {
+                pointsX.push(p_out_left.x - sideVertDist - textPadding);
+            }
+
             const pointsY = [polarToCartesian(dim_arc_r + 40, 0).y, bottom_chord_y + 50, p_out_right.y];
-            const minX = Math.min(...pointsX);
+            let minX = Math.min(...pointsX);
             const maxX = Math.max(...pointsX);
             const minY = Math.min(...pointsY);
             const maxY = Math.max(...pointsY);
+            
             const w_box = maxX - minX;
             const h_box = maxY - minY;
             const padding = 20;
             const viewBox = `${minX - padding} ${minY - padding} ${w_box + 2*padding} ${h_box + 2*padding}`;
 
-            const svg = `
-                <svg id="mainSvg" width="100%" height="100%" viewBox="${viewBox}" preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
+            const renderPolishMarks = () => {
+                const marks = [];
+                if (polish.face) {
+                    const r_mid = (R_out + R_in) / 2;
+                    const p_mid = polarToCartesian(r_mid, 0);
+                    marks.push(<MarkTriangle key="face" x={p_mid.x} y={p_mid.y} rotation={0} />);
+                }
+                if (polish.waiHu) {
+                    const p_top = polarToCartesian(R_out + 6, 0);
+                    marks.push(<MarkTriangle key="waiHu" x={p_top.x} y={p_top.y} rotation={0} />);
+                }
+                if (polish.back) {
+                    const angle_back = 3 * Math.PI / 180;
+                    const p_base = polarToCartesian(R_out + 4, angle_back);
+                    const p_back = { x: p_base.x + dx, y: p_base.y + dy }; 
+                    marks.push(<MarkTriangle key="back" x={p_back.x} y={p_back.y} rotation={30} />);
+                }
+                if (polish.neiHu) {
+                    const p_bot = polarToCartesian(R_in - 6, 0);
+                    marks.push(<MarkTriangle key="neiHu" x={p_bot.x} y={p_bot.y} rotation={180} />);
+                }
+                if (polish.leftSide) {
+                    const r_mid = (R_out + R_in) / 2;
+                    const p_edge = polarToCartesian(r_mid, startAngle);
+                    const ang_out = startAngle - Math.PI/2;
+                    const p_mark = { x: p_edge.x + 1 * Math.sin(ang_out), y: p_edge.y - 1 * Math.cos(ang_out) };
+                    const rot = (startAngle * 180 / Math.PI) - 90;
+                    marks.push(<MarkTriangle key="left" x={p_mark.x} y={p_mark.y} rotation={rot} />);
+                }
+                if (polish.rightSide) {
+                    const r_mid = (R_out + R_in) / 2;
+                    const p_edge = polarToCartesian(r_mid, endAngle);
+                    const ang_out = endAngle + Math.PI/2;
+                    const p_mark = { x: p_edge.x + 1 * Math.sin(ang_out), y: p_edge.y - 1 * Math.cos(ang_out) };
+                    const rot = (endAngle * 180 / Math.PI) + 90;
+                    marks.push(<MarkTriangle key="right" x={p_mark.x} y={p_mark.y} rotation={rot} />);
+                }
+                return marks;
+            };
+
+            return (
+                <svg id="mainSvg" width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMinYMid meet" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <marker id="dot" markerWidth="6" markerHeight="6" refX="3" refY="3"><circle cx="3" cy="3" r="2" fill="#333" /></marker>
                         <marker id="arrow-end" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#333" /></marker>
                     </defs>
-                    <path d="${pathOuter}" fill="${state.polish.waiHu ? colorPolish : colorWhite}" stroke="black" stroke-width="1.5" stroke-linejoin="round" />
-                    <path d="${pathRight}" fill="${state.polish.rightSide ? colorPolish : colorWhite}" stroke="black" stroke-width="1.5" stroke-linejoin="round" />
-                    <path d="${pathFace}" fill="${state.polish.face ? colorPolish : colorWhite}" stroke="black" stroke-width="1.5" stroke-linejoin="round" />
-                    <line x1="${p_out_left.x}" y1="${p_out_left.y}" x2="${p_out_left_back.x}" y2="${p_out_left_back.y}" stroke="black" stroke-width="1" stroke-dasharray="4,4" opacity="0.4" />
-                    ${marksSVG}
-                    <g font-family="Arial" font-size="24" fill="#333" text-anchor="middle">
-                        <line x1="${p_out_left.x}" y1="${p_out_left.y}" x2="${p_out_left.x}" y2="${top_chord_y}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_out_right.x}" y1="${p_out_right.y}" x2="${p_out_right.x}" y2="${top_chord_y}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_out_left.x}" y1="${top_chord_y}" x2="${p_out_right.x}" y2="${top_chord_y}" stroke="#333" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)" />
-                        <text x="${(p_out_left.x + p_out_right.x)/2}" y="${top_chord_y - 10}" font-size="28">${C_out.toFixed(0)}</text>
+
+                    {/* Geometry Paths */}
+                    <path d={pathOuter} fill={polish.waiHu ? colorPolish : colorWhite} stroke="black" strokeWidth="1.5" strokeLinejoin="round" />
+                    <path d={pathRight} fill={polish.rightSide ? colorPolish : colorWhite} stroke="black" strokeWidth="1.5" strokeLinejoin="round" />
+                    <path d={pathFace} fill={polish.face ? colorPolish : colorWhite} stroke="black" strokeWidth="1.5" strokeLinejoin="round" />
+                    <line x1={p_out_left.x} y1={p_out_left.y} x2={p_out_left_back.x} y2={p_out_left_back.y} stroke="black" strokeWidth="1" strokeDasharray="4,4" opacity="0.4" />
+
+                    {/* Polish Marks */}
+                    {renderPolishMarks()}
+
+                    {/* Annotations Group */}
+                    <g fontFamily="Arial" fontSize="24" fill="#333" textAnchor="middle">
+                        {/* External Chord */}
+                        <line x1={p_out_left.x} y1={p_out_left.y} x2={p_out_left.x} y2={top_chord_y} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_out_right.x} y1={p_out_right.y} x2={p_out_right.x} y2={top_chord_y} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_out_left.x} y1={top_chord_y} x2={p_out_right.x} y2={top_chord_y} stroke="#333" strokeWidth="1" markerStart="url(#dot)" markerEnd="url(#dot)" />
+                        <text x={(p_out_left.x + p_out_right.x)/2} y={top_chord_y - 10} fontSize="28">{C_out.toFixed(0)}</text>
                         
-                        <path d="M ${p_arc_start.x} ${p_arc_start.y} A ${dim_arc_r} ${dim_arc_r} 0 0 1 ${p_arc_end.x} ${p_arc_end.y}" fill="none" stroke="#333" stroke-width="1" />
-                        <line x1="${p_out_left.x}" y1="${p_out_left.y}" x2="${p_arc_start.x}" y2="${p_arc_start.y}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_out_right.x}" y1="${p_out_right.y}" x2="${p_arc_end.x}" y2="${p_arc_end.y}" stroke="#666" stroke-width="0.5" />
-                        <text x="${p_text_arc.x}" y="${p_text_arc.y - 5}" font-size="28">⌒ ${L_out.toFixed(0)}</text>
+                        {/* External Arc */}
+                        <path d={`M ${p_arc_start.x} ${p_arc_start.y} A ${dim_arc_r} ${dim_arc_r} 0 0 1 ${p_arc_end.x} ${p_arc_end.y}`} fill="none" stroke="#333" strokeWidth="1" />
+                        <line x1={p_out_left.x} y1={p_out_left.y} x2={p_arc_start.x} y2={p_arc_start.y} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_out_right.x} y1={p_out_right.y} x2={p_arc_end.x} y2={p_arc_end.y} stroke="#666" strokeWidth="0.5" />
+                        <text x={p_text_arc.x} y={p_text_arc.y - 5} fontSize="28">⌒ {L_out.toFixed(0)}</text>
                         
-                        <path d="M ${p_arc_in_start.x} ${p_arc_in_start.y} A ${dim_arc_in_r} ${dim_arc_in_r} 0 0 1 ${p_arc_in_end.x} ${p_arc_in_end.y}" fill="none" stroke="#333" stroke-width="1" />
-                        <line x1="${p_in_left.x}" y1="${p_in_left.y}" x2="${p_arc_in_start.x}" y2="${p_arc_in_start.y}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_in_right.x}" y1="${p_in_right.y}" x2="${p_arc_in_end.x}" y2="${p_arc_in_end.y}" stroke="#666" stroke-width="0.5" />
-                        <text x="${p_text_arc_in.x}" y="${p_text_arc_in.y + 30}" font-size="28">⌒ ${L_in.toFixed(0)}</text>
+                        {/* Internal Arc */}
+                        <path d={`M ${p_arc_in_start.x} ${p_arc_in_start.y} A ${dim_arc_in_r} ${dim_arc_in_r} 0 0 1 ${p_arc_in_end.x} ${p_arc_in_end.y}`} fill="none" stroke="#333" strokeWidth="1" />
+                        <line x1={p_in_left.x} y1={p_in_left.y} x2={p_arc_in_start.x} y2={p_arc_in_start.y} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_in_right.x} y1={p_in_right.y} x2={p_arc_in_end.x} y2={p_arc_in_end.y} stroke="#666" strokeWidth="0.5" />
+                        <text x={p_text_arc_in.x} y={p_text_arc_in.y + 30} fontSize="28">⌒ {L_in.toFixed(0)}</text>
                         
-                        <line x1="${p_in_left.x}" y1="${p_in_left.y}" x2="${p_in_left.x}" y2="${bottom_chord_y}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_in_right.x}" y1="${p_in_right.y}" x2="${p_in_right.x}" y2="${bottom_chord_y}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_in_left.x}" y1="${bottom_chord_y}" x2="${p_in_right.x}" y2="${bottom_chord_y}" stroke="#333" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)" />
-                        <text x="${(p_in_left.x + p_in_right.x)/2}" y="${bottom_chord_y - 10}" font-size="28">${C_in.toFixed(0)}</text>
+                        {/* Internal Chord */}
+                        <line x1={p_in_left.x} y1={p_in_left.y} x2={p_in_left.x} y2={bottom_chord_y} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_in_right.x} y1={p_in_right.y} x2={p_in_right.x} y2={bottom_chord_y} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_in_left.x} y1={bottom_chord_y} x2={p_in_right.x} y2={bottom_chord_y} stroke="#333" strokeWidth="1" markerStart="url(#dot)" markerEnd="url(#dot)" />
+                        <text x={(p_in_left.x + p_in_right.x)/2} y={bottom_chord_y - 10} fontSize="28">{C_in.toFixed(0)}</text>
                         
-                        <line x1="${p_out_left.x}" y1="${p_out_left.y}" x2="${p_w_start.x}" y2="${p_w_start.y}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_in_left.x}" y1="${p_in_left.y}" x2="${p_w_end.x}" y2="${p_w_end.y}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_w_start.x}" y1="${p_w_start.y}" x2="${p_w_end.x}" y2="${p_w_end.y}" stroke="#333" stroke-width="1" marker-start="url(#dot)" marker-end="url(#dot)" />
-                        <g transform="rotate(${w_angle}, ${p_w_text.x}, ${p_w_text.y})">
-                            <text x="${p_w_text.x}" y="${p_w_text.y - 5}" text-anchor="middle" font-size="28" paint-order="stroke" stroke="white" stroke-width="6">W=${W.toFixed(0)}</text>
+                        {/* Slanted Width */}
+                        <line x1={p_out_left.x} y1={p_out_left.y} x2={p_w_start.x} y2={p_w_start.y} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_in_left.x} y1={p_in_left.y} x2={p_w_end.x} y2={p_w_end.y} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_w_start.x} y1={p_w_start.y} x2={p_w_end.x} y2={p_w_end.y} stroke="#333" strokeWidth="1" markerStart="url(#dot)" markerEnd="url(#dot)" />
+                        <g transform={`rotate(${w_angle}, ${p_w_text.x}, ${p_w_text.y})`}>
+                            <text x={p_w_text.x} y={p_w_text.y - 5} textAnchor="middle" fontSize="28" paintOrder="stroke" stroke="white" strokeWidth="6">W={W.toFixed(0)}</text>
                         </g>
 
-                        ${dim_r_out}
-                        ${dim_r_in}
+                        {/* Radii */}
+                        <RadialDim r={R_out} angle={startAngle + theta * 0.15} text={`R${R_out.toFixed(0)}`} />
+                        <RadialDim r={R_in} angle={endAngle - theta * 0.15} text={`R${R_in.toFixed(0)}`} />
                         
-                        <line x1="${p_out_left.x}" y1="${p_out_left.y}" x2="${p_out_left.x - 30}" y2="${p_out_left.y - 15}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_out_left_back.x}" y1="${p_out_left_back.y}" x2="${p_out_left_back.x - 30}" y2="${p_out_left_back.y - 15}" stroke="#666" stroke-width="0.5" />
-                        <line x1="${p_out_left.x - 25}" y1="${p_out_left.y - 12.5}" x2="${p_out_left_back.x - 25}" y2="${p_out_left_back.y - 12.5}" stroke="#333" stroke-width="1" />
-                        <text x="${p_out_left_back.x - 35}" y="${p_out_left_back.y - 10}" text-anchor="end" alignment-baseline="middle" font-size="24">${T}T</text>
+                        {/* Thickness */}
+                        <line x1={p_out_left.x} y1={p_out_left.y} x2={p_out_left.x - 30} y2={p_out_left.y - 15} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_out_left_back.x} y1={p_out_left_back.y} x2={p_out_left_back.x - 30} y2={p_out_left_back.y - 15} stroke="#666" strokeWidth="0.5" />
+                        <line x1={p_out_left.x - 25} y1={p_out_left.y - 12.5} x2={p_out_left_back.x - 25} y2={p_out_left_back.y - 12.5} stroke="#333" strokeWidth="1" />
+                        <text x={p_out_left_back.x - 35} y={p_out_left_back.y - 10} textAnchor="end" alignmentBaseline="middle" fontSize="24">{T}T</text>
 
-                        ${archHeightSVG}
-                        ${totalHeightSVG}
-                        ${sideVertHeightSVG}
+                        {/* Arch Heights */}
+                        {showArch && (
+                            <React.Fragment>
+                                <line x1="0" y1={-R_out} x2="0" y2={-R_out * Math.cos(theta/2)} stroke="#333" strokeWidth="1.5" markerStart="url(#arrow-end)" markerEnd="url(#arrow-end)" />
+                                <text x="5" y={(-R_out + -R_out * Math.cos(theta/2))/2} fill="#333" fontSize="20" alignmentBaseline="middle" fontWeight="bold">h{H_out.toFixed(0)}</text>
+                                <line x1="0" y1={-R_in} x2="0" y2={-R_in * Math.cos(theta/2)} stroke="#333" strokeWidth="1.5" markerStart="url(#arrow-end)" markerEnd="url(#arrow-end)" />
+                                <text x="5" y={(-R_in + -R_in * Math.cos(theta/2))/2} fill="#333" fontSize="20" alignmentBaseline="middle" fontWeight="bold">h{H_in.toFixed(0)}</text>
+                            </React.Fragment>
+                        )}
+
+                        {/* Total Height */}
+                        {showTotal && (
+                            <React.Fragment>
+                                <line x1={p_out_right.x} y1={-R_out} x2={p_out_right.x + totalHeightDist} y2={-R_out} stroke="#333" strokeWidth="0.5" strokeDasharray="4,4" />
+                                <line x1={p_in_right.x} y1={-R_in * Math.cos(theta/2)} x2={p_out_right.x + totalHeightDist} y2={-R_in * Math.cos(theta/2)} stroke="#333" strokeWidth="0.5" strokeDasharray="4,4" />
+                                <line x1={p_out_right.x + (totalHeightDist - 10)} y1={-R_out} x2={p_out_right.x + (totalHeightDist - 10)} y2={-R_in * Math.cos(theta/2)} stroke="#333" strokeWidth="1" markerStart="url(#arrow-end)" markerEnd="url(#arrow-end)" />
+                                <text x={p_out_right.x + (totalHeightDist + 5)} y={(-R_out + -R_in * Math.cos(theta/2))/2} fill="#333" fontSize="24" alignmentBaseline="middle" textAnchor="start">H{H_total.toFixed(0)}</text>
+                            </React.Fragment>
+                        )}
+
+                        {/* Side Vertical Height - Moved Left to avoid W overlap */}
+                        {showSideVert && (
+                            <React.Fragment>
+                                <line x1={p_out_left.x} y1={p_out_left.y} x2={p_out_left.x - sideVertDist} y2={p_out_left.y} stroke="#666" strokeWidth="0.5" strokeDasharray="4,4"/>
+                                <line x1={p_in_left.x} y1={p_in_left.y} x2={p_out_left.x - sideVertDist} y2={p_in_left.y} stroke="#666" strokeWidth="0.5" strokeDasharray="4,4"/>
+                                <line x1={p_out_left.x - (sideVertDist - 10)} y1={p_out_left.y} x2={p_out_left.x - (sideVertDist - 10)} y2={p_in_left.y} stroke="#333" strokeWidth="1" markerStart="url(#arrow-end)" markerEnd="url(#arrow-end)"/>
+                                <text x={p_out_left.x - (sideVertDist + 5)} y={(p_out_left.y + p_in_left.y)/2} fill="#333" fontSize="24" alignmentBaseline="middle" textAnchor="end">Hv={H_side_vert.toFixed(0)}</text>
+                            </React.Fragment>
+                        )}
                     </g>
                 </svg>
-            `;
-            document.getElementById('svgContainer').innerHTML = svg;
-        }
+            );
+        };
 
-        calculate();
+        // --- Component: SchematicPreview (Effect View) ---
+        const SchematicPreview = ({ data, polish }) => {
+            if (!data.valid) {
+                return (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                        <p>{data.error || "等待输入参数..."}</p>
+                    </div>
+                );
+            }
+
+            // Updated styles: cls-6 reduced to 2.2px, cls-7 reduced to 2.0px
+            const styles = `
+                .cls-1,.cls-2,.cls-3,.cls-4,.cls-8{fill:none;}.cls-1,.cls-2,.cls-3{stroke:#231815;stroke-width:0.28px;}.cls-1,.cls-2{stroke-linejoin:round;}.cls-2{stroke-linecap:round;}.cls-3,.cls-4,.cls-8{stroke-miterlimit:10;}.cls-4,.cls-8{stroke:#e83818;}.cls-4{stroke-width:0.06px;}.cls-5{font-size:2.54px;}.cls-10,.cls-11,.cls-5,.cls-6,.cls-7{fill:#e60012;}.cls-10,.cls-5,.cls-6,.cls-7{font-family:MicrosoftYaHei, Microsoft YaHei;}.cls-6{font-size:2.2px;}.cls-7{font-size:2.0px;}.cls-8{stroke-width:0.14px;}.cls-9{fill:#e83818;}.cls-10{font-size:2.4px;}.cls-12{fill:#231815;}
+                svg text { transition: opacity 0.2s; }
+                svg polygon { transition: transform 0.2s ease; transform-box: fill-box; transform-origin: center; }
+                svg polygon:hover { transform: scale(1.2); }
+            `;
+
+            return (
+                <svg viewBox="0 0 95.77 103.63" xmlns="http://www.w3.org/2000/svg" id="schematic-svg" className="w-full h-full">
+                    <defs>
+                        <style>{styles}</style>
+                    </defs>
+                    
+                    <path d="M38.45,6.17l30.92,4.41s-18.55,42.2-1.47,82.1L34.74,96.51S9.59,52,38.45,6.17Z" className="cls-1"></path>
+                    <polyline points="34.74 96.51 34.81 100.6 66.48 96.9 67.9 92.68" className="cls-2"></polyline>
+                    <path d="M26.12,37.17c-7.19,35.73,4.65,55.51,8.69,63.43" className="cls-3"></path>
+                    <line y2="6.17" x2="37.45" y1="6.17" x1="30.16" className="cls-4"></line>
+                    <line y2="6.17" x2="17.25" y1="6.17" x1="8.62" className="cls-4"></line>
+                    <line y2="96.57" x2="17.25" y1="96.57" x1="8.63" className="cls-4"></line>
+                    <line y2="96.5" x2="25.23" y1="96.5" x1="33.7" className="cls-4"></line>
+                    <path d="M30.16,6.16s-10.91,18.7-12,46.53c-1.32,33.21,7.08,43.84,7.08,43.84" className="cls-4"></path>
+                    <path d="M79.55,11.09S72.66,27,72.37,51.69a271.18,271.18,0,0,0,2.69,40.9" className="cls-4"></path>
+                    <line y2="3.89" x2="38.65" y1="5.33" x1="38.58" className="cls-4"></line>
+                    <line y2="8.67" x2="69.68" y1="10.12" x1="69.61" className="cls-4"></line>
+                    <line y2="8.39" x2="69.66" y1="3.84" x1="38.63" className="cls-4"></line>
+                    
+                    <text id="txt-r8750" transform="translate(32.09 82.55) rotate(-21.49)" className="cls-5">R{data.ro.toFixed(0)}</text>
+                    <text id="txt-arc-999" transform="translate(12.02 51.54)" className="cls-6">⌒{data.lo.toFixed(0)}</text>
+                    <text id="txt-arc-943" transform="translate(65.74 51.54)" className="cls-6">⌒{data.li.toFixed(0)}</text>
+                    <text id="txt-1000" transform="translate(2.32 51.54)" className="cls-6">{data.co.toFixed(0)}</text>
+                    <text id="txt-w500" transform="matrix(0.99, 0.13, -0.13, 0.99, 47.65, 4.6)" className="cls-6">W={data.w.toFixed(0)}</text>
+                    <text id="txt-942" transform="translate(82.52 51.54)" className="cls-6">{data.ci.toFixed(0)}</text>
+                    <text id="txt-30t" transform="translate(26.89 99.56)" className="cls-7">{data.t}T</text>
+                    
+                    <line y2="96.49" x2="33.72" y1="96.49" x1="31.52" className="cls-4"></line>
+                    <line y2="100.65" x2="33.64" y1="100.65" x1="32.57" className="cls-4"></line>
+                    <line y2="100.7" x2="32.57" y1="96.6" x1="32.57" className="cls-4"></line>
+                    <line y2="79.67" x2="40.35" y1="83.49" x1="31.36" className="cls-8"></line>
+                    <path d="M30.57,83.83A4.5,4.5,0,0,1,32,84l-.49-.52,0-.72A4.45,4.45,0,0,1,30.57,83.83Z" className="cls-9"></path>
+                    <text id="txt-r8250" transform="translate(67.64 22.15) rotate(17.66)" className="cls-10">R{data.ri.toFixed(0)}</text>
+                    <line y2="25.1" x2="74.68" y1="22.51" x1="66.55" className="cls-8"></line>
+                    <path d="M65.73,22.25a4.13,4.13,0,0,1,1,1l0-.72.43-.56A4.33,4.33,0,0,1,65.73,22.25Z" className="cls-9"></path>
+                    <line y2="96.62" x2="8.63" y1="6.17" x1="8.63" className="cls-4"></line>
+                    <line y2="11.02" x2="85.88" y1="11.02" x1="81.8" className="cls-4"></line>
+                    <line y2="11.02" x2="79.55" y1="11.02" x1="74.73" className="cls-4"></line>
+                    <line y2="92.6" x2="76.95" y1="92.6" x1="73.07" className="cls-4"></line>
+                    <line y2="92.6" x2="87.83" y1="92.6" x1="83.94" className="cls-4"></line>
+                    <line y2="92.59" x2="85.88" y1="11.01" x1="85.86" className="cls-4"></line>
+                    <circle r="0.43" cy="6.17" cx="8.62" className="cls-11"></circle>
+                    <circle r="0.43" cy="6.17" cx="30.2" className="cls-11"></circle>
+                    <circle r="0.43" cy="3.93" cx="38.65" className="cls-11"></circle>
+                    <circle r="0.43" cy="8.39" cx="69.66" className="cls-11"></circle>
+                    <circle r="0.43" cy="11.09" cx="79.55" className="cls-11"></circle>
+                    <circle r="0.43" cy="11.09" cx="85.94" className="cls-11"></circle>
+                    <circle r="0.43" cy="92.59" cx="85.88" className="cls-11"></circle>
+                    <circle r="0.43" cy="92.59" cx="75.06" className="cls-11"></circle>
+                    <circle r="0.43" cy="96.45" cx="8.62" className="cls-11"></circle>
+                    <circle r="0.43" cy="96.45" cx="25.23" className="cls-11"></circle>
+                    <circle r="0.43" cy="96.45" cx="32.58" className="cls-11"></circle>
+                    <circle r="0.43" cy="100.7" cx="32.58" className="cls-11"></circle>
+                    
+                    {polish.face && <polygon id="tri-mid" points="42.96 51.31 44.12 48.77 41.79 48.77 42.96 51.31" className="cls-12"></polygon>}
+                    {polish.rightSide && <polygon id="tri-top" points="52.09 7.72 53.25 5.18 50.92 5.18 52.09 7.72" className="cls-12"></polygon>}
+                    {polish.leftSide && <polygon id="tri-bottom" points="51.2 98.28 52.37 95.73 50.04 95.73 51.2 98.28" className="cls-12"></polygon>}
+                    {polish.neiHu && <polygon id="tri-right" points="61.86 50.81 64.4 51.97 64.4 49.65 61.86 50.81" className="cls-12"></polygon>}
+                    {polish.back && <polygon id="tri-left-bottom" points="26.77 82.64 25.58 85.17 24.08 83.39 26.77 82.64" className="cls-12"></polygon>}
+                    {polish.waiHu && <polygon id="tri-left" points="25.21 66.41 22.29 65.07 22.29 67.75 25.21 66.41" className="cls-12"></polygon>}
+                </svg>
+            );
+        };
+
+        // --- Main App Component ---
+        const initialInput = {
+            ro: '2000', ri: '1200', w: '', lo: '1500', li: '', co: '', ci: '', ho: '', hi: '', ht: '', hsv: '', t: '30'
+        };
+
+        const initialPolish = {
+            face: true, back: false, waiHu: false, neiHu: false, leftSide: false, rightSide: false
+        };
+
+        const App = () => {
+            const [input, setInput] = useState(initialInput);
+            const [result, setResult] = useState(null);
+            const [polish, setPolish] = useState(initialPolish);
+            const [viewMode, setViewMode] = useState('technical');
+            const [showOptions, setShowOptions] = useState({ arch: false, total: true, sideVert: true });
+
+            useEffect(() => {
+                const res = calculateGeometry(input);
+                setResult(res);
+            }, [input]);
+
+            const handleInputChange = (e) => {
+                const { id, value } = e.target;
+                setInput(prev => ({ ...prev, [id]: value }));
+            };
+
+            const togglePolish = (key) => {
+                setPolish(prev => ({ ...prev, [key]: !prev[key] }));
+            };
+
+            const resetParams = () => {
+                setInput(initialInput);
+                setPolish(initialPolish);
+                setViewMode('technical');
+            };
+
+            const downloadImage = () => {
+                const svgEl = document.getElementById(viewMode === 'technical' ? 'mainSvg' : 'schematic-svg');
+                if (!svgEl) return;
+                const serializer = new XMLSerializer();
+                const source = serializer.serializeToString(svgEl);
+                const blob = new Blob([source], {type: "image/svg+xml;charset=utf-8"});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `fan_plate_${viewMode}_${new Date().getTime()}.svg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+
+            const isAuto = (key) => {
+                return input[key] === '' ? 'font-mono font-bold text-gray-900' : 'font-mono text-gray-700';
+            };
+
+            const renderPolishButton = (key, label) => (
+                <button 
+                    className={`flex items-center justify-center p-1.5 rounded text-xs transition-all border ${polish[key] 
+                        ? 'bg-gray-700 text-white border-gray-700 font-semibold' 
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                    onClick={() => togglePolish(key)}
+                >
+                    {label}
+                </button>
+            );
+
+            return (
+                <div className="bg-gray-50 text-slate-800 min-h-screen flex flex-col lg:flex-row justify-center items-stretch gap-4 p-4 lg:p-6 lg:h-screen lg:overflow-hidden">
+                    {/* Left Control Panel */}
+                    <div className="w-full lg:w-96 flex-shrink-0 bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-y-auto lg:max-h-full">
+                        <div className="flex items-center justify-between mb-4 border-b pb-3">
+                            <h1 className="font-bold text-lg text-gray-800">扇形板计算器</h1>
+                            <button onClick={resetParams} className="text-xs text-gray-600 flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded transition-colors">
+                                <RotateCcw size={12} /> 重置
+                            </button>
+                        </div>
+
+                        <div className="space-y-4 flex-1">
+                            {/* Geometry Inputs */}
+                            <div>
+                                <div className="flex justify-between items-end mb-2">
+                                    <label className="text-xs font-bold text-gray-500">输入任意参数 (自动互推)</label>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="col-span-2 text-[11px] font-bold text-gray-400 uppercase mt-2 mb-1 tracking-wider">基础尺寸</div>
+                                    {[
+                                        { id: 'ro', label: '外半径 (R外)', val: input.ro },
+                                        { id: 'ri', label: '内半径 (R内)', val: input.ri },
+                                        { id: 'w', label: '宽度 (W)', val: input.w, ph: '自动' },
+                                        { id: 't', label: '厚度 (T)', val: input.t },
+                                    ].map(f => (
+                                        <div key={f.id} className="relative">
+                                            <input 
+                                                type="number" id={f.id} value={f.val} onChange={handleInputChange} placeholder={f.ph}
+                                                className="w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300"
+                                            />
+                                            <span className="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">{f.label}</span>
+                                        </div>
+                                    ))}
+
+                                    <div className="col-span-2 text-[11px] font-bold text-gray-400 uppercase mt-2 mb-1 tracking-wider">弧长与弦长</div>
+                                    {[
+                                        { id: 'lo', label: '外弧长 (L外)', val: input.lo },
+                                        { id: 'li', label: '内弧长 (L内)', val: input.li, ph: '自动' },
+                                        { id: 'co', label: '外弦长 (C外)', val: input.co, ph: '自动' },
+                                        { id: 'ci', label: '内弦长 (C内)', val: input.ci, ph: '自动' },
+                                    ].map(f => (
+                                        <div key={f.id} className="relative">
+                                            <input 
+                                                type="number" id={f.id} value={f.val} onChange={handleInputChange} placeholder={f.ph}
+                                                className="w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300"
+                                            />
+                                            <span className="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">{f.label}</span>
+                                        </div>
+                                    ))}
+
+                                    <div className="col-span-2 text-[11px] font-bold text-gray-400 uppercase mt-2 mb-1 tracking-wider">高度参数 (支持反推)</div>
+                                     {[
+                                        { id: 'ho', label: '外弧拱高 (h外)', val: input.ho, ph: '自动' },
+                                        { id: 'hi', label: '内弧拱高 (h内)', val: input.hi, ph: '自动' },
+                                        { id: 'ht', label: '总高 (H)', val: input.ht, ph: '自动' },
+                                        { id: 'hsv', label: '侧边垂高 (Hv)', val: input.hsv, ph: '自动' },
+                                    ].map(f => (
+                                        <div key={f.id} className="relative">
+                                            <input 
+                                                type="number" id={f.id} value={f.val} onChange={handleInputChange} placeholder={f.ph}
+                                                className="w-full h-11 px-3 pt-5 pb-1 text-sm font-medium border border-gray-300 rounded outline-none focus:ring-2 focus:ring-gray-200 transition-colors placeholder-gray-300"
+                                            />
+                                            <span className="absolute left-3 top-1.5 text-[10px] font-bold text-gray-400 pointer-events-none uppercase tracking-wider">{f.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <div className="mt-2 text-xs flex items-start gap-1 font-medium">
+                                    {result?.valid ? (
+                                        <div className="text-gray-700 flex items-center gap-1"><CheckCircle2 size={12} /> 生成成功</div>
+                                    ) : (
+                                        <div className="text-red-500 flex items-center gap-1"><AlertCircle size={12} /> {result?.error}</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Polish Marks */}
+                            <div className="pt-2 border-t border-gray-100">
+                                <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">磨光面标记</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {renderPolishButton('face', '正面')}
+                                    {renderPolishButton('waiHu', '外弧面')}
+                                    {renderPolishButton('neiHu', '内弧面')}
+                                    {renderPolishButton('leftSide', '左侧面')}
+                                    {renderPolishButton('rightSide', '右侧面')}
+                                    {renderPolishButton('back', '背面')}
+                                </div>
+                            </div>
+
+                            {/* View Options (Only for Technical) */}
+                            {viewMode === 'technical' && (
+                                <div className="pt-2 border-t border-gray-100">
+                                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">图纸标注选项</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <label className="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600">
+                                            <input type="checkbox" checked={showOptions.arch} onChange={e => setShowOptions(p => ({...p, arch: e.target.checked}))} className="accent-gray-700" />
+                                            <span>显示拱高</span>
+                                        </label>
+                                        <label className="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600">
+                                            <input type="checkbox" checked={showOptions.total} onChange={e => setShowOptions(p => ({...p, total: e.target.checked}))} className="accent-gray-700" />
+                                            <span>显示总高</span>
+                                        </label>
+                                        <label className="flex items-center space-x-2 text-xs cursor-pointer select-none hover:text-gray-900 text-gray-600 col-span-2">
+                                            <input type="checkbox" checked={showOptions.sideVert} onChange={e => setShowOptions(p => ({...p, sideVert: e.target.checked}))} className="accent-gray-700" />
+                                            <span>显示侧边垂高</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Result Table */}
+                            {result?.valid && (
+                                <div className="mt-2 bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs animate-in fade-in slide-in-from-top-4">
+                                    <h3 className="font-bold text-gray-700 mb-2 flex items-center gap-1">
+                                        <Calculator size={12} /> 计算结果
+                                    </h3>
+                                    <div className="flex flex-col space-y-1">
+                                        {[
+                                            { label: '侧边宽(W)', val: result.w, key: 'w' },
+                                            { label: '圆心角', val: `${result.angle.toFixed(1)}°`, key: 'angle', forceBold: true },
+                                            { label: '总高度', val: result.ht, key: 'ht' },
+                                            { label: '侧边垂高', val: result.hsv, key: 'hsv' },
+                                            { label: '外弧拱高', val: result.ho, key: 'ho' },
+                                            { label: '内弧拱高', val: result.hi, key: 'hi' },
+                                            { label: '外弦长', val: result.co, key: 'co' },
+                                            { label: '内弦长', val: result.ci, key: 'ci' },
+                                            { label: '外弧长', val: result.lo, key: 'lo' },
+                                            { label: '内弧长', val: result.li, key: 'li' },
+                                        ].map((item) => (
+                                            <div key={item.label} className="flex justify-between border-b border-gray-100 pb-1 last:border-0">
+                                                <span className="text-gray-400">{item.label}</span>
+                                                <span className={item.forceBold ? 'font-mono font-bold text-gray-900' : isAuto(item.key)}>{typeof item.val === 'number' ? item.val.toFixed(1) : item.val}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right Preview Panel */}
+                    <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col min-h-[400px] lg:h-full max-w-5xl relative">
+                        <div className="flex justify-between items-center mb-2 border-b pb-2 z-10 bg-white">
+                            <h2 className="font-bold text-gray-700 flex items-center gap-2">
+                                预览图 <span className="text-xs font-normal text-white bg-gray-400 px-2 py-0.5 rounded-full">自动适应</span>
+                            </h2>
+                            
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setViewMode(prev => prev === 'technical' ? 'schematic' : 'technical')}
+                                    className={`text-xs flex items-center gap-1 px-3 py-1.5 rounded transition-colors border ${viewMode === 'schematic' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                    {viewMode === 'technical' ? <Eye size={14} /> : <Ruler size={14} />}
+                                    {viewMode === 'technical' ? '效果图显示' : '工程图显示'}
+                                </button>
+                                
+                                <button 
+                                    onClick={downloadImage} 
+                                    disabled={!result?.valid}
+                                    className="text-xs bg-gray-800 text-white flex items-center gap-1 px-3 py-1.5 rounded hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <Download size={14} /> 下载图纸
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 w-full h-full flex items-center justify-start overflow-hidden bg-white rounded border border-gray-50">
+                            {result && (
+                                viewMode === 'technical' ? (
+                                    <TechnicalPreview 
+                                        data={result} 
+                                        polish={polish} 
+                                        showArch={showOptions.arch}
+                                        showTotal={showOptions.total}
+                                        showSideVert={showOptions.sideVert}
+                                    />
+                                ) : (
+                                    <SchematicPreview 
+                                        data={result} 
+                                        polish={polish} 
+                                    />
+                                )
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
