@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>弧形板计算大师 - 专业版</title>
+    <title>弧形板计算器</title>
     
     <!-- 1. 样式库 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -285,11 +285,11 @@
 
         const TRIANGLE_MAPPING = [
             { key: 'rightW', id: 'tri-top', label: '右侧 (Right W)' },
-            { key: 'shangL', id: 'tri-top-left', label: '上口 (Top L)' },
+            { key: 'shangL', id: 'tri-top-left', label: '上L (Top L)' },
             { key: 'leftW', id: 'tri-mid', label: '左侧 (Left W)' },
             { key: 'face', id: 'tri-mid-left', label: '外弧面 (Face)' },
             { key: 'neiHu', id: 'tri-mid-right', label: '内弧面 (Inner)' },
-            { key: 'xiaL', id: 'tri-bottom', label: '下口 (Bottom L)' },
+            { key: 'xiaL', id: 'tri-bottom', label: '下L (Bottom L)' },
         ];
 
         const BlueprintView = ({ result, dims, polish, showTotalHeight }) => {
@@ -505,8 +505,8 @@
                                          <div className="grid grid-cols-3 gap-2">
                                             <PolishBtn label="外弧面" active={polish.face} onClick={() => togglePolish('face')} />
                                             <PolishBtn label="内弧面" active={polish.neiHu} onClick={() => togglePolish('neiHu')} />
-                                            <PolishBtn label="上口 (L)" active={polish.shangL} onClick={() => togglePolish('shangL')} />
-                                            <PolishBtn label="下口 (L)" active={polish.xiaL} onClick={() => togglePolish('xiaL')} />
+                                            <PolishBtn label="上L (L)" active={polish.shangL} onClick={() => togglePolish('shangL')} />
+                                            <PolishBtn label="下L (L)" active={polish.xiaL} onClick={() => togglePolish('xiaL')} />
                                             <PolishBtn label="左侧 (W)" active={polish.leftW} onClick={() => togglePolish('leftW')} />
                                             <PolishBtn label="右侧 (W)" active={polish.rightW} onClick={() => togglePolish('rightW')} />
                                          </div>
