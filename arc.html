@@ -284,9 +284,9 @@
         };
 
         const TRIANGLE_MAPPING = [
-            { key: 'rightW', id: 'tri-top', label: '右侧 (Right W)' },
+            { key: 'rightW', id: 'tri-top', label: '右W (Right W)' },
             { key: 'shangL', id: 'tri-top-left', label: '上L (Top L)' },
-            { key: 'leftW', id: 'tri-mid', label: '左侧 (Left W)' },
+            { key: 'leftW', id: 'tri-mid', label: '左W (Left W)' },
             { key: 'face', id: 'tri-mid-left', label: '外弧面 (Face)' },
             { key: 'neiHu', id: 'tri-mid-right', label: '内弧面 (Inner)' },
             { key: 'xiaL', id: 'tri-bottom', label: '下L (Bottom L)' },
@@ -318,7 +318,7 @@
 
             const textElements = [
                 { id: 'txt-w2000', label: '宽度 (W)' }, { id: 'txt-arc-983', label: '外弧长' },
-                { id: 'txt-981', label: '外弦长' }, { id: 'txt-976', label: '右侧弦长' },
+                { id: 'txt-981', label: '外弦长' }, { id: 'txt-976', label: '右W弦长' },
                 { id: 'txt-h54', label: '总高 (H)' }, { id: 'txt-arc-977', label: '内弧长' },
                 { id: 'txt-r5020', label: '外半径 (R)' }, { id: 'txt-r4990', label: '内半径 (r)' },
                 { id: 'txt-30t', label: '厚度' }
@@ -386,7 +386,7 @@
                         </svg>
                     </div>
 
-                    {/* 右侧面板：工程图编辑器 (仅在蓝图模式显示) */}
+                    {/* 右W面板：工程图编辑器 (仅在蓝图模式显示) */}
                     <div className="w-80 bg-white border-l p-4 flex flex-col gap-4 overflow-y-auto z-10 shadow-lg">
                         <div className="pb-2 border-b"><h3 className="font-bold text-gray-700">工程图编辑器</h3><p className="text-xs text-gray-500">在此处修改数值会覆盖自动计算结果。</p></div>
                         <div>
@@ -453,7 +453,7 @@
 
             return (
                 <div className="flex flex-row h-screen w-screen overflow-hidden bg-gray-50">
-                    {/* 左侧侧边栏 (固定宽度，始终显示) */}
+                    {/* 左W侧边栏 (固定宽度，始终显示) */}
                     <div className="w-[360px] bg-white border-r flex flex-col h-full shadow-xl z-20 flex-shrink-0">
                          <div className="p-4 border-b flex items-center justify-between bg-white">
                             <div className="flex items-center gap-2">
@@ -505,10 +505,10 @@
                                          <div className="grid grid-cols-3 gap-2">
                                             <PolishBtn label="外弧面" active={polish.face} onClick={() => togglePolish('face')} />
                                             <PolishBtn label="内弧面" active={polish.neiHu} onClick={() => togglePolish('neiHu')} />
-                                            <PolishBtn label="上L (L)" active={polish.shangL} onClick={() => togglePolish('shangL')} />
-                                            <PolishBtn label="下L (L)" active={polish.xiaL} onClick={() => togglePolish('xiaL')} />
-                                            <PolishBtn label="左侧 (W)" active={polish.leftW} onClick={() => togglePolish('leftW')} />
-                                            <PolishBtn label="右侧 (W)" active={polish.rightW} onClick={() => togglePolish('rightW')} />
+                                            <PolishBtn label="上L" active={polish.shangL} onClick={() => togglePolish('shangL')} />
+                                            <PolishBtn label="下L" active={polish.xiaL} onClick={() => togglePolish('xiaL')} />
+                                            <PolishBtn label="左W" active={polish.leftW} onClick={() => togglePolish('leftW')} />
+                                            <PolishBtn label="右W" active={polish.rightW} onClick={() => togglePolish('rightW')} />
                                          </div>
                                     </div>
                                      {result?.valid && (
@@ -529,7 +529,7 @@
                          </div>
                     </div>
 
-                    {/* 右侧主绘图区 (自适应剩余空间) */}
+                    {/* 右W主绘图区 (自适应剩余空间) */}
                     <div className="flex-1 bg-gray-50 relative overflow-hidden flex flex-col h-full bg-grid-pattern">
                         {viewMode === 'CALCULATOR' ? (
                             <div className="w-full h-full flex items-center justify-center p-8">
