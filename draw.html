@@ -482,7 +482,8 @@
                 
                 <Triangle x={sx - 4} y={sy + T/2} direction="right" />
                 
-                {(sides.bottom || realBottomPolish > 0 || isFullPolish) && (
+                {/* 修改处：只有当底部进 > 0 或 全光时才显示底部三角 */}
+                {(realBottomPolish > 0 || isFullPolish) && (
                     <Triangle x={bottomTriangleX} y={sy + T + 4} direction="up" />
                 )}
 
@@ -707,37 +708,37 @@
                       <div className="flex-1 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 text-gray-700 font-mono flex items-center justify-between text-xs">
                           <span className="truncate font-bold">{displayLabel || "未选择"}</span>
                           <button onClick={copyText} className="ml-2 p-1.5 bg-white border rounded-lg text-gray-500 active:bg-gray-100">
-                          {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                          </button>
+                          {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button 
+                                onClick={() => downloadSingleImage('top')} 
+                                disabled={isDownloading}
+                                className="px-2 py-3 bg-white border border-gray-300 text-gray-800 rounded-xl text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
+                            >
+                                {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <ImageDown size={16} />}
+                                正面图
+                            </button>
+                            <button 
+                                onClick={() => downloadSingleImage('section')} 
+                                disabled={isDownloading}
+                                className="px-2 py-3 bg-black text-white rounded-xl text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-md disabled:opacity-70"
+                            >
+                                {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <ImageDown size={16} />}
+                                截面图
+                            </button>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                          <button 
-                              onClick={() => downloadSingleImage('top')} 
-                              disabled={isDownloading}
-                              className="px-2 py-3 bg-white border border-gray-300 text-gray-800 rounded-xl text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
-                          >
-                              {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <ImageDown size={16} />}
-                              正面图
-                          </button>
-                          <button 
-                              onClick={() => downloadSingleImage('section')} 
-                              disabled={isDownloading}
-                              className="px-2 py-3 bg-black text-white rounded-xl text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-md disabled:opacity-70"
-                          >
-                              {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <ImageDown size={16} />}
-                              截面图
-                          </button>
-                      </div>
-                    </div>
-                </div>
+                  </div>
+  
+                  </div>
+              </div>
+              );
+          };
+  
+          const root = ReactDOM.createRoot(document.getElementById('root'));
+          root.render(<GrindingGenerator />);
+      </script>
+  </body>
+  </html>
 
-                </div>
-            </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<GrindingGenerator />);
-    </script>
-</body>
-</html>
