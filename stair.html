@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>梅兰踏板编辑器</title>
+    <title>踏板</title>
     <!-- 引入 React 和 Tailwind CSS -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -67,7 +67,7 @@
                 grooveCount: 3,
                 grooveDepth: 5,
                 chamferTop: 3,
-                chamferBottom: 2,
+                chamferBottom: 0, // 修改此处：默认值改为 0
             });
 
             const [grooveWidths, setGrooveWidths] = useState([10, 10, 10]);
