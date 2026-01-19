@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>板材加工图生成器</title>
+    <title>侧磨倒角</title>
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 React 和 ReactDOM -->
@@ -445,6 +445,14 @@
             // 三角偏移量 2px
             const triangleOffset = 2;
 
+            // --- 核心修改：判断倒角斜边颜色 ---
+            // 只有当勾选了磨光 (showTopChamferTriangle) 时，斜边才为红色，否则为黑色
+            const topChamferColor = showTopChamferTriangle ? COLOR_RED : COLOR_BLACK;
+            const topChamferWidth = showTopChamferTriangle ? "1" : "0.8";
+
+            const bottomChamferColor = showBottomChamferTriangle ? COLOR_RED : COLOR_BLACK;
+            const bottomChamferWidth = showBottomChamferTriangle ? "1" : "0.8";
+
             return (
                 <svg ref={sectionRef} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-full">
                 <defs>
@@ -466,8 +474,12 @@
                 {redLineEndX < p3.x && <line x1={redLineEndX} y1={p4.y} x2={p3.x} y2={p3.y} stroke={COLOR_BLACK} strokeWidth="0.8" strokeLinecap="butt" />}
                 
                 <line x1={p5.x} y1={p5.y} x2={p6.x} y2={p6.y} stroke={isSidePolished ? COLOR_RED : COLOR_BLACK} strokeWidth={isSidePolished ? "1" : "0.8"} strokeLinecap="butt" />
-                {C_Top > 0 && <line x1={p5.x} y1={p5.y} x2={p1.x} y2={p1.y} stroke={COLOR_RED} strokeWidth="1" strokeLinecap="butt" />}
-                {C_Bottom > 0 && <line x1={p6.x} y1={p6.y} x2={p4.x} y2={p4.y} stroke={COLOR_RED} strokeWidth="1" strokeLinecap="butt" />}
+                
+                {/* 上倒角斜边：使用动态颜色 */}
+                {C_Top > 0 && <line x1={p5.x} y1={p5.y} x2={p1.x} y2={p1.y} stroke={topChamferColor} strokeWidth={topChamferWidth} strokeLinecap="butt" />}
+                
+                {/* 下倒角斜边：使用动态颜色 */}
+                {C_Bottom > 0 && <line x1={p6.x} y1={p6.y} x2={p4.x} y2={p4.y} stroke={bottomChamferColor} strokeWidth={bottomChamferWidth} strokeLinecap="butt" />}
                 
                 {/* 3. 补角层 */}
                 <CornerDot x={p5.x} y={p5.y} color={COLOR_RED} r={R_RED} />
@@ -741,4 +753,3 @@
       </script>
   </body>
   </html>
-
