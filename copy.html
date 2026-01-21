@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>韩文乱码修复/净化工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 600px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+            text-align: center;
+        }
+        p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: "Malgun Gothic", sans-serif; /* 强制使用韩文字体渲染 */
+            margin-bottom: 1rem;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: bold;
+        }
+        .btn-copy {
+            background-color: #4a90e2;
+            color: white;
+        }
+        .btn-copy:hover {
+            background-color: #357abd;
+        }
+        .btn-clear {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .btn-clear:hover {
+            background-color: #e0e0e0;
+        }
+        #status {
+            text-align: center;
+            margin-top: 10px;
+            height: 20px;
+            color: #28a745;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🇰🇷 韩文复制修复工具</h2>
+    <p>将容易乱码的韩文粘贴到下方，点击复制即可修复编码问题。</p>
+    
+    <textarea id="inputText" placeholder="请在此处粘贴韩文..."></textarea>
+    
+    <div class="btn-group">
+        <button class="btn-clear" onclick="clearText()">清空</button>
+        <button class="btn-copy" onclick="copyText()">一键复制净化后的韩文</button>
+    </div>
+    <div id="status">✅ 已复制到剪贴板！现在去粘贴吧</div>
+</div>
+
+<script>
+    const textarea = document.getElementById('inputText');
+    const status = document.getElementById('status');
+
+    function clearText() {
+        textarea.value = '';
+        textarea.focus();
+        status.style.opacity = '0';
+    }
+
+    async function copyText() {
+        const text = textarea.value;
+        if (!text) return;
+
+        try {
+            // 使用现代 Clipboard API 写入纯文本，这会剥离所有错误的格式和编码头
+            await navigator.clipboard.writeText(text);
+            
+            showStatus();
+        } catch (err) {
+            // 如果浏览器不支持 API，使用传统方法后备
+            textarea.select();
+            document.execCommand('copy');
+            showStatus();
+        }
+    }
+
+    function showStatus() {
+        status.style.opacity = '1';
+        setTimeout(() => {
+            status.style.opacity = '0';
+        }, 2000);
+    }
+</script>
+
+</body>
+</html>
