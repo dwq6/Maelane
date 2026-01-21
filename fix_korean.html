@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>韩文乱码修复工具</title>
-    <!-- 引入 Noto Sans 字体 (中文和韩文) -->
+    <!-- 引入 Noto Sans 字体 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -20,25 +20,22 @@
         }
 
         body {
-            /* 强制使用思源黑体，解决宋体/乱码字体问题 */
-            font-family: 'Noto Sans SC', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
+            font-family: 'Noto Sans SC', 'Noto Sans KR', sans-serif;
             background-color: var(--bg-color);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            -webkit-font-smoothing: antialiased; /* 让字体在Mac上更平滑 */
         }
 
         .container {
             background: var(--card-bg);
             padding: 2.5rem;
             border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08); /* 更柔和的阴影 */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             width: 90%;
             max-width: 580px;
-            transition: transform 0.2s;
         }
 
         .header {
@@ -56,7 +53,6 @@
             gap: 10px;
         }
 
-        /* 纯CSS制作的标签，替代容易乱码的Emoji */
         .badge {
             background-color: #e3f2fd;
             color: var(--primary-color);
@@ -71,7 +67,18 @@
             color: var(--text-sub);
             font-size: 0.95rem;
             margin: 0;
-            line-height: 1.5;
+        }
+
+        /* 增加提示框 */
+        .tip {
+            background-color: #fff3cd;
+            color: #856404;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            text-align: center;
+            display: none; /* 默认隐藏 */
         }
 
         textarea {
@@ -81,18 +88,12 @@
             border: 2px solid #e1e4e8;
             border-radius: 10px;
             font-size: 16px;
-            /* 确保输入框内部也使用正确的字体 */
             font-family: 'Noto Sans KR', 'Noto Sans SC', sans-serif;
             line-height: 1.6;
-            resize: none; /* 禁止拖动大小 */
+            resize: none;
             box-sizing: border-box;
             margin-bottom: 1.5rem;
-            transition: border-color 0.2s, box-shadow 0.2s;
             color: var(--text-main);
-        }
-
-        textarea::placeholder {
-            color: #a0a0a0;
         }
 
         textarea:focus {
@@ -121,16 +122,10 @@
             flex: 2;
             background-color: var(--primary-color);
             color: white;
-            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
         }
 
         .btn-copy:hover {
             background-color: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .btn-copy:active {
-            transform: translateY(0);
         }
 
         .btn-clear {
@@ -142,7 +137,6 @@
 
         .btn-clear:hover {
             background-color: #e1e4e8;
-            color: #333;
         }
 
         #status {
@@ -154,10 +148,6 @@
             font-weight: 500;
             opacity: 0;
             transition: opacity 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
         }
     </style>
 </head>
@@ -165,35 +155,70 @@
 
 <div class="container">
     <div class="header">
-        <h2><span class="badge">KR</span> 韩文复制修复工具</h2>
-        <p>将容易乱码的韩文粘贴到下方，点击蓝色按钮即可修复。</p>
+        <h2><span class="badge">KR</span> 韩文乱码/NFD修复</h2>
+        <p>专治 Mac/iOS/KakaoTalk 复制出来的韩文乱码</p>
     </div>
+
+    <div id="fixTip" class="tip">✨ 检测到分离的韩文编码，已自动为您重组修复！</div>
     
-    <textarea id="inputText" placeholder="在此处粘贴韩文 (예: 안녕하세요)..."></textarea>
+    <textarea id="inputText" placeholder="请在此处粘贴乱码的文件名或文本..."></textarea>
     
     <div class="btn-group">
         <button class="btn-clear" onclick="clearText()">清空</button>
-        <button class="btn-copy" onclick="copyText()">修复并复制</button>
+        <button class="btn-copy" onclick="copyText()">复制修复后的结果</button>
     </div>
     
-    <div id="status">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        <span>已净化并复制到剪贴板！</span>
-    </div>
+    <div id="status">✅ 已复制到剪贴板</div>
 </div>
 
 <script>
     const textarea = document.getElementById('inputText');
     const status = document.getElementById('status');
+    const fixTip = document.getElementById('fixTip');
+
+    // 监听粘贴事件，进行实时修复
+    textarea.addEventListener('paste', (event) => {
+        // 1. 获取粘贴板的纯文本
+        let paste = (event.clipboardData || window.clipboardData).getData('text');
+        
+        if (paste) {
+            event.preventDefault(); // 阻止默认粘贴，我们要自己处理
+            
+            // 2. 核心修复逻辑：Normalize('NFC')
+            // 这会将 "Mac风格的分离韩文" (NFD) 强制转换为 "Windows风格的组合韩文" (NFC)
+            const fixedText = paste.normalize('NFC');
+
+            // 3. 检查是否真的发生了修复
+            if (fixedText !== paste) {
+                fixTip.style.display = 'block';
+                setTimeout(() => { fixTip.style.display = 'none'; }, 3000);
+            }
+
+            // 4. 将修复后的文本插入光标位置
+            const selectionStart = textarea.selectionStart;
+            const selectionEnd = textarea.selectionEnd;
+            const currentValue = textarea.value;
+            
+            textarea.value = currentValue.substring(0, selectionStart) + 
+                           fixedText + 
+                           currentValue.substring(selectionEnd);
+            
+            // 5. 恢复光标位置
+            textarea.selectionStart = textarea.selectionEnd = selectionStart + fixedText.length;
+        }
+    });
 
     function clearText() {
         textarea.value = '';
         textarea.focus();
         status.style.opacity = '0';
+        fixTip.style.display = 'none';
     }
 
     async function copyText() {
-        const text = textarea.value;
+        // 再次确保输出时是 NFC 格式
+        const text = textarea.value.normalize('NFC');
+        
         if (!text) {
             textarea.focus();
             return;
