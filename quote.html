@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>石材选型报价表 V4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .file-input { display: none; }
+        
+        /* 导出容器：增加内边距，确保边缘不切 */
+        #export-wrapper {
+            background: white;
+            width: 100%;
+            padding: 60px; 
+            box-sizing: border-box;
+        }
+
+        .image-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%; /* 1:1 正方形 */
+            background-color: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .image-preview {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .placeholder-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #9ca3af;
+            font-size: 0.875rem;
+            text-align: center;
+            pointer-events: none;
+            width: 100%;
+        }
+        
+        /* 输入框样式：去掉了所有边框，看起来像纯文本 */
+        .editable-title {
+            border: none;
+            background: transparent;
+            text-align: center;
+            width: 100%;
+            outline: none;
+            font-weight: 800; /* 加粗 */
+            color: #1f2937;
+        }
+        .editable-title:focus {
+            background-color: #f9fafb; /* 编辑时微亮背景 */
+        }
+
+        .editable-name {
+            border: none;
+            background: transparent;
+            width: 100%;
+            outline: none;
+            font-weight: 700;
+            color: #374151;
+            margin-top: 12px;
+            padding: 4px 0; /* 增加一点上下空间防止紧贴 */
+        }
+        .editable-name:focus {
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        /* 裁剪模态框 */
+        #cropModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- 顶部工具栏 -->
+        <div class="mb-6 flex flex-wrap justify-between items-center gap-4 print:hidden">
+            <div class="text-sm text-gray-500">
+                <span class="font-bold text-gray-700">提示：</span> 点击文字可直接修改
+            </div>
+            <div class="flex gap-2">
+                <button onclick="addItem()" class="flex items-center gap-1 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded hover:bg-gray-50 transition text-sm shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                    加一个
+                </button>
+                <button onclick="removeItem()" class="flex items-center gap-1 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded hover:bg-gray-50 transition text-sm shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                    减一个
+                </button>
+                <button onclick="exportImage()" class="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm shadow-md ml-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" /></svg>
+                    导出高清图
+                </button>
+            </div>
+        </div>
+
+        <!-- 核心导出区域 -->
+        <div id="export-wrapper" class="shadow-xl rounded-lg">
+            
+            <!-- 1. 自定义大标题 (已移除副标题) -->
+            <div class="mb-12 text-center">
+                <input type="text" value="石材选型表" class="editable-title text-4xl" placeholder="点击输入标题">
+            </div>
+
+            <!-- 2. 网格内容 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-12" id="grid-container">
+                <!-- 卡片动态生成 -->
+            </div>
+
+        </div>
+        
+    </div>
+
+    <!-- 裁剪模态框 -->
+    <div id="cropModal">
+        <div class="bg-white p-4 rounded-lg shadow-xl w-full max-w-2xl">
+            <div class="h-[60vh] bg-gray-100 flex items-center justify-center overflow-hidden mb-4">
+                <img id="imageToCrop" src="" alt="待裁剪图片">
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-500">滚动缩放，拖动调整</span>
+                <div class="space-x-2">
+                    <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50">取消</button>
+                    <button onclick="confirmCrop()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">确认裁剪</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <script>
+        let itemCount = 0;
+        let cropper = null;
+        let currentTriggerInput = null;
+        let currentImageElement = null;
+
+        function getLetter(index) {
+            return String.fromCharCode(65 + index);
+        }
+
+        function createCardHtml(index) {
+            return `
+                <div class="sample-card" id="card-${index}">
+                    <!-- 图片区域 -->
+                    <div class="image-container" onclick="triggerUpload(${index})">
+                        <img id="preview-${index}" class="image-preview hidden" src="" alt="Sample">
+                        <div id="placeholder-${index}" class="placeholder-text">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span class="text-gray-400">点击上传</span>
+                        </div>
+                    </div>
+                    <input type="file" id="input-${index}" class="file-input" accept="image/*" onchange="handleFileSelect(event, ${index})">
+                    
+                    <!-- 文字区域：只保留一行大标题 -->
+                    <div class="mt-2">
+                        <input type="text" 
+                            value="花岗岩 ${getLetter(index)}" 
+                            class="editable-name text-lg"
+                            placeholder="输入材料名称...">
+                    </div>
+                </div>
+            `;
+        }
+
+        function addItem() {
+            const container = document.getElementById('grid-container');
+            const div = document.createElement('div');
+            div.id = `wrapper-${itemCount}`; 
+            div.style.display = 'contents'; 
+            div.innerHTML = createCardHtml(itemCount);
+            container.appendChild(div);
+            itemCount++;
+        }
+
+        function removeItem() {
+            if (itemCount > 1) {
+                itemCount--;
+                const lastWrapper = document.getElementById(`wrapper-${itemCount}`);
+                if (lastWrapper) lastWrapper.remove();
+            } else {
+                alert("至少保留一个样板");
+            }
+        }
+
+        function init() {
+            for(let i=0; i<4; i++) {
+                addItem();
+            }
+        }
+
+        function triggerUpload(index) {
+            document.getElementById(`input-${index}`).click();
+        }
+
+        function handleFileSelect(event, index) {
+            const file = event.target.files[0];
+            if (file) {
+                currentTriggerInput = document.getElementById(`input-${index}`);
+                currentImageElement = document.getElementById(`preview-${index}`);
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    openModal(e.target.result);
+                    currentImageElement.dataset.placeholderId = `placeholder-${index}`;
+                };
+                reader.readAsDataURL(file);
+            }
+            event.target.value = ''; 
+        }
+
+        function openModal(imageSrc) {
+            const modal = document.getElementById('cropModal');
+            const image = document.getElementById('imageToCrop');
+            image.src = imageSrc;
+            modal.style.display = 'flex';
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(image, {
+                aspectRatio: 1,
+                viewMode: 1,
+                autoCropArea: 0.9,
+                background: false,
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('cropModal').style.display = 'none';
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+        }
+
+        function confirmCrop() {
+            if (!cropper) return;
+            const canvas = cropper.getCroppedCanvas({
+                width: 1200, 
+                height: 1200,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+            const croppedImage = canvas.toDataURL('image/jpeg', 0.95);
+            if (currentImageElement) {
+                currentImageElement.src = croppedImage;
+                currentImageElement.classList.remove('hidden');
+                const placeholderId = currentImageElement.dataset.placeholderId;
+                if (placeholderId) document.getElementById(placeholderId).classList.add('hidden');
+            }
+            closeModal();
+        }
+
+        // 核心修复：导出图片
+        function exportImage() {
+            const element = document.getElementById('export-wrapper');
+            const btn = document.querySelector('button[onclick="exportImage()"]');
+            const originalText = btn.innerHTML;
+            
+            btn.innerText = "处理中...";
+
+            // 1. 克隆节点：为了不影响用户界面，我们在内存里复制一份
+            const clone = element.cloneNode(true);
+            
+            // 2. 核心魔法：把所有 input 替换成 div 文本
+            // 这样 html2canvas 渲染 div 时绝对不会切字
+            const inputs = clone.querySelectorAll('input');
+            inputs.forEach(input => {
+                const textDiv = document.createElement('div');
+                textDiv.textContent = input.value;
+                textDiv.className = input.className; // 继承样式
+                
+                // 针对标题特殊处理样式，确保居中
+                if(input.classList.contains('editable-title')) {
+                    textDiv.style.textAlign = 'center';
+                    textDiv.style.marginBottom = '48px'; // 对应 mb-12
+                }
+                
+                input.parentNode.replaceChild(textDiv, input);
+            });
+
+            // 3. 把克隆体放到屏幕外（不可见但可渲染）
+            clone.style.position = 'absolute';
+            clone.style.top = '-9999px';
+            clone.style.left = '-9999px';
+            clone.style.width = element.offsetWidth + 'px'; // 保持宽度一致
+            document.body.appendChild(clone);
+
+            html2canvas(clone, {
+                scale: 2, 
+                backgroundColor: "#ffffff",
+                useCORS: true,
+                windowHeight: clone.scrollHeight + 100 
+            }).then(canvas => {
+                const link = document.createElement('a');
+                // 获取当前标题作为文件名
+                const titleInput = document.querySelector('.editable-title');
+                const title = titleInput ? titleInput.value : '石材选型';
+                
+                link.download = title + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                // 清理现场
+                document.body.removeChild(clone);
+                btn.innerHTML = originalText;
+            }).catch(err => {
+                console.error(err);
+                alert("导出失败，请重试");
+                document.body.removeChild(clone);
+                btn.innerHTML = originalText;
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
