@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>图片编辑器 V7.4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; overflow: hidden; touch-action: none; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        /* Text Box Styles */
+        .overlay-item {
+            position: absolute;
+            background-color: transparent;
+            border: 1px dashed transparent;
+            cursor: move;
+            transform-origin: center center;
+            z-index: 10;
+            touch-action: none;
+        }
+        
+        /* Text specific */
+        .type-text {
+            background-color: white;
+            padding: 2px 4px;
+            font-family: "Microsoft YaHei", sans-serif;
+            font-weight: bold;
+            color: black;
+            white-space: nowrap;
+            line-height: 1.1;
+            min-width: 10px;
+        }
+
+        /* Rect specific */
+        .type-rect {
+            background-color: white;
+        }
+
+        /* Triangle specific */
+        .type-triangle {
+            color: black; /* Default color for SVG currentColor */
+        }
+        
+        .overlay-item:hover, .overlay-item.active {
+            border-color: #2563eb;
+            z-index: 20;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+        
+        /* Canvas Container */
+        #canvas-viewport {
+            overflow: auto;
+            background-color: #e5e7eb;
+            background-image: 
+                linear-gradient(45deg, #ddd 25%, transparent 25%), 
+                linear-gradient(-45deg, #ddd 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ddd 75%), 
+                linear-gradient(-45deg, transparent 75%, #ddd 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: pan-x pan-y;
+        }
+        
+        #editor-stage {
+            position: relative;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+
+        #placeholder { cursor: default; }
+    </style>
+</head>
+<body class="h-screen flex flex-col bg-gray-50">
+
+    <!-- Header -->
+    <div class="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 flex-shrink-0 z-20 shadow-sm">
+        <div class="flex items-center gap-2">
+            <div class="bg-blue-600 text-white p-1 rounded">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <h1 class="text-base font-bold text-gray-800">图片编辑器 <span class="text-xs font-normal text-gray-500">V7.4</span></h1>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button id="downloadBtn" disabled class="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-xs shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                保存
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        
+        <!-- Canvas Viewport -->
+        <div id="canvas-viewport" class="flex-1 relative order-1 lg:order-2 lg:h-full h-[50vh] border-b lg:border-b-0 lg:border-l border-gray-200">
+            
+            <!-- Empty State -->
+            <div id="placeholder" class="text-center p-8 w-full h-full flex flex-col items-center justify-center bg-gray-50">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-sm mb-3 text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                </div>
+                <h3 class="text-base font-bold text-gray-700">请按 Ctrl+V 粘贴图片</h3>
+                <p class="text-xs text-gray-400 mt-2">或在左侧点击上传</p>
+            </div>
+
+            <!-- Editor Stage -->
+            <div id="editor-stage" class="hidden bg-white">
+                <canvas id="mainCanvas" class="block"></canvas>
+            </div>
+            
+            <!-- Floating Zoom Controls -->
+            <div class="absolute bottom-4 right-4 flex flex-col gap-2 bg-white/90 backdrop-blur p-1.5 rounded-lg shadow-lg border border-gray-200 z-20">
+                <button id="zoomInBtn" class="p-2 text-gray-600 hover:bg-gray-100 rounded"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                <span id="zoomLevel" class="text-[10px] font-mono text-center text-gray-500">100%</span>
+                <button id="zoomOutBtn" class="p-2 text-gray-600 hover:bg-gray-100 rounded"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                <button id="fitScreenBtn" class="p-2 text-blue-600 hover:bg-blue-50 rounded font-bold text-xs">适应</button>
+            </div>
+        </div>
+
+        <!-- Controls Sidebar -->
+        <div class="w-full lg:w-80 bg-white flex flex-col overflow-y-auto order-2 lg:order-1 flex-shrink-0 h-[50vh] lg:h-full shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] lg:shadow-none z-10 relative">
+            
+            <div class="p-4 space-y-6">
+                
+                <!-- Panel: Selected Item Properties (Dynamic) -->
+                <div id="propertiesPanel" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-4 shadow-sm animate-fade-in">
+                    <div class="flex items-center justify-between mb-3 border-b border-blue-200 pb-2">
+                        <h3 class="text-xs font-bold text-blue-800 flex items-center gap-2 uppercase tracking-wider">
+                            <span class="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
+                            当前选中项
+                        </h3>
+                        <button id="closePropsBtn" class="text-xs text-blue-600 hover:text-blue-800 font-bold px-2">
+                            取消选中
+                        </button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <!-- Text Content (Only for Text) -->
+                        <div id="propTextGroup" class="space-y-1">
+                            <label class="text-xs font-bold text-gray-500">文字内容</label>
+                            <input type="text" id="propTextInput" class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" placeholder="输入文字...">
+                        </div>
+
+                        <!-- Color Control (For Text, Rect & Triangle) -->
+                        <div id="propColorGroup" class="space-y-1 hidden">
+                            <label class="text-xs font-bold text-gray-500">颜色设置</label>
+                            <div class="flex gap-2">
+                                <button id="colorWhiteBtn" class="flex-1 py-1.5 rounded-lg border-2 border-gray-200 bg-white text-xs font-bold text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-1">
+                                    <span class="w-3 h-3 rounded-full bg-white border border-gray-300"></span> 白色
+                                </button>
+                                <button id="colorBlackBtn" class="flex-1 py-1.5 rounded-lg border-2 border-transparent bg-white text-xs font-bold text-gray-800 hover:bg-gray-50 flex items-center justify-center gap-1">
+                                    <span class="w-3 h-3 rounded-full bg-black border border-gray-200"></span> 黑色
+                                </button>
+                                <button id="colorRedBtn" class="flex-1 py-1.5 rounded-lg border-2 border-transparent bg-white text-xs font-bold text-red-600 hover:bg-red-50 flex items-center justify-center gap-1">
+                                    <span class="w-3 h-3 rounded-full bg-red-600"></span> 红色
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Size Control (For Text & Triangle) -->
+                        <div id="propSizeGroup" class="space-y-1">
+                            <div class="flex justify-between">
+                                <label id="propSizeLabel" class="text-xs font-bold text-gray-500">字号大小</label>
+                                <span id="propSizeVal" class="text-xs text-blue-600 font-bold">30px</span>
+                            </div>
+                            <input type="range" id="propSizeInput" min="10" max="300" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <!-- Dimensions Control (For Rect Only) -->
+                        <div id="propRectGroup" class="space-y-3 hidden">
+                            <div class="space-y-1">
+                                <div class="flex justify-between">
+                                    <label class="text-xs font-bold text-gray-500">宽度</label>
+                                    <span id="propWidthVal" class="text-xs text-blue-600 font-bold">100px</span>
+                                </div>
+                                <input type="range" id="propWidthInput" min="2" max="500" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between">
+                                    <label class="text-xs font-bold text-gray-500">高度</label>
+                                    <span id="propHeightVal" class="text-xs text-blue-600 font-bold">50px</span>
+                                </div>
+                                <input type="range" id="propHeightInput" min="2" max="500" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                            </div>
+                        </div>
+
+                        <!-- Common Controls -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="propRotateBtn" class="flex items-center justify-center gap-1 py-2 bg-white text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-xs transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                                逆转45°
+                            </button>
+                            <button id="propDeleteBtn" class="flex items-center justify-center gap-1 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 font-bold text-xs transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel: Tools -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">添加工具</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="addTextBtn" disabled class="flex flex-col items-center justify-center gap-2 p-4 bg-gray-800 text-white rounded-xl active:scale-95 transition-transform shadow-md disabled:opacity-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon></svg>
+                            <span class="text-xs font-bold">文字</span>
+                        </button>
+                        <button id="addRectBtn" disabled class="flex flex-col items-center justify-center gap-2 p-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl active:scale-95 transition-transform shadow-sm hover:border-gray-300 disabled:opacity-50">
+                            <div class="w-6 h-6 border-2 border-current bg-gray-100"></div>
+                            <span class="text-xs font-bold">遮盖</span>
+                        </button>
+                        <button id="addTriangleBtn" disabled class="flex flex-col items-center justify-center gap-2 p-4 bg-white border-2 border-gray-200 text-black rounded-xl active:scale-95 transition-transform shadow-sm hover:border-gray-300 disabled:opacity-50 col-span-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="black" stroke="currentColor" stroke-width="0"><path d="M12 22L2 2h20L12 22z"/></svg>
+                            <span class="text-xs font-bold">磨光</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel: Image Settings -->
+                <div class="space-y-3 pt-2 border-t border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">图像设置</h3>
+                        <label class="text-xs text-blue-600 cursor-pointer font-medium hover:underline">
+                            <input type="file" id="fileInput" accept="image/*" class="hidden" />
+                            上传图片
+                        </label>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-3">
+                        <div id="thresholdControl" class="opacity-50 pointer-events-none">
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs font-medium text-gray-600">去黑底阈值</label>
+                                <span id="thresholdValue" class="text-xs text-blue-600 font-bold">100</span>
+                            </div>
+                            <input type="range" id="threshold" min="10" max="200" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                        </div>
+
+                        <div class="flex gap-1.5">
+                            <button id="btnBinary" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">反色</button>
+                            <button id="btnOriginal" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium whitespace-nowrap">原图模式</button>
+                        </div>
+
+                        <div class="flex gap-1.5">
+                            <button id="btnBW" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">黑白</button>
+                            <button id="btnUpscale" disabled class="flex-[2] py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded hover:bg-purple-100 transition-colors text-xs font-bold disabled:opacity-50">
+                                <span id="upscaleText">2x 高清锐化</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Signature -->
+                <div class="text-center mt-8 pb-4">
+                    <p class="text-xs text-gray-400 font-medium tracking-widest">文奇制作</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Elements ---
+        const fileInput = document.getElementById('fileInput');
+        const placeholder = document.getElementById('placeholder');
+        const viewport = document.getElementById('canvas-viewport');
+        const editorStage = document.getElementById('editor-stage');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Panels
+        const propertiesPanel = document.getElementById('propertiesPanel');
+        
+        // Global Controls
+        const thresholdControl = document.getElementById('thresholdControl');
+        const thresholdInput = document.getElementById('threshold');
+        const thresholdDisplay = document.getElementById('thresholdValue');
+        
+        const btnBinary = document.getElementById('btnBinary');
+        const btnOriginal = document.getElementById('btnOriginal');
+        const btnBW = document.getElementById('btnBW');
+        
+        const btnUpscale = document.getElementById('btnUpscale');
+        const upscaleText = document.getElementById('upscaleText');
+        const addTextBtn = document.getElementById('addTextBtn');
+        const addRectBtn = document.getElementById('addRectBtn');
+        const addTriangleBtn = document.getElementById('addTriangleBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        // Property Controls
+        const closePropsBtn = document.getElementById('closePropsBtn');
+        const propTextGroup = document.getElementById('propTextGroup');
+        const propColorGroup = document.getElementById('propColorGroup');
+        const colorWhiteBtn = document.getElementById('colorWhiteBtn');
+        const colorBlackBtn = document.getElementById('colorBlackBtn');
+        const colorRedBtn = document.getElementById('colorRedBtn');
+        
+        const propSizeGroup = document.getElementById('propSizeGroup');
+        const propSizeLabel = document.getElementById('propSizeLabel');
+        const propRectGroup = document.getElementById('propRectGroup');
+        
+        const propTextInput = document.getElementById('propTextInput');
+        const propSizeInput = document.getElementById('propSizeInput');
+        const propSizeVal = document.getElementById('propSizeVal');
+        const propWidthInput = document.getElementById('propWidthInput');
+        const propWidthVal = document.getElementById('propWidthVal');
+        const propHeightInput = document.getElementById('propHeightInput');
+        const propHeightVal = document.getElementById('propHeightVal');
+        
+        const propRotateBtn = document.getElementById('propRotateBtn');
+        const propDeleteBtn = document.getElementById('propDeleteBtn');
+
+        // Zoom Controls
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const fitScreenBtn = document.getElementById('fitScreenBtn');
+        const zoomLevelDisplay = document.getElementById('zoomLevel');
+
+        // --- State ---
+        let originalImage = null;
+        let currentMode = 'original'; 
+        let isUpscaled = false;
+        let scaleFactor = 1; 
+        let viewZoom = 1.0; 
+        let activeItem = null; 
+
+        // --- Initialization ---
+        
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    handleFile(blob);
+                }
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files[0]) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImage = img;
+                    isUpscaled = false;
+                    scaleFactor = 1;
+                    upscaleText.textContent = "2x 高清锐化";
+                    btnUpscale.classList.remove('bg-purple-600', 'text-white');
+                    btnUpscale.classList.add('bg-purple-50', 'text-purple-700');
+                    btnUpscale.disabled = false;
+                    
+                    initEditor();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function initEditor() {
+            placeholder.classList.add('hidden');
+            editorStage.classList.remove('hidden');
+            
+            addTextBtn.disabled = false;
+            addRectBtn.disabled = false;
+            addTriangleBtn.disabled = false;
+            downloadBtn.disabled = false;
+
+            const existingItems = document.querySelectorAll('.overlay-item');
+            existingItems.forEach(el => el.remove());
+
+            processImage();
+            setTimeout(fitToScreen, 100);
+        }
+
+        // --- Zoom Logic ---
+        
+        function setZoom(val) {
+            viewZoom = val;
+            if (viewZoom < 0.1) viewZoom = 0.1;
+            if (viewZoom > 5.0) viewZoom = 5.0;
+            
+            editorStage.style.transform = `scale(${viewZoom})`;
+            editorStage.style.margin = "100px"; 
+            
+            zoomLevelDisplay.textContent = Math.round(viewZoom * 100) + '%';
+        }
+
+        zoomInBtn.addEventListener('click', () => setZoom(viewZoom + 0.1));
+        zoomOutBtn.addEventListener('click', () => setZoom(viewZoom - 0.1));
+        fitScreenBtn.addEventListener('click', fitToScreen);
+
+        function fitToScreen() {
+            if (!canvas.width) return;
+            const vw = viewport.clientWidth - 40; 
+            const vh = viewport.clientHeight - 40;
+            
+            const scaleW = vw / canvas.width;
+            const scaleH = vh / canvas.height;
+            
+            setZoom(Math.min(scaleW, scaleH, 1.0)); 
+        }
+
+        // --- Image Processing ---
+
+        thresholdInput.addEventListener('input', (e) => {
+            thresholdDisplay.textContent = e.target.value;
+            if (currentMode !== 'original') processImage();
+        });
+
+        function updateModeButtons() {
+            const activeClass = "bg-blue-600 text-white border-blue-600";
+            const inactiveClass = "bg-white text-gray-600 border-gray-300 hover:bg-gray-50";
+            
+            btnBinary.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'binary' ? activeClass : inactiveClass}`;
+            btnOriginal.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'original' ? activeClass : inactiveClass}`;
+            btnBW.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'bw' ? activeClass : inactiveClass}`;
+
+            if (currentMode === 'original') {
+                thresholdControl.classList.add('opacity-50', 'pointer-events-none');
+            } else {
+                thresholdControl.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        btnBinary.addEventListener('click', () => {
+            currentMode = 'binary';
+            updateModeButtons();
+            processImage();
+        });
+
+        btnOriginal.addEventListener('click', () => {
+            currentMode = 'original';
+            updateModeButtons();
+            processImage();
+        });
+
+        btnBW.addEventListener('click', () => {
+            currentMode = 'bw';
+            updateModeButtons();
+            processImage();
+        });
+
+        function processImage() {
+            if (!originalImage) return;
+
+            const w = originalImage.width * scaleFactor;
+            const h = originalImage.height * scaleFactor;
+
+            canvas.width = w;
+            canvas.height = h;
+            editorStage.style.width = w + 'px';
+            editorStage.style.height = h + 'px';
+
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(originalImage, 0, 0, w, h);
+
+            const imageData = ctx.getImageData(0, 0, w, h);
+            const data = imageData.data;
+
+            if (currentMode !== 'original') {
+                const threshold = parseInt(thresholdInput.value);
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // FIX: Use Luminance instead of Max Value to correctly handle Red/Blue lines
+                    // Standard Rec. 601 Luma formula: Y = 0.299R + 0.587G + 0.114B
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                    if (currentMode === 'binary') {
+                        // Inverse mode: dark becomes white, light becomes black
+                        if (gray < threshold) {
+                            data[i] = 255; data[i+1] = 255; data[i+2] = 255;
+                        } else {
+                            data[i] = 0; data[i+1] = 0; data[i+2] = 0;
+                        }
+                    } else if (currentMode === 'bw') {
+                        // Standard Black & White: dark becomes black, light becomes white
+                        if (gray < threshold) {
+                            data[i] = 0; data[i+1] = 0; data[i+2] = 0;
+                        } else {
+                            data[i] = 255; data[i+1] = 255; data[i+2] = 255;
+                        }
+                    }
+                }
+            }
+
+            if (isUpscaled) applySharpening(data, w, h);
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        btnUpscale.addEventListener('click', () => {
+            if (isUpscaled) return;
+            isUpscaled = true;
+            scaleFactor = 2;
+            btnUpscale.classList.remove('bg-purple-50', 'text-purple-700');
+            btnUpscale.classList.add('bg-purple-600', 'text-white');
+            upscaleText.textContent = "已高清化";
+            btnUpscale.disabled = true;
+            processImage();
+            fitToScreen();
+        });
+
+        function applySharpening(data, w, h) {
+            const copy = new Uint8ClampedArray(data);
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    const idx = (y * w + x) * 4;
+                    // Optimization: Skip white pixels (usually background)
+                    if (copy[idx] > 250 && copy[idx+1] > 250 && copy[idx+2] > 250) continue;
+                    
+                    for (let c = 0; c < 3; c++) {
+                        const val = 5 * copy[idx + c]
+                            - copy[((y-1)*w + x) * 4 + c]
+                            - copy[((y+1)*w + x) * 4 + c]
+                            - copy[(y*w + (x-1)) * 4 + c]
+                            - copy[(y*w + (x+1)) * 4 + c];
+                        data[idx + c] = Math.min(255, Math.max(0, val));
+                    }
+                }
+            }
+        }
+
+        // --- Item Creation (Text, Rect, Triangle) ---
+
+        addTextBtn.addEventListener('click', () => {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            createItem('text', cx - 50, cy - 20);
+        });
+
+        addRectBtn.addEventListener('click', () => {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            createItem('rect', cx - 50, cy - 25);
+        });
+
+        addTriangleBtn.addEventListener('click', () => {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            createItem('triangle', cx - 10, cy - 10);
+        });
+
+        function createItem(type, x, y) {
+            const div = document.createElement('div');
+            div.className = 'overlay-item';
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+            div.style.transform = 'rotate(0deg)';
+            div.dataset.rotation = "0"; 
+            div.dataset.type = type;
+
+            if (type === 'text') {
+                div.classList.add('type-text');
+                div.textContent = "输入文字";
+                div.style.fontSize = "30px"; 
+                div.style.color = "black"; 
+            } else if (type === 'rect') {
+                div.classList.add('type-rect');
+                div.style.width = "80px";  
+                div.style.height = "40px"; 
+                div.style.backgroundColor = "white"; // Default white
+            } else if (type === 'triangle') {
+                div.classList.add('type-triangle');
+                div.style.width = "20px";
+                div.style.height = "20px";
+                div.style.color = "black"; // Default black
+                // Use currentColor for fill to allow color changing
+                div.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="display:block; overflow:visible;">
+                    <path d="M0 0 L100 0 L50 100 Z" fill="currentColor"/>
+                </svg>`;
+            }
+
+            addDragEvents(div);
+
+            div.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setActiveItem(div);
+            });
+
+            editorStage.appendChild(div);
+            setActiveItem(div);
+        }
+
+        function setActiveItem(el) {
+            document.querySelectorAll('.overlay-item').forEach(b => b.classList.remove('active'));
+            
+            if (el) {
+                el.classList.add('active');
+                activeItem = el;
+                
+                // Show Panel
+                propertiesPanel.classList.remove('hidden');
+
+                // Configure Panel based on Type
+                const type = el.dataset.type;
+                if (type === 'text') {
+                    propTextGroup.classList.remove('hidden');
+                    propColorGroup.classList.remove('hidden'); 
+                    propSizeGroup.classList.remove('hidden');
+                    propRectGroup.classList.add('hidden');
+                    
+                    propSizeLabel.textContent = "字号大小";
+                    propTextInput.value = el.textContent;
+                    const size = parseInt(window.getComputedStyle(el).fontSize);
+                    propSizeInput.value = size;
+                    propSizeVal.textContent = size + 'px';
+                    
+                    updateColorButtons(el.style.color || 'black');
+
+                } else if (type === 'triangle') {
+                    propTextGroup.classList.add('hidden');
+                    propColorGroup.classList.remove('hidden'); // SHOW COLOR FOR TRIANGLE
+                    propSizeGroup.classList.remove('hidden');
+                    propRectGroup.classList.add('hidden');
+
+                    propSizeLabel.textContent = "尺寸大小";
+                    const w = parseInt(el.style.width);
+                    propSizeInput.value = w;
+                    propSizeVal.textContent = w + 'px';
+                    
+                    updateColorButtons(el.style.color || 'black'); // Update color buttons
+                } else {
+                    // RECT
+                    propTextGroup.classList.add('hidden');
+                    propColorGroup.classList.remove('hidden'); // Show color for rect
+                    propSizeGroup.classList.add('hidden');
+                    propRectGroup.classList.remove('hidden');
+                    
+                    const w = parseInt(el.style.width);
+                    const h = parseInt(el.style.height);
+                    propWidthInput.value = w;
+                    propWidthVal.textContent = w + 'px';
+                    propHeightInput.value = h;
+                    propHeightVal.textContent = h + 'px';
+                    
+                    updateColorButtons(el.style.backgroundColor || 'white');
+                }
+                
+            } else {
+                activeItem = null;
+                propertiesPanel.classList.add('hidden');
+            }
+        }
+
+        function updateColorButtons(color) {
+            // Normalize color string
+            const c = color.toLowerCase();
+            const isRed = c === 'red' || c === 'rgb(255, 0, 0)' || c === '#ff0000';
+            const isBlack = c === 'black' || c === 'rgb(0, 0, 0)' || c === '#000000';
+            const isWhite = c === 'white' || c === 'rgb(255, 255, 255)' || c === '#ffffff';
+
+            // Reset all
+            colorWhiteBtn.className = "flex-1 py-1.5 rounded-lg border-2 border-gray-200 bg-white text-xs font-bold text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-1";
+            colorBlackBtn.className = "flex-1 py-1.5 rounded-lg border-2 border-transparent bg-white text-xs font-bold text-gray-800 hover:bg-gray-50 flex items-center justify-center gap-1";
+            colorRedBtn.className = "flex-1 py-1.5 rounded-lg border-2 border-transparent bg-white text-xs font-bold text-red-600 hover:bg-red-50 flex items-center justify-center gap-1";
+
+            if (isWhite) {
+                colorWhiteBtn.classList.add('ring-2', 'ring-blue-400', 'border-blue-400');
+                colorWhiteBtn.classList.remove('border-gray-200');
+            } else if (isBlack) {
+                colorBlackBtn.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
+            } else if (isRed) {
+                colorRedBtn.classList.add('ring-2', 'ring-red-300', 'bg-red-50');
+            }
+        }
+
+        function applyColor(color) {
+            if (!activeItem) return;
+            
+            if (activeItem.dataset.type === 'text' || activeItem.dataset.type === 'triangle') {
+                activeItem.style.color = color;
+            } else if (activeItem.dataset.type === 'rect') {
+                activeItem.style.backgroundColor = color;
+            }
+            updateColorButtons(color);
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.overlay-item') && 
+                !e.target.closest('#propertiesPanel') && 
+                !e.target.closest('#addTextBtn') &&
+                !e.target.closest('#addRectBtn') &&
+                !e.target.closest('#addTriangleBtn')) {
+                setActiveItem(null);
+            }
+        });
+
+        closePropsBtn.addEventListener('click', () => setActiveItem(null));
+
+        // --- Property Listeners ---
+
+        propTextInput.addEventListener('input', (e) => {
+            if(activeItem && activeItem.dataset.type === 'text') activeItem.textContent = e.target.value;
+        });
+
+        colorWhiteBtn.addEventListener('click', () => applyColor('white'));
+        colorBlackBtn.addEventListener('click', () => applyColor('black'));
+        colorRedBtn.addEventListener('click', () => applyColor('red'));
+
+        propSizeInput.addEventListener('input', (e) => {
+            if(!activeItem) return;
+            const val = e.target.value;
+            propSizeVal.textContent = val + 'px';
+
+            if(activeItem.dataset.type === 'text') {
+                activeItem.style.fontSize = val + 'px';
+            } else if (activeItem.dataset.type === 'triangle') {
+                activeItem.style.width = val + 'px';
+                activeItem.style.height = val + 'px';
+            }
+        });
+
+        propWidthInput.addEventListener('input', (e) => {
+            if(activeItem && activeItem.dataset.type === 'rect') {
+                activeItem.style.width = e.target.value + 'px';
+                propWidthVal.textContent = e.target.value + 'px';
+            }
+        });
+
+        propHeightInput.addEventListener('input', (e) => {
+            if(activeItem && activeItem.dataset.type === 'rect') {
+                activeItem.style.height = e.target.value + 'px';
+                propHeightVal.textContent = e.target.value + 'px';
+            }
+        });
+
+        propRotateBtn.addEventListener('click', () => {
+            if(activeItem) {
+                let currentRot = parseInt(activeItem.dataset.rotation || 0);
+                currentRot -= 45;
+                activeItem.dataset.rotation = currentRot;
+                activeItem.style.transform = `rotate(${currentRot}deg)`;
+            }
+        });
+
+        const deleteActive = () => {
+            if(activeItem) {
+                activeItem.remove();
+                setActiveItem(null);
+            }
+        };
+
+        propDeleteBtn.addEventListener('click', deleteActive);
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && activeItem) {
+                if (document.activeElement !== propTextInput) {
+                    deleteActive();
+                }
+            }
+        });
+
+        // --- Drag Logic ---
+        
+        function addDragEvents(box) {
+            const startDrag = (clientX, clientY) => {
+                setActiveItem(box);
+                const startX = clientX;
+                const startY = clientY;
+                const initialLeft = parseFloat(box.style.left || 0);
+                const initialTop = parseFloat(box.style.top || 0);
+
+                const move = (cx, cy) => {
+                    const dx = (cx - startX) / viewZoom;
+                    const dy = (cy - startY) / viewZoom;
+                    box.style.left = (initialLeft + dx) + 'px';
+                    box.style.top = (initialTop + dy) + 'px';
+                };
+
+                const stop = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    document.removeEventListener('touchmove', onTouchMove);
+                    document.removeEventListener('touchend', onTouchEnd);
+                };
+
+                const onMouseMove = (e) => move(e.clientX, e.clientY);
+                const onTouchMove = (e) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); };
+                const onMouseUp = stop;
+                const onTouchEnd = stop;
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                document.addEventListener('touchmove', onTouchMove, {passive: false});
+                document.addEventListener('touchend', onTouchEnd);
+            };
+
+            box.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+            box.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
+        }
+
+        // --- Download Logic ---
+
+        downloadBtn.addEventListener('click', () => {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tCtx = tempCanvas.getContext('2d');
+
+            tCtx.drawImage(canvas, 0, 0);
+
+            const items = document.querySelectorAll('.overlay-item');
+            items.forEach(item => {
+                const style = window.getComputedStyle(item);
+                const type = item.dataset.type;
+                
+                const width = item.offsetWidth;
+                const height = item.offsetHeight;
+                
+                const x = parseFloat(item.style.left) + width / 2;
+                const y = parseFloat(item.style.top) + height / 2;
+                
+                const angle = parseInt(item.dataset.rotation || 0);
+
+                tCtx.save();
+                tCtx.translate(x, y);
+                tCtx.rotate(angle * Math.PI / 180);
+
+                if (type === 'text') {
+                    // Draw White Background
+                    tCtx.fillStyle = "white";
+                    tCtx.fillRect(-width/2, -height/2, width, height);
+                    // Draw Text
+                    tCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+                    tCtx.fillStyle = style.color;
+                    tCtx.textAlign = "center";
+                    tCtx.textBaseline = "middle";
+                    tCtx.fillText(item.textContent, 0, 2); 
+                } else if (type === 'rect') {
+                    // Draw Rect with dynamic color
+                    tCtx.fillStyle = style.backgroundColor;
+                    tCtx.fillRect(-width/2, -height/2, width, height);
+                } else if (type === 'triangle') {
+                    // Draw Triangle (Pointing DOWN)
+                    tCtx.fillStyle = style.color; // Use the color property
+                    tCtx.beginPath();
+                    // Top Left
+                    tCtx.moveTo(-width/2, -height/2);
+                    // Top Right
+                    tCtx.lineTo(width/2, -height/2);
+                    // Bottom Center
+                    tCtx.lineTo(0, height/2);
+                    tCtx.closePath();
+                    tCtx.fill();
+                }
+
+                tCtx.restore();
+            });
+
+            const link = document.createElement('a');
+            link.download = 'edited-image.png';
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+    </script>
+</body>
+</html>
