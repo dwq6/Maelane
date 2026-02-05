@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>图片编辑器 V7.4</title>
+    <title>图片编辑器 V8.0 (CAD专用版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; overflow: hidden; touch-action: none; }
@@ -37,7 +37,6 @@
         
         /* Text specific */
         .type-text {
-            background-color: white;
             padding: 2px 4px;
             font-family: "Microsoft YaHei", sans-serif;
             font-weight: bold;
@@ -99,7 +98,7 @@
             <div class="bg-blue-600 text-white p-1 rounded">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
-            <h1 class="text-base font-bold text-gray-800">图片编辑器 <span class="text-xs font-normal text-gray-500">V7.4</span></h1>
+            <h1 class="text-base font-bold text-gray-800">图片编辑器 <span class="text-xs font-normal text-gray-500">V8.0 CAD版</span></h1>
         </div>
 
         <div class="flex items-center gap-2">
@@ -161,6 +160,19 @@
                         <div id="propTextGroup" class="space-y-1">
                             <label class="text-xs font-bold text-gray-500">文字内容</label>
                             <input type="text" id="propTextInput" class="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" placeholder="输入文字...">
+                        </div>
+
+                        <!-- Text Background (New) -->
+                        <div id="propBgGroup" class="space-y-1 hidden">
+                            <label class="text-xs font-bold text-gray-500">文字背景</label>
+                            <div class="flex gap-2">
+                                <button id="bgWhiteBtn" class="flex-1 py-1.5 rounded-lg border-2 border-blue-400 bg-white text-xs font-bold text-gray-800 flex items-center justify-center gap-1 ring-2 ring-blue-400">
+                                    白底 (遮盖)
+                                </button>
+                                <button id="bgTransBtn" class="flex-1 py-1.5 rounded-lg border-2 border-transparent bg-gray-100 text-xs font-bold text-gray-600 hover:bg-gray-200 flex items-center justify-center gap-1">
+                                    透明 (融入)
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Color Control (For Text, Rect & Triangle) -->
@@ -250,22 +262,25 @@
                     </div>
                     
                     <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-3">
-                        <div id="thresholdControl" class="opacity-50 pointer-events-none">
+                        
+                        <!-- Mode Buttons -->
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <button id="btnOriginal" class="col-span-2 py-2 text-[10px] sm:text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium">原图模式</button>
+                            <button id="btnBinary" class="py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium">去黑底(阈值)</button>
+                            <button id="btnCAD" class="py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-bold text-indigo-600">CAD白图(PS同款)</button>
+                        </div>
+
+                        <!-- Dynamic Slider -->
+                        <div id="thresholdControl" class="opacity-50 pointer-events-none transition-opacity">
                             <div class="flex justify-between mb-1">
-                                <label class="text-xs font-medium text-gray-600">去黑底阈值</label>
+                                <label id="sliderLabel" class="text-xs font-medium text-gray-600">去黑底阈值</label>
                                 <span id="thresholdValue" class="text-xs text-blue-600 font-bold">100</span>
                             </div>
-                            <input type="range" id="threshold" min="10" max="200" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb">
+                            <input type="range" id="threshold" min="0" max="255" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb">
                         </div>
 
                         <div class="flex gap-1.5">
-                            <button id="btnBinary" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">反色</button>
-                            <button id="btnOriginal" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-blue-600 text-white border-blue-600 font-medium whitespace-nowrap">原图模式</button>
-                        </div>
-
-                        <div class="flex gap-1.5">
-                            <button id="btnBW" class="flex-1 py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">黑白</button>
-                            <button id="btnUpscale" disabled class="flex-[2] py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded hover:bg-purple-100 transition-colors text-xs font-bold disabled:opacity-50">
+                            <button id="btnUpscale" disabled class="w-full py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded hover:bg-purple-100 transition-colors text-xs font-bold disabled:opacity-50">
                                 <span id="upscaleText">2x 高清锐化</span>
                             </button>
                         </div>
@@ -297,10 +312,11 @@
         const thresholdControl = document.getElementById('thresholdControl');
         const thresholdInput = document.getElementById('threshold');
         const thresholdDisplay = document.getElementById('thresholdValue');
+        const sliderLabel = document.getElementById('sliderLabel');
         
         const btnBinary = document.getElementById('btnBinary');
         const btnOriginal = document.getElementById('btnOriginal');
-        const btnBW = document.getElementById('btnBW');
+        const btnCAD = document.getElementById('btnCAD');
         
         const btnUpscale = document.getElementById('btnUpscale');
         const upscaleText = document.getElementById('upscaleText');
@@ -312,6 +328,10 @@
         // Property Controls
         const closePropsBtn = document.getElementById('closePropsBtn');
         const propTextGroup = document.getElementById('propTextGroup');
+        const propBgGroup = document.getElementById('propBgGroup'); // New
+        const bgWhiteBtn = document.getElementById('bgWhiteBtn'); // New
+        const bgTransBtn = document.getElementById('bgTransBtn'); // New
+
         const propColorGroup = document.getElementById('propColorGroup');
         const colorWhiteBtn = document.getElementById('colorWhiteBtn');
         const colorBlackBtn = document.getElementById('colorBlackBtn');
@@ -340,7 +360,7 @@
 
         // --- State ---
         let originalImage = null;
-        let currentMode = 'original'; 
+        let currentMode = 'original'; // original, binary, cad_white
         let isUpscaled = false;
         let scaleFactor = 1; 
         let viewZoom = 1.0; 
@@ -437,14 +457,29 @@
             const activeClass = "bg-blue-600 text-white border-blue-600";
             const inactiveClass = "bg-white text-gray-600 border-gray-300 hover:bg-gray-50";
             
-            btnBinary.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'binary' ? activeClass : inactiveClass}`;
-            btnOriginal.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'original' ? activeClass : inactiveClass}`;
-            btnBW.className = `flex-1 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'bw' ? activeClass : inactiveClass}`;
+            btnBinary.className = `py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'binary' ? activeClass : inactiveClass}`;
+            btnOriginal.className = `col-span-2 py-2 text-[10px] sm:text-xs rounded border font-medium whitespace-nowrap ${currentMode === 'original' ? activeClass : inactiveClass}`;
+            btnCAD.className = `py-2 text-[10px] sm:text-xs rounded border font-bold whitespace-nowrap ${currentMode === 'cad_white' ? activeClass : inactiveClass}`;
 
             if (currentMode === 'original') {
                 thresholdControl.classList.add('opacity-50', 'pointer-events-none');
             } else {
                 thresholdControl.classList.remove('opacity-50', 'pointer-events-none');
+                
+                // Update Slider Label based on Mode
+                if (currentMode === 'binary') {
+                    sliderLabel.textContent = "去黑底阈值";
+                    thresholdInput.min = 10;
+                    thresholdInput.max = 200;
+                    if(parseInt(thresholdInput.value) > 200) thresholdInput.value = 100;
+                } else if (currentMode === 'cad_white') {
+                    sliderLabel.textContent = "黑白对比度";
+                    thresholdInput.min = 0;
+                    thresholdInput.max = 255;
+                    // Set a good default for contrast
+                    if(parseInt(thresholdInput.value) < 50) thresholdInput.value = 128;
+                }
+                thresholdDisplay.textContent = thresholdInput.value;
             }
         }
 
@@ -460,8 +495,8 @@
             processImage();
         });
 
-        btnBW.addEventListener('click', () => {
-            currentMode = 'bw';
+        btnCAD.addEventListener('click', () => {
+            currentMode = 'cad_white';
             updateModeButtons();
             processImage();
         });
@@ -483,32 +518,48 @@
 
             const imageData = ctx.getImageData(0, 0, w, h);
             const data = imageData.data;
+            const sliderVal = parseInt(thresholdInput.value);
 
             if (currentMode !== 'original') {
-                const threshold = parseInt(thresholdInput.value);
                 for (let i = 0; i < data.length; i += 4) {
                     const r = data[i];
                     const g = data[i + 1];
                     const b = data[i + 2];
-                    
-                    // FIX: Use Luminance instead of Max Value to correctly handle Red/Blue lines
-                    // Standard Rec. 601 Luma formula: Y = 0.299R + 0.587G + 0.114B
-                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
                     if (currentMode === 'binary') {
-                        // Inverse mode: dark becomes white, light becomes black
-                        if (gray < threshold) {
+                        // Standard Threshold Logic
+                        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                        if (gray < sliderVal) {
                             data[i] = 255; data[i+1] = 255; data[i+2] = 255;
                         } else {
                             data[i] = 0; data[i+1] = 0; data[i+2] = 0;
                         }
-                    } else if (currentMode === 'bw') {
-                        // Standard Black & White: dark becomes black, light becomes white
-                        if (gray < threshold) {
-                            data[i] = 0; data[i+1] = 0; data[i+2] = 0;
-                        } else {
-                            data[i] = 255; data[i+1] = 255; data[i+2] = 255;
-                        }
+                    } else if (currentMode === 'cad_white') {
+                        // 1. Invert
+                        let ir = 255 - r;
+                        let ig = 255 - g;
+                        let ib = 255 - b;
+
+                        // 2. Grayscale (Desaturate)
+                        let gray = 0.299 * ir + 0.587 * ig + 0.114 * ib;
+
+                        // 3. Contrast / Levels
+                        // Use sliderVal (0-255) to control contrast
+                        // 128 is neutral. >128 increases contrast (darker lines, whiter bg)
+                        
+                        // Simple contrast formula: factor = (259 * (contrast + 255)) / (255 * (259 - contrast))
+                        // Mapping slider 0-255 to contrast range -128 to 128 approx
+                        let contrast = (sliderVal - 100) * 2; 
+                        let factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+                        
+                        let newGray = factor * (gray - 128) + 128;
+                        
+                        // Clamp
+                        newGray = Math.max(0, Math.min(255, newGray));
+
+                        data[i] = newGray;
+                        data[i+1] = newGray;
+                        data[i+2] = newGray;
                     }
                 }
             }
@@ -582,18 +633,18 @@
                 div.classList.add('type-text');
                 div.textContent = "输入文字";
                 div.style.fontSize = "30px"; 
-                div.style.color = "black"; 
+                div.style.color = "black";
+                div.style.backgroundColor = "white"; // Default white bg
             } else if (type === 'rect') {
                 div.classList.add('type-rect');
                 div.style.width = "80px";  
                 div.style.height = "40px"; 
-                div.style.backgroundColor = "white"; // Default white
+                div.style.backgroundColor = "white"; 
             } else if (type === 'triangle') {
                 div.classList.add('type-triangle');
                 div.style.width = "20px";
                 div.style.height = "20px";
-                div.style.color = "black"; // Default black
-                // Use currentColor for fill to allow color changing
+                div.style.color = "black"; 
                 div.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style="display:block; overflow:visible;">
                     <path d="M0 0 L100 0 L50 100 Z" fill="currentColor"/>
                 </svg>`;
@@ -624,6 +675,7 @@
                 const type = el.dataset.type;
                 if (type === 'text') {
                     propTextGroup.classList.remove('hidden');
+                    propBgGroup.classList.remove('hidden'); // SHOW BG CONTROL
                     propColorGroup.classList.remove('hidden'); 
                     propSizeGroup.classList.remove('hidden');
                     propRectGroup.classList.add('hidden');
@@ -635,10 +687,12 @@
                     propSizeVal.textContent = size + 'px';
                     
                     updateColorButtons(el.style.color || 'black');
+                    updateBgButtons(el.style.backgroundColor);
 
                 } else if (type === 'triangle') {
                     propTextGroup.classList.add('hidden');
-                    propColorGroup.classList.remove('hidden'); // SHOW COLOR FOR TRIANGLE
+                    propBgGroup.classList.add('hidden');
+                    propColorGroup.classList.remove('hidden'); 
                     propSizeGroup.classList.remove('hidden');
                     propRectGroup.classList.add('hidden');
 
@@ -647,11 +701,12 @@
                     propSizeInput.value = w;
                     propSizeVal.textContent = w + 'px';
                     
-                    updateColorButtons(el.style.color || 'black'); // Update color buttons
+                    updateColorButtons(el.style.color || 'black'); 
                 } else {
                     // RECT
                     propTextGroup.classList.add('hidden');
-                    propColorGroup.classList.remove('hidden'); // Show color for rect
+                    propBgGroup.classList.add('hidden');
+                    propColorGroup.classList.remove('hidden'); 
                     propSizeGroup.classList.add('hidden');
                     propRectGroup.classList.remove('hidden');
                     
@@ -672,13 +727,11 @@
         }
 
         function updateColorButtons(color) {
-            // Normalize color string
             const c = color.toLowerCase();
             const isRed = c === 'red' || c === 'rgb(255, 0, 0)' || c === '#ff0000';
             const isBlack = c === 'black' || c === 'rgb(0, 0, 0)' || c === '#000000';
             const isWhite = c === 'white' || c === 'rgb(255, 255, 255)' || c === '#ffffff';
 
-            // Reset all
             colorWhiteBtn.className = "flex-1 py-1.5 rounded-lg border-2 border-gray-200 bg-white text-xs font-bold text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-1";
             colorBlackBtn.className = "flex-1 py-1.5 rounded-lg border-2 border-transparent bg-white text-xs font-bold text-gray-800 hover:bg-gray-50 flex items-center justify-center gap-1";
             colorRedBtn.className = "flex-1 py-1.5 rounded-lg border-2 border-transparent bg-white text-xs font-bold text-red-600 hover:bg-red-50 flex items-center justify-center gap-1";
@@ -693,6 +746,25 @@
             }
         }
 
+        function updateBgButtons(color) {
+            // Check if transparent
+            const c = color.toLowerCase();
+            const isTrans = c === 'transparent' || c === 'rgba(0, 0, 0, 0)';
+            
+            bgWhiteBtn.className = "flex-1 py-1.5 rounded-lg border-2 border-gray-200 bg-white text-xs font-bold text-gray-800 flex items-center justify-center gap-1 hover:bg-gray-50";
+            bgTransBtn.className = "flex-1 py-1.5 rounded-lg border-2 border-transparent bg-gray-100 text-xs font-bold text-gray-600 hover:bg-gray-200 flex items-center justify-center gap-1";
+
+            if (!isTrans) {
+                // White Mode
+                bgWhiteBtn.classList.add('ring-2', 'ring-blue-400', 'border-blue-400');
+                bgWhiteBtn.classList.remove('border-gray-200');
+            } else {
+                // Trans Mode
+                bgTransBtn.classList.add('ring-2', 'ring-blue-400', 'bg-white', 'border-blue-400');
+                bgTransBtn.classList.remove('border-transparent', 'bg-gray-100');
+            }
+        }
+
         function applyColor(color) {
             if (!activeItem) return;
             
@@ -703,6 +775,21 @@
             }
             updateColorButtons(color);
         }
+
+        // Background Color Listeners
+        bgWhiteBtn.addEventListener('click', () => {
+            if (activeItem && activeItem.dataset.type === 'text') {
+                activeItem.style.backgroundColor = 'white';
+                updateBgButtons('white');
+            }
+        });
+
+        bgTransBtn.addEventListener('click', () => {
+            if (activeItem && activeItem.dataset.type === 'text') {
+                activeItem.style.backgroundColor = 'transparent';
+                updateBgButtons('transparent');
+            }
+        });
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.overlay-item') && 
@@ -830,58 +917,4 @@
 
             const items = document.querySelectorAll('.overlay-item');
             items.forEach(item => {
-                const style = window.getComputedStyle(item);
-                const type = item.dataset.type;
-                
-                const width = item.offsetWidth;
-                const height = item.offsetHeight;
-                
-                const x = parseFloat(item.style.left) + width / 2;
-                const y = parseFloat(item.style.top) + height / 2;
-                
-                const angle = parseInt(item.dataset.rotation || 0);
-
-                tCtx.save();
-                tCtx.translate(x, y);
-                tCtx.rotate(angle * Math.PI / 180);
-
-                if (type === 'text') {
-                    // Draw White Background
-                    tCtx.fillStyle = "white";
-                    tCtx.fillRect(-width/2, -height/2, width, height);
-                    // Draw Text
-                    tCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-                    tCtx.fillStyle = style.color;
-                    tCtx.textAlign = "center";
-                    tCtx.textBaseline = "middle";
-                    tCtx.fillText(item.textContent, 0, 2); 
-                } else if (type === 'rect') {
-                    // Draw Rect with dynamic color
-                    tCtx.fillStyle = style.backgroundColor;
-                    tCtx.fillRect(-width/2, -height/2, width, height);
-                } else if (type === 'triangle') {
-                    // Draw Triangle (Pointing DOWN)
-                    tCtx.fillStyle = style.color; // Use the color property
-                    tCtx.beginPath();
-                    // Top Left
-                    tCtx.moveTo(-width/2, -height/2);
-                    // Top Right
-                    tCtx.lineTo(width/2, -height/2);
-                    // Bottom Center
-                    tCtx.lineTo(0, height/2);
-                    tCtx.closePath();
-                    tCtx.fill();
-                }
-
-                tCtx.restore();
-            });
-
-            const link = document.createElement('a');
-            link.download = 'edited-image.png';
-            link.href = tempCanvas.toDataURL('image/png');
-            link.click();
-        });
-
-    </script>
-</body>
-</html>
+                const
