@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>开槽侧面图</title>
+    <title>开槽图侧面</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -36,7 +36,7 @@
             
             const [swapWL, setSwapWL] = useState(false);
             const [showTriangles, setShowTriangles] = useState(true);
-            const [showBottomText, setShowBottomText] = useState(true);
+            const [showBottomText, setShowBottomText] = useState(false);
             const [alignMode, setAlignMode] = useState('end');
 
             // New State for Side View
@@ -346,6 +346,17 @@
             // Side View Content
             const renderSideContent = () => {
                 const elements = [];
+
+                // Label Logic
+                let wLabel = totalW;
+                if (wDisplayMode === 'w_val') wLabel = `${labelForW}=${totalW}`;
+                if (wDisplayMode === 'w_only') wLabel = labelForW;
+                if (wDisplayMode === 'custom') wLabel = wCustomText || '';
+
+                let lLabel = totalL;
+                if (lDisplayMode === 'l_val') lLabel = `${labelForL}=${totalL}`;
+                if (lDisplayMode === 'l_only') lLabel = labelForL;
+                if (lDisplayMode === 'custom') lLabel = lCustomText || '';
                 
                 // Helper for Surface Marker Triangle
                 const renderSurfaceMarker = (cx, cy, dir) => {
@@ -424,6 +435,11 @@
                 elements.push(<line x1={0} y1={-35} x2={0} y2={0} stroke="red" strokeWidth="0.5" />);
                 elements.push(<line x1={drawThickness} y1={-35} x2={drawThickness} y2={0} stroke="red" strokeWidth="0.5" />);
 
+                // Dimension for Width (Left side, further out)
+                elements.push(renderDimLine(-130, 0, -130, sideDrawW, wLabel, true, -10));
+                elements.push(<line x1={0} y1={0} x2={-135} y2={0} stroke="red" strokeWidth="0.5" />);
+                elements.push(<line x1={0} y1={sideDrawW} x2={-135} y2={sideDrawW} stroke="red" strokeWidth="0.5" />);
+
                 // Dimension for Depth
                 if (segments.some(s => s.isSlot)) {
                     const firstSlot = segments.find(s => s.isSlot);
@@ -498,6 +514,11 @@
                 elements.push(<line x1={-35} y1={0} x2={0} y2={0} stroke="red" strokeWidth="0.5" />);
                 elements.push(<line x1={-35} y1={drawThickness} x2={0} y2={drawThickness} stroke="red" strokeWidth="0.5" />);
                 
+                // Dimension for Length (Top side, further out)
+                elements.push(renderDimLine(0, -130, sideDrawL, -130, lLabel, false, -10));
+                elements.push(<line x1={0} y1={0} x2={0} y2={-135} stroke="red" strokeWidth="0.5" />);
+                elements.push(<line x1={sideDrawL} y1={0} x2={sideDrawL} y2={-135} stroke="red" strokeWidth="0.5" />);
+
                 // Depth (First slot)
                 if (segments.some(s => s.isSlot)) {
                     const firstSlot = segments.find(s => s.isSlot);
