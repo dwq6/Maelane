@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>开槽正面侧面图生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Custom scrollbar styling if needed, though Tailwind handles most */
+        body { margin: 0; padding: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect, useMemo } = React;
+
+        function SlottingTool() {
+            // State
+            const [direction, setDirection] = useState('horizontal');
+            const [totalW, setTotalW] = useState(618);
+            const [totalL, setTotalL] = useState(1400);
+            const [slotWidth, setSlotWidth] = useState(6);
+            const [slotGap, setSlotGap] = useState(114);
+            const [gapCustomText, setGapCustomText] = useState('');
+            const [bottomTextContent, setBottomTextContent] = useState('图3-1 开槽6*5');
+            
+            const [lDisplayMode, setLDisplayMode] = useState('val');
+            const [lCustomText, setLCustomText] = useState('');
+            const [wDisplayMode, setWDisplayMode] = useState('val');
+            const [wCustomText, setWCustomText] = useState('');
+            
+            const [swapWL, setSwapWL] = useState(false);
+            const [showTriangles, setShowTriangles] = useState(true);
+            const [showBottomText, setShowBottomText] = useState(true);
+            const [alignMode, setAlignMode] = useState('end');
+
+            // New State for Side View
+            const [thickness, setThickness] = useState(28);
+            const [slotDepth, setSlotDepth] = useState(10);
+            const [mirrorSide, setMirrorSide] = useState(false);
+
+            const mainSvgRef = useRef(null);
+            const sideSvgRef = useRef(null);
+
+            // Derived State & Calculations
+            const isVertical = direction === 'vertical';
+            const labelForW = swapWL ? 'L' : 'W';
+            const labelForL = swapWL ? 'W' : 'L';
+
+            const calcBase = isVertical ? totalL : totalW;
+            const unit = slotWidth + slotGap;
+
+            // Calculate Start Offset
+            const startOffset = useMemo(() => {
+                let calculatedStart = 0;
+                if (alignMode === 'start') {
+                calculatedStart = slotGap;
+                } else {
+                let rem = (calcBase - slotGap - slotWidth) % unit;
+                if (rem < 0) rem += unit;
+                calculatedStart = rem;
+                }
+                return Math.round(calculatedStart * 100) / 100;
+            }, [alignMode, calcBase, slotGap, slotWidth, unit]);
+
+            // Generate Slot/Gap Data
+            const segments = useMemo(() => {
+                const segs = [];
+                let current = startOffset;
+                
+                // Initial Gap (if any)
+                if (current > 0.1) {
+                segs.push({
+                    start: 0,
+                    end: current,
+                    isSlot: false,
+                    label: gapCustomText || current
+                });
+                }
+
+                let loopCount = 0;
+                const maxLoops = 500;
+
+                while (current + slotWidth <= calcBase + 0.01 && loopCount < maxLoops) {
+                loopCount++;
+                // Slot
+                segs.push({
+                    start: current,
+                    end: current + slotWidth,
+                    isSlot: true,
+                    label: slotWidth
+                });
+                current += slotWidth;
+
+                // Gap
+                if (current < calcBase - 0.1) {
+                    let next = current + slotGap;
+                    if (next > calcBase) next = calcBase;
+                    const dist = Math.round((next - current) * 100) / 100;
+                    segs.push({
+                    start: current,
+                    end: next,
+                    isSlot: false,
+                    label: gapCustomText || dist
+                    });
+                    current = next;
+                }
+                }
+                return segs;
+            }, [startOffset, slotWidth, slotGap, calcBase, gapCustomText]);
+
+            // ViewBox Calculations
+            const padding = { left: 200, right: 200, top: 200, bottom: 200 };
+            
+            // Scale logic (similar to original to keep proportions)
+            const targetDrawWidth = 1000;
+            const targetDrawHeight = 600;
+            const scale = Math.min(targetDrawWidth / totalL, targetDrawHeight / totalW);
+            
+            const toX = (val) => val * scale;
+            const toY = (val) => val * scale;
+
+            const drawL = toX(totalL);
+            const drawW = toY(totalW);
+
+            const viewBox = {
+                x: -padding.left,
+                y: -padding.top,
+                w: drawL + padding.left + padding.right,
+                h: drawW + padding.top + padding.bottom
+            };
+
+            // Side View Calculations
+            // If Horizontal: Side view is to the RIGHT (sharing Height/W). Width = Thickness.
+            // If Vertical: Side view is BELOW (sharing Width/L). Height = Thickness.
+            
+            // Use same scale for side view to match height/width exactly
+            const sideScale = scale; 
+            const drawThickness = sideScale * thickness;
+            const drawDepth = sideScale * slotDepth;
+
+            // Side View Dimensions
+            // Horizontal: Height is drawW (scaled), Width is drawThickness
+            // Vertical: Width is drawL (scaled), Height is drawThickness
+            
+            const toSideY = (val) => val * sideScale;
+            const toSideX = (val) => val * sideScale;
+
+            const sideDrawL = toSideX(totalL);
+            const sideDrawW = toSideY(totalW);
+
+            // Match side view padding to main view padding for alignment
+            const sideViewBox = isVertical 
+                ? { 
+                    x: -padding.left, 
+                    y: -50, 
+                    w: sideDrawL + padding.left + padding.right, 
+                    h: drawThickness + 150 
+                }
+                : {
+                    x: -50, 
+                    y: -padding.top,
+                    w: drawThickness + 150, 
+                    h: sideDrawW + padding.top + padding.bottom
+                };
+
+            // Render Helpers
+            const renderArrowDef = () => (
+                <defs>
+                <marker id="arrowEnd" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L9,3 z" fill="red" />
+                </marker>
+                <marker id="arrowStart" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M9,0 L9,6 L0,3 z" fill="red" />
+                </marker>
+                <marker id="dot" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto">
+                    <circle cx="2" cy="2" r="1" fill="red" />
+                </marker>
+                </defs>
+            );
+
+            const renderAdaptiveTriangle = (start, end, isVert) => {
+                if (!showTriangles) return null;
+                const h = end - start;
+                if (h <= 0.1) return null;
+
+                const pixelSize = isVert ? toX(h) : toY(h);
+                const maxR = (pixelSize / 2) - 2;
+                const r = Math.min(6, Math.max(1, maxR));
+                if (r < 0.5) return null;
+
+                let centerX, centerY;
+                if (isVert) {
+                centerX = toX(start + h / 2);
+                centerY = drawW / 2;
+                } else {
+                centerY = toY(start + h / 2);
+                centerX = drawL / 2;
+                }
+
+                const p1 = `${centerX - r},${centerY - r}`;
+                const p2 = `${centerX + r},${centerY - r}`;
+                const p3 = `${centerX},${centerY + r}`;
+
+                return <polygon points={`${p1} ${p2} ${p3}`} fill="black" />;
+            };
+
+            const renderDimLine = (x1, y1, x2, y2, text, isVertText, textOffset, useArrow = false) => {
+                const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+                
+                return (
+                <g>
+                    <line 
+                    x1={x1} y1={y1} x2={x2} y2={y2} 
+                    stroke="red" strokeWidth="1"
+                    markerStart={useArrow ? "url(#arrowStart)" : (dist > 2 ? "url(#dot)" : "")}
+                    markerEnd={useArrow ? "url(#arrowEnd)" : (dist > 2 ? "url(#dot)" : "")}
+                    />
+                    <text
+                    x={midX} y={midY}
+                    transform={isVertText ? `rotate(-90, ${midX}, ${midY}) translate(0, ${textOffset})` : `translate(0, ${textOffset})`}
+                    fontFamily="Times New Roman, SimHei"
+                    fontSize={useArrow ? "36px" : "20px"}
+                    fill="red"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    >
+                    {text}
+                    </text>
+                </g>
+                );
+            };
+
+            // Main View Content
+            const renderMainContent = () => {
+                const elements = [];
+                
+                // 1. Outline
+                elements.push(
+                <rect key="outline" x={0} y={0} width={drawL} height={drawW} fill="none" stroke="black" strokeWidth="2" />
+                );
+
+                // 2. Slots & Gaps
+                const dimGapOffset = -15;
+                const dimSlotOffset = -45;
+                const extLineStart = -50;
+
+                segments.forEach((seg, idx) => {
+                if (!isVertical) {
+                    // Horizontal Mode (Slots along Y)
+                    const yStart = toY(seg.start);
+                    const yEnd = toY(seg.end);
+                    
+                    // Slot Lines
+                    if (seg.isSlot) {
+                        elements.push(<line key={`line-s-${idx}`} x1={0} y1={yEnd} x2={drawL} y2={yEnd} stroke="black" strokeWidth="1" />);
+                        // Dimension for Slot
+                        elements.push(renderDimLine(dimSlotOffset, yStart, dimSlotOffset, yEnd, seg.label, true, -15));
+                    } else {
+                        // Gap Lines
+                        elements.push(<line key={`line-g-${idx}`} x1={0} y1={yEnd} x2={drawL} y2={yEnd} stroke="black" strokeWidth="1" />);
+                        // Dimension for Gap
+                        elements.push(renderDimLine(dimGapOffset, yStart, dimGapOffset, yEnd, seg.label, true, -15));
+                        // Triangle
+                        elements.push(renderAdaptiveTriangle(seg.start, seg.end, false));
+                    }
+
+                    // Extension Lines (Red)
+                    elements.push(<line key={`ext-${idx}`} x1={extLineStart} y1={yEnd} x2={0} y2={yEnd} stroke="red" strokeWidth="0.5" />);
+                    // Initial extension line for first segment
+                    if (idx === 0) {
+                        elements.push(<line key={`ext-start`} x1={extLineStart} y1={yStart} x2={0} y2={yStart} stroke="red" strokeWidth="0.5" />);
+                    }
+
+                } else {
+                    // Vertical Mode (Slots along X)
+                    const xStart = toX(seg.start);
+                    const xEnd = toX(seg.end);
+
+                    if (seg.isSlot) {
+                        elements.push(<line key={`line-s-${idx}`} x1={xEnd} y1={0} x2={xEnd} y2={drawW} stroke="black" strokeWidth="1" />);
+                        elements.push(renderDimLine(xStart, dimSlotOffset, xEnd, dimSlotOffset, seg.label, false, -15));
+                    } else {
+                        elements.push(<line key={`line-g-${idx}`} x1={xEnd} y1={0} x2={xEnd} y2={drawW} stroke="black" strokeWidth="1" />);
+                        elements.push(renderDimLine(xStart, dimGapOffset, xEnd, dimGapOffset, seg.label, false, -15));
+                        elements.push(renderAdaptiveTriangle(seg.start, seg.end, true));
+                    }
+
+                    elements.push(<line key={`ext-${idx}`} x1={xEnd} y1={extLineStart} x2={xEnd} y2={0} stroke="red" strokeWidth="0.5" />);
+                    if (idx === 0) {
+                        elements.push(<line key={`ext-start`} x1={xStart} y1={extLineStart} x2={xStart} y2={0} stroke="red" strokeWidth="0.5" />);
+                    }
+                }
+                });
+
+                // 3. Total Dimensions
+                // W Dimension
+                let wLabel = totalW;
+                if (wDisplayMode === 'w_val') wLabel = `${labelForW}=${totalW}`;
+                if (wDisplayMode === 'w_only') wLabel = labelForW;
+                if (wDisplayMode === 'custom') wLabel = wCustomText || '';
+                
+                const dimTotalX = -120;
+                elements.push(renderDimLine(dimTotalX, 0, dimTotalX, drawW, wLabel, true, -20, true));
+                elements.push(<line key="w-ext-1" x1={dimTotalX - 10} y1={0} x2={-5} y2={0} stroke="red" strokeWidth="0.5" />);
+                elements.push(<line key="w-ext-2" x1={dimTotalX - 10} y1={drawW} x2={-5} y2={drawW} stroke="red" strokeWidth="0.5" />);
+
+                // L Dimension
+                let lLabel = totalL;
+                if (lDisplayMode === 'l_val') lLabel = `${labelForL}=${totalL}`;
+                if (lDisplayMode === 'l_only') lLabel = labelForL;
+                if (lDisplayMode === 'custom') lLabel = lCustomText || '';
+
+                const dimTopY = isVertical ? -110 : -60;
+                elements.push(renderDimLine(0, dimTopY, drawL, dimTopY, lLabel, false, -15, true));
+                elements.push(<line key="l-ext-1" x1={0} y1={dimTopY - 10} x2={0} y2={isVertical ? -55 : 0} stroke="red" strokeWidth="0.5" />);
+                elements.push(<line key="l-ext-2" x1={drawL} y1={dimTopY - 10} x2={drawL} y2={isVertical ? -55 : 0} stroke="red" strokeWidth="0.5" />);
+
+                // 4. Bottom Text
+                if (showBottomText) {
+                elements.push(
+                    <text 
+                    key="bottom-text"
+                    x={drawL / 2} 
+                    y={drawW + 80} 
+                    textAnchor="middle" 
+                    fontFamily="SimHei, sans-serif" 
+                    fontSize="40px" 
+                    fill="red"
+                    >
+                    {bottomTextContent}
+                    </text>
+                );
+                }
+
+                return elements;
+            };
+
+            // Side View Content
+            const renderSideContent = () => {
+                const elements = [];
+                
+                // Helper for Surface Marker Triangle
+                const renderSurfaceMarker = (cx, cy, dir) => {
+                    const size = 8; // Triangle height
+                    const halfBase = 4;
+                    let points = '';
+                    
+                    if (dir === 'left') {
+                        points = `${cx},${cy} ${cx + size},${cy - halfBase} ${cx + size},${cy + halfBase}`;
+                    } else if (dir === 'right') {
+                        points = `${cx},${cy} ${cx - size},${cy - halfBase} ${cx - size},${cy + halfBase}`;
+                    } else if (dir === 'down') {
+                        points = `${cx},${cy} ${cx - halfBase},${cy - size} ${cx + halfBase},${cy - size}`;
+                    } else if (dir === 'up') {
+                        points = `${cx},${cy} ${cx - halfBase},${cy + size} ${cx + halfBase},${cy + size}`;
+                    }
+
+                    return <polygon key={`tri-${cx}-${cy}`} points={points} fill="black" />;
+                };
+
+                if (!isVertical) {
+                // Horizontal Mode (Vertical Strip)
+                const isMirrored = mirrorSide;
+                
+                const backX = isMirrored ? drawThickness : 0;
+                const frontX = isMirrored ? 0 : drawThickness;
+                const slotDepthX = isMirrored ? drawDepth : drawThickness - drawDepth;
+                
+                const gapDimX = isMirrored ? -40 : drawThickness + 40;
+                const slotDimX = isMirrored ? -70 : drawThickness + 70;
+                const dimAlign = isMirrored ? -10 : 10;
+                const markerDir = isMirrored ? 'right' : 'left';
+
+                // Main body outline
+                elements.push(<line key="back" x1={backX} y1={0} x2={backX} y2={sideDrawW} stroke="black" strokeWidth="2" />);
+                elements.push(<line key="top" x1={0} y1={0} x2={drawThickness} y2={0} stroke="black" strokeWidth="2" />);
+                elements.push(<line key="bot" x1={0} y1={sideDrawW} x2={drawThickness} y2={sideDrawW} stroke="black" strokeWidth="2" />);
+
+                // Front face is interrupted by slots
+                segments.forEach((seg, idx) => {
+                    const yStart = toSideY(seg.start);
+                    const yEnd = toSideY(seg.end);
+                    
+                    if (seg.isSlot) {
+                        // Slot
+                        elements.push(<line key={`s-inner-${idx}`} x1={slotDepthX} y1={yStart} x2={slotDepthX} y2={yEnd} stroke="black" strokeWidth="2" />);
+                        elements.push(<line key={`s-top-${idx}`} x1={frontX} y1={yStart} x2={slotDepthX} y2={yStart} stroke="black" strokeWidth="2" />);
+                        elements.push(<line key={`s-bot-${idx}`} x1={frontX} y1={yEnd} x2={slotDepthX} y2={yEnd} stroke="black" strokeWidth="2" />);
+                        
+                        // Dimension for Slot Width (Further out)
+                        elements.push(renderDimLine(slotDimX, yStart, slotDimX, yEnd, seg.label, true, dimAlign));
+                        // Extension lines for Slot Width
+                        elements.push(<line key={`s-ext-top-${idx}`} x1={frontX} y1={yStart} x2={slotDimX} y2={yStart} stroke="red" strokeWidth="0.5" />);
+                        elements.push(<line key={`s-ext-bot-${idx}`} x1={frontX} y1={yEnd} x2={slotDimX} y2={yEnd} stroke="red" strokeWidth="0.5" />);
+
+                    } else {
+                        // Gap
+                        elements.push(<line key={`g-front-${idx}`} x1={frontX} y1={yStart} x2={frontX} y2={yEnd} stroke="black" strokeWidth="2" />);
+                        
+                        // Surface Marker
+                        const midY = (yStart + yEnd) / 2;
+                        elements.push(renderSurfaceMarker(frontX, midY, markerDir));
+
+                        // Dimension for Gap (Closer)
+                        elements.push(renderDimLine(gapDimX, yStart, gapDimX, yEnd, seg.label, true, dimAlign));
+                        // Extension lines for Gap
+                        elements.push(<line key={`g-ext-top-${idx}`} x1={frontX} y1={yStart} x2={gapDimX} y2={yStart} stroke="red" strokeWidth="0.5" />);
+                        elements.push(<line key={`g-ext-bot-${idx}`} x1={frontX} y1={yEnd} x2={gapDimX} y2={yEnd} stroke="red" strokeWidth="0.5" />);
+                    }
+                });
+
+                // Dimensions for Thickness
+                elements.push(renderDimLine(0, -30, drawThickness, -30, `${thickness}T`, false, -10));
+                elements.push(<line x1={0} y1={-35} x2={0} y2={0} stroke="red" strokeWidth="0.5" />);
+                elements.push(<line x1={drawThickness} y1={-35} x2={drawThickness} y2={0} stroke="red" strokeWidth="0.5" />);
+
+                // Dimension for Depth
+                if (segments.some(s => s.isSlot)) {
+                    const firstSlot = segments.find(s => s.isSlot);
+                    if (firstSlot) {
+                        const y = toSideY(firstSlot.start + (firstSlot.end - firstSlot.start)/2);
+                        const dX1 = isMirrored ? 0 : slotDepthX;
+                        const dX2 = isMirrored ? drawDepth : drawThickness;
+
+                        // Move depth dimension UP to fixed -100 to clear thickness dim
+                        elements.push(renderDimLine(dX1, -100, dX2, -100, `${slotDepth}`, false, -10));
+                        // Extension lines for depth
+                        elements.push(<line x1={dX1} y1={y} x2={dX1} y2={-105} stroke="red" strokeWidth="0.5" />);
+                        elements.push(<line x1={dX2} y1={y} x2={dX2} y2={-105} stroke="red" strokeWidth="0.5" />);
+                    }
+                }
+
+                } else {
+                // Vertical Mode (Horizontal Strip)
+                const isMirrored = mirrorSide;
+                const flipX = (x) => isMirrored ? x : sideDrawL - x;
+
+                // Main body outline
+                elements.push(<line key="back" x1={0} y1={drawThickness} x2={sideDrawL} y2={drawThickness} stroke="black" strokeWidth="2" />);
+                elements.push(<line key="left" x1={0} y1={0} x2={0} y2={drawThickness} stroke="black" strokeWidth="2" />);
+                elements.push(<line key="right" x1={sideDrawL} y1={0} x2={sideDrawL} y2={drawThickness} stroke="black" strokeWidth="2" />);
+
+                segments.forEach((seg, idx) => {
+                    const xStartRaw = toSideX(seg.start);
+                    const xEndRaw = toSideX(seg.end);
+                    
+                    const xStart = flipX(xEndRaw);
+                    const xEnd = flipX(xStartRaw);
+                    
+                    const x1 = Math.min(xStart, xEnd);
+                    const x2 = Math.max(xStart, xEnd);
+
+                    if (seg.isSlot) {
+                        // Slot
+                        elements.push(<line key={`s-inner-${idx}`} x1={x1} y1={drawDepth} x2={x2} y2={drawDepth} stroke="black" strokeWidth="2" />);
+                        elements.push(<line key={`s-left-${idx}`} x1={x1} y1={0} x2={x1} y2={drawDepth} stroke="black" strokeWidth="2" />);
+                        elements.push(<line key={`s-right-${idx}`} x1={x2} y1={0} x2={x2} y2={drawDepth} stroke="black" strokeWidth="2" />);
+                        
+                        // Dimension for Slot Width (Further out)
+                        // Use -70 for slot width
+                        elements.push(renderDimLine(x1, -70, x2, -70, seg.label, false, -10));
+                        // Extension lines for Slot Width
+                        elements.push(<line key={`s-ext-left-${idx}`} x1={x1} y1={0} x2={x1} y2={-70} stroke="red" strokeWidth="0.5" />);
+                        elements.push(<line key={`s-ext-right-${idx}`} x1={x2} y1={0} x2={x2} y2={-70} stroke="red" strokeWidth="0.5" />);
+
+                    } else {
+                        // Gap
+                        elements.push(<line key={`g-front-${idx}`} x1={x1} y1={0} x2={x2} y2={0} stroke="black" strokeWidth="2" />);
+                        
+                        // Surface Marker
+                        const midX = (x1 + x2) / 2;
+                        elements.push(renderSurfaceMarker(midX, 0, 'down'));
+
+                        // Dimension for Gap (Closer)
+                        // Use -40 for gap
+                        elements.push(renderDimLine(x1, -40, x2, -40, seg.label, false, -10));
+                        // Extension lines for Gap
+                        elements.push(<line key={`g-ext-left-${idx}`} x1={x1} y1={0} x2={x1} y2={-40} stroke="red" strokeWidth="0.5" />);
+                        elements.push(<line key={`g-ext-right-${idx}`} x1={x2} y1={0} x2={x2} y2={-40} stroke="red" strokeWidth="0.5" />);
+                    }
+                });
+
+                // Dimensions
+                // Thickness (Left side)
+                elements.push(renderDimLine(-30, 0, -30, drawThickness, `${thickness}T`, true, -10));
+                elements.push(<line x1={-35} y1={0} x2={0} y2={0} stroke="red" strokeWidth="0.5" />);
+                elements.push(<line x1={-35} y1={drawThickness} x2={0} y2={drawThickness} stroke="red" strokeWidth="0.5" />);
+                
+                // Depth (First slot)
+                if (segments.some(s => s.isSlot)) {
+                    const firstSlot = segments.find(s => s.isSlot);
+                    if (firstSlot) {
+                        const xStartRaw = toSideX(firstSlot.start);
+                        const xEndRaw = toSideX(firstSlot.end);
+                        
+                        const tx1 = flipX(xEndRaw);
+                        const tx2 = flipX(xStartRaw);
+                        const x1 = Math.min(tx1, tx2);
+                        const x2 = Math.max(tx1, tx2);
+                        
+                        const midX = (x1 + x2) / 2;
+                        
+                        // Move depth dimension LEFT (fixed at -100) to clear slot area
+                        elements.push(renderDimLine(-100, 0, -100, drawDepth, `${slotDepth}`, true, -10));
+                        // Extension lines
+                        elements.push(<line x1={midX} y1={0} x2={-105} y2={0} stroke="red" strokeWidth="0.5" />);
+                        elements.push(<line x1={midX} y1={drawDepth} x2={-105} y2={drawDepth} stroke="red" strokeWidth="0.5" />);
+                    }
+                }
+                }
+
+                return elements;
+            };
+
+            return (
+                <div className="flex flex-col h-screen w-screen bg-gray-50 font-sans text-gray-800 overflow-hidden">
+                {/* Header */}
+                <div className="bg-white shadow-sm p-3 border-b border-gray-200 flex justify-between items-center z-20 shrink-0 h-14">
+                    <h1 className="text-lg font-bold text-gray-800">开槽图生成器 (Slotting Tool)</h1>
+                </div>
+
+                {/* Main Content Area: Top (Drawings), Bottom (Controls) */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    
+                    {/* Drawing Area (Top) - Flex Grow to fill space */}
+                    <div className="flex-1 bg-gray-100 flex gap-4 justify-center items-center p-4 overflow-hidden">
+                        {/* Main View Container */}
+                        <div className="bg-white p-2 shadow-md rounded-lg flex flex-col items-center h-full w-[65%] relative">
+                            <h3 className="text-center text-gray-500 text-xs font-bold absolute top-2 left-2">主视图 (Main)</h3>
+                            <div className="flex-1 w-full h-full flex items-center justify-center p-2">
+                                <svg 
+                                    ref={mainSvgRef}
+                                    viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+                                    className="w-full h-full"
+                                    preserveAspectRatio="xMidYMid meet"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    {renderArrowDef()}
+                                    {renderMainContent()}
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Side View Container */}
+                        <div className="bg-white p-2 shadow-md rounded-lg flex flex-col items-center h-full w-[30%] relative">
+                            <h3 className="text-center text-gray-500 text-xs font-bold absolute top-2 left-2">侧视图 (Side)</h3>
+                            <div className="flex-1 w-full h-full flex items-center justify-center p-2">
+                                <svg 
+                                    ref={sideSvgRef}
+                                    viewBox={`${sideViewBox.x} ${sideViewBox.y} ${sideViewBox.w} ${sideViewBox.h}`}
+                                    className="w-full h-full"
+                                    preserveAspectRatio="xMidYMid meet"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    {renderArrowDef()}
+                                    {renderSideContent()}
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Controls Area (Bottom) - Fixed Height / Shrinkable */}
+                    <div className="bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10 shrink-0 h-auto overflow-y-auto">
+                        <div className="grid grid-cols-4 gap-6 h-full">
+                            
+                            {/* Column 1: Basic */}
+                            <div className="space-y-3 text-base">
+                                <h3 className="font-bold text-gray-700 border-b pb-2 text-lg">基本参数</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">方向</label>
+                                        <select 
+                                            value={direction} 
+                                            onChange={(e) => setDirection(e.target.value)}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        >
+                                            <option value="horizontal">横向</option>
+                                            <option value="vertical">竖向</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">对齐</label>
+                                        <select 
+                                            value={alignMode} 
+                                            onChange={(e) => setAlignMode(e.target.value)}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        >
+                                            <option value="end">尾部</option>
+                                            <option value="start">首部</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">总宽 W</label>
+                                        <input 
+                                            type="number" 
+                                            value={totalW} 
+                                            onChange={(e) => setTotalW(Number(e.target.value))}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">总长 L</label>
+                                        <input 
+                                            type="number" 
+                                            value={totalL} 
+                                            onChange={(e) => setTotalL(Number(e.target.value))}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Column 2: Slots */}
+                            <div className="space-y-3 text-base">
+                                <h3 className="font-bold text-gray-700 border-b pb-2 text-lg">开槽参数</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">开槽宽</label>
+                                        <input 
+                                            type="number" 
+                                            value={slotWidth} 
+                                            onChange={(e) => setSlotWidth(Number(e.target.value))}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">槽间隔</label>
+                                        <input 
+                                            type="number" 
+                                            value={slotGap} 
+                                            onChange={(e) => setSlotGap(Number(e.target.value))}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col">
+                                    <label className="text-sm font-bold text-gray-500 mb-1">间隔文字</label>
+                                    <input 
+                                        type="text" 
+                                        value={gapCustomText} 
+                                        onChange={(e) => setGapCustomText(e.target.value)}
+                                        placeholder="默认数值"
+                                        className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Column 3: Side View & Labels */}
+                            <div className="space-y-3 text-base">
+                                <h3 className="font-bold text-gray-700 border-b pb-2 text-lg">侧视图 & 标注</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">板材厚度 T</label>
+                                        <input 
+                                            type="number" 
+                                            value={thickness} 
+                                            onChange={(e) => setThickness(Number(e.target.value))}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">开槽深度 D</label>
+                                        <input 
+                                            type="number" 
+                                            value={slotDepth} 
+                                            onChange={(e) => setSlotDepth(Number(e.target.value))}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                    <div className="flex flex-col">
+                                    <label className="text-sm font-bold text-gray-500 mb-1">底部文字</label>
+                                    <input 
+                                        type="text" 
+                                        value={bottomTextContent} 
+                                        onChange={(e) => setBottomTextContent(e.target.value)}
+                                        className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Column 4: Display Options */}
+                            <div className="space-y-3 text-base">
+                                <h3 className="font-bold text-gray-700 border-b pb-2 text-lg">显示选项</h3>
+                                <div className="flex flex-wrap gap-3">
+                                    <label className="flex items-center gap-2 cursor-pointer hover:text-blue-600">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={swapWL} 
+                                            onChange={(e) => setSwapWL(e.target.checked)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                                        />
+                                        <span className="text-sm">交换 W/L</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer hover:text-blue-600">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={showTriangles} 
+                                            onChange={(e) => setShowTriangles(e.target.checked)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                                        />
+                                        <span className="text-sm">显示三角</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer hover:text-blue-600">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={showBottomText} 
+                                            onChange={(e) => setShowBottomText(e.target.checked)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                                        />
+                                        <span className="text-sm">显示文字</span>
+                                    </label>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3 mt-2">
+                                    <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">L 标注</label>
+                                        <select 
+                                            value={lDisplayMode} 
+                                            onChange={(e) => setLDisplayMode(e.target.value)}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        >
+                                            <option value="val">数值</option>
+                                            <option value="l_val">L=数值</option>
+                                            <option value="l_only">L</option>
+                                            <option value="custom">自定义</option>
+                                        </select>
+                                            {lDisplayMode === 'custom' && (
+                                            <input 
+                                                type="text" 
+                                                value={lCustomText}
+                                                onChange={(e) => setLCustomText(e.target.value)}
+                                                placeholder="L文字"
+                                                className="p-2 border border-pink-300 rounded text-sm focus:border-pink-500 outline-none mt-1"
+                                            />
+                                        )}
+                                    </div>
+                                        <div className="flex flex-col">
+                                        <label className="text-sm font-bold text-gray-500 mb-1">W 标注</label>
+                                        <select 
+                                            value={wDisplayMode} 
+                                            onChange={(e) => setWDisplayMode(e.target.value)}
+                                            className="p-2 border border-gray-300 rounded text-sm focus:border-blue-500 outline-none"
+                                        >
+                                            <option value="val">数值</option>
+                                            <option value="w_val">W=数值</option>
+                                            <option value="w_only">W</option>
+                                            <option value="custom">自定义</option>
+                                        </select>
+                                        {wDisplayMode === 'custom' && (
+                                            <input 
+                                                type="text" 
+                                                value={wCustomText}
+                                                onChange={(e) => setWCustomText(e.target.value)}
+                                                placeholder="W文字"
+                                                className="p-2 border border-pink-300 rounded text-sm focus:border-pink-500 outline-none mt-1"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SlottingTool />);
+    </script>
+</body>
+</html>
