@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>开槽正面侧面图生成器</title>
+    <title>开槽侧面图</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -407,7 +407,9 @@
                         
                         // Surface Marker
                         const midY = (yStart + yEnd) / 2;
-                        elements.push(renderSurfaceMarker(frontX, midY, markerDir));
+                        if (showTriangles) {
+                            elements.push(renderSurfaceMarker(frontX, midY, markerDir));
+                        }
 
                         // Dimension for Gap (Closer)
                         elements.push(renderDimLine(gapDimX, yStart, gapDimX, yEnd, seg.label, true, dimAlign));
@@ -477,7 +479,9 @@
                         
                         // Surface Marker
                         const midX = (x1 + x2) / 2;
-                        elements.push(renderSurfaceMarker(midX, 0, 'down'));
+                        if (showTriangles) {
+                            elements.push(renderSurfaceMarker(midX, 0, 'down'));
+                        }
 
                         // Dimension for Gap (Closer)
                         // Use -40 for gap
