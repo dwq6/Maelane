@@ -170,6 +170,14 @@
             </div>
             
             <div class="input-group">
+                <label>边缘选项</label>
+                <div class="checkbox-wrapper" onclick="document.getElementById('skipLastEdgeSlot').click()">
+                    <input type="checkbox" id="skipLastEdgeSlot" onclick="event.stopPropagation()">
+                    <span>贴边槽不开 (首尾)</span>
+                </div>
+            </div>
+
+            <div class="input-group">
                 <label>显示选项</label>
                 <div class="checkbox-wrapper" onclick="document.getElementById('showTriangles').click()">
                     <input type="checkbox" id="showTriangles" checked onclick="event.stopPropagation()">
@@ -250,6 +258,7 @@
         const labelForW = isSwapped ? 'L' : 'W';
         const labelForL = isSwapped ? 'W' : 'L';
 
+        const skipLastEdgeSlot = document.getElementById('skipLastEdgeSlot').checked;
         const showTriangles = document.getElementById('showTriangles').checked;
         const showBottomText = document.getElementById('showBottomText').checked;
         
@@ -335,109 +344,112 @@
         }
 
         // 4. 绘制内部结构
-        let loopCount = 0;
-        const maxLoops = 300;
+        function generateSegments(totalLength, startOff, sw, gap) {
+            let segments = [];
+            let current = 0;
+            
+            if (startOff > 0.01) {
+                segments.push({ type: 'gap', length: startOff });
+                current += startOff;
+            }
+            
+            while (current + sw <= totalLength + 0.01) {
+                segments.push({ type: 'slot', length: sw });
+                current += sw;
+                
+                if (current < totalLength - 0.01) {
+                    let next = current + gap;
+                    if (next > totalLength) next = totalLength;
+                    let gapLen = next - current;
+                    segments.push({ type: 'gap', length: gapLen });
+                    current = next;
+                }
+            }
+            
+            if (current < totalLength - 0.01) {
+                segments.push({ type: 'gap', length: totalLength - current });
+            }
+            
+            return segments;
+        }
+
+        let segments = generateSegments(isVertical ? L : W, startOff, sw, gap);
+
+        if (skipLastEdgeSlot) {
+            if (segments.length > 0 && segments[0].type === 'slot') {
+                segments[0].type = 'gap';
+            }
+            if (segments.length > 0 && segments[segments.length - 1].type === 'slot') {
+                segments[segments.length - 1].type = 'gap';
+            }
+        }
+
+        // 合并相邻的 gap
+        let mergedSegments = [];
+        for (let seg of segments) {
+            if (mergedSegments.length > 0 && mergedSegments[mergedSegments.length - 1].type === seg.type) {
+                mergedSegments[mergedSegments.length - 1].length += seg.length;
+            } else {
+                mergedSegments.push({...seg});
+            }
+        }
+        segments = mergedSegments;
 
         if (!isVertical) {
             // ================= 横向模式 =================
             const dimX_Gap = -15; 
             const dimX_Slot = -45;
             const extLineStartDefault = -50; 
+            let currentY = 0;
 
-            let currentY = startOff;
+            createLine(extLineStartDefault, 0, 0, 0, 'red', 0.5);
 
-            if (currentY > 0.1) {
-                // 头部 Gap
-                let gapLabel = currentY;
-                if (gapCustomText) gapLabel = gapCustomText;
-
-                drawDimLine(dimX_Gap, 0, dimX_Gap, toY(currentY), gapLabel, true, -15);
-                createLine(0, toY(currentY), drawL, toY(currentY), 'black', 1);
+            for (let seg of segments) {
+                let nextY = currentY + seg.length;
                 
-                createLine(extLineStartDefault, 0, 0, 0, 'red', 0.5); 
-                createLine(extLineStartDefault, toY(currentY), 0, toY(currentY), 'red', 0.5);
-                
-                drawAdaptiveTriangle(0, currentY, false);
-            } else {
-                createLine(extLineStartDefault, 0, 0, 0, 'red', 0.5);
-            }
-
-            while (currentY + sw <= W + 0.01 && loopCount < maxLoops) {
-                loopCount++;
-                const slotBottomY = currentY + sw;
-                createLine(0, toY(slotBottomY), drawL, toY(slotBottomY), 'black', 1);
-                
-                drawDimLine(dimX_Slot, toY(currentY), dimX_Slot, toY(slotBottomY), sw, true, -15);
-                createLine(extLineStartDefault, toY(slotBottomY), 0, toY(slotBottomY), 'red', 0.5);
-                
-                currentY = slotBottomY;
-                
-                if (currentY < W - 0.1) {
-                    let nextY = currentY + gap;
-                    if (nextY > W) nextY = W;
-                    const dist = Math.round((nextY - currentY)*100)/100;
-                    
-                    // 中间 Gap
-                    let gapLabel = dist;
+                if (seg.type === 'gap') {
+                    let gapLabel = Math.round(seg.length * 100) / 100;
                     if (gapCustomText) gapLabel = gapCustomText;
-
+                    
                     drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), gapLabel, true, -15);
-                    createLine(extLineStartDefault, toY(nextY), 0, toY(nextY), 'red', 0.5);
                     createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
+                    createLine(extLineStartDefault, toY(nextY), 0, toY(nextY), 'red', 0.5);
+                    
                     drawAdaptiveTriangle(currentY, nextY, false);
-                    currentY = nextY;
+                } else {
+                    createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
+                    drawDimLine(dimX_Slot, toY(currentY), dimX_Slot, toY(nextY), Math.round(seg.length * 100) / 100, true, -15);
+                    createLine(extLineStartDefault, toY(nextY), 0, toY(nextY), 'red', 0.5);
                 }
+                currentY = nextY;
             }
         } else {
             // ================= 竖向模式 =================
             const dimY_Gap = -15;
             const dimY_Slot = -45;
             const extLineStartDefault = -50;
+            let currentX = 0;
 
-            let currentX = startOff;
+            createLine(0, extLineStartDefault, 0, 0, 'red', 0.5);
 
-            if (currentX > 0.1) {
-                // 头部 Gap
-                let gapLabel = currentX;
-                if (gapCustomText) gapLabel = gapCustomText;
-
-                drawDimLine(0, dimY_Gap, toX(currentX), dimY_Gap, gapLabel, false, -15);
-                createLine(toX(currentX), 0, toX(currentX), drawW, 'black', 1);
+            for (let seg of segments) {
+                let nextX = currentX + seg.length;
                 
-                createLine(0, extLineStartDefault, 0, 0, 'red', 0.5);
-                createLine(toX(currentX), extLineStartDefault, toX(currentX), 0, 'red', 0.5);
-                
-                drawAdaptiveTriangle(0, currentX, true);
-            } else {
-                 createLine(0, extLineStartDefault, 0, 0, 'red', 0.5);
-            }
-
-            while (currentX + sw <= L + 0.01 && loopCount < maxLoops) {
-                loopCount++;
-                const slotRightX = currentX + sw;
-                createLine(toX(slotRightX), 0, toX(slotRightX), drawW, 'black', 1);
-                
-                drawDimLine(toX(currentX), dimY_Slot, toX(slotRightX), dimY_Slot, sw, false, -15);
-                createLine(toX(slotRightX), extLineStartDefault, toX(slotRightX), 0, 'red', 0.5);
-                
-                currentX = slotRightX;
-
-                if (currentX < L - 0.1) {
-                    let nextX = currentX + gap;
-                    if (nextX > L) nextX = L;
-                    const dist = Math.round((nextX - currentX)*100)/100;
-                    
-                    // 中间 Gap
-                    let gapLabel = dist;
+                if (seg.type === 'gap') {
+                    let gapLabel = Math.round(seg.length * 100) / 100;
                     if (gapCustomText) gapLabel = gapCustomText;
-
+                    
                     drawDimLine(toX(currentX), dimY_Gap, toX(nextX), dimY_Gap, gapLabel, false, -15);
-                    createLine(toX(nextX), extLineStartDefault, toX(nextX), 0, 'red', 0.5);
                     createLine(toX(nextX), 0, toX(nextX), drawW, 'black', 1);
+                    createLine(toX(nextX), extLineStartDefault, toX(nextX), 0, 'red', 0.5);
                     
                     drawAdaptiveTriangle(currentX, nextX, true);
-                    currentX = nextX;
+                } else {
+                    createLine(toX(nextX), 0, toX(nextX), drawW, 'black', 1);
+                    drawDimLine(toX(currentX), dimY_Slot, toX(nextX), dimY_Slot, Math.round(seg.length * 100) / 100, false, -15);
+                    createLine(toX(nextX), extLineStartDefault, toX(nextX), 0, 'red', 0.5);
                 }
+                currentX = nextX;
             }
         }
 
