@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>梅兰检测报告生成器</title>
+    <!-- 引入 Tailwind CSS 用于快速布局 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 html2canvas 用于导出图片 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* 打印样式配置 */
+        @media print {
+            @page { size: A4; margin: 0; }
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                background-color: white !important; 
+            }
+            .print-hidden { display: none !important; }
+            .page-break-after { page-break-after: always; }
+            .print-p-0 { padding: 0 !important; }
+            .print-bg-white { background-color: white !important; }
+            .print-space-y-0 > * + * { margin-top: 0 !important; }
+            .print-overflow-visible { overflow: visible !important; }
+            .print-m-0 { margin: 0 !important; }
+            .print-shadow-none { box-shadow: none !important; }
+        }
+        /* 字体与排版 */
+        .font-simsun { font-family: 'SimSun', '宋体', 'STSong', serif; }
+        .justify-text { text-align: justify; text-align-last: justify; }
+        /* 图章混合模式，使其看起来像真实盖章 */
+        .stamp-mix { opacity: 0.85; mix-blend-mode: multiply; pointer-events: none; }
+    </style>
+</head>
+<body class="flex h-screen bg-gray-100 overflow-hidden font-sans">
+
+    <!-- 左侧控制面板 -->
+    <div class="w-80 bg-white border-r shadow-lg flex flex-col print-hidden z-10 shrink-0">
+        <div class="p-4 border-b bg-blue-50 flex flex-col gap-3">
+            <h1 class="font-bold text-lg text-blue-800">报告生成器</h1>
+            <div class="flex gap-2">
+                <button onclick="window.print()" class="flex-1 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 text-sm font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    打印/PDF
+                </button>
+                <button id="export-btn" onclick="exportAgedJpg()" class="flex-1 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors flex items-center justify-center gap-1 text-sm font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    导出做旧JPG
+                </button>
+            </div>
+        </div>
+        
+        <!-- 表单输入区 (由JS动态生成以保持代码简洁) -->
+        <div id="form-container" class="flex-1 overflow-y-auto p-5 space-y-8"></div>
+    </div>
+
+    <!-- 右侧预览区 -->
+    <div class="flex-1 overflow-y-auto p-8 print-p-0 print-overflow-visible bg-gray-200 print-bg-white">
+        <div class="max-w-[210mm] mx-auto space-y-8 print-space-y-0">
+            
+            <!-- 第1页 -->
+            <div id="page-1" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border page-break-after font-simsun">
+                <div class="flex justify-between items-start">
+                    <div class="flex gap-12 ml-4">
+                        <div class="flex flex-col items-center">
+                            <div class="w-24 h-16 border-[4px] border-black rounded-[50%] flex items-center justify-center font-bold text-4xl font-serif tracking-tighter">MA</div>
+                            <div class="text-[11px] mt-1 font-bold font-sans">2006135020Z</div>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div class="w-20 h-20 border-[4px] border-black rounded-full flex items-center justify-center font-bold text-5xl font-serif">AL</div>
+                            <div class="text-[11px] mt-1 font-bold font-sans">2006闽质监验字002号</div>
+                        </div>
+                    </div>
+                    <div class="text-base font-bold mt-10">
+                        报告编号：<span class="val-reportNo"></span>
+                    </div>
+                </div>
+
+                <div class="text-center mt-24">
+                    <h1 class="text-6xl font-bold tracking-[0.8em] pl-[0.8em] whitespace-nowrap">检验报告</h1>
+                    <h2 class="text-3xl font-bold mt-6 tracking-widest font-sans">INSPECTION REPORT</h2>
+                </div>
+
+                <div class="mt-28 max-w-[80%] mx-auto space-y-12 text-2xl">
+                    <div class="flex items-end">
+                        <div class="w-36 justify-text font-bold">样品名称</div>
+                        <div class="flex-1 border-b border-black text-center pb-1 px-4 val-sampleName"></div>
+                    </div>
+                    <div class="text-base -mt-10 font-sans">Name of Sample</div>
+
+                    <div class="flex items-end">
+                        <div class="w-36 justify-text font-bold">委托单位</div>
+                        <div class="flex-1 border-b border-black text-center pb-1 px-4 val-clientName"></div>
+                    </div>
+                    <div class="text-base -mt-10 font-sans">Client</div>
+
+                    <div class="flex items-end">
+                        <div class="w-36 justify-text font-bold">报告日期</div>
+                        <div class="flex-1 border-b border-black text-center pb-1 px-4 font-sans val-reportDate"></div>
+                    </div>
+                    <div class="text-base -mt-10 font-sans">Date</div>
+                </div>
+
+                <!-- 首页图章 -->
+                <div class="absolute bottom-[180px] left-1/2 transform -translate-x-1/2 stamp-mix w-48 h-48 flex flex-col items-center justify-center">
+                    <img class="img-mainStampImg hidden w-full h-full object-contain" />
+                    <div class="default-mainStampImg absolute inset-0 rounded-full border-[5px] border-red-600 flex flex-col items-center justify-center text-red-600">
+                        <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full">
+                            <path id="top-curve-1" d="M 12 50 A 38 38 0 1 1 88 50" fill="transparent" />
+                            <text font-size="11" font-weight="bold" fill="currentColor" letter-spacing="1.5">
+                                <textPath href="#top-curve-1" startOffset="50%" text-anchor="middle">泉州市产品质量检验所</textPath>
+                            </text>
+                        </svg>
+                        <div class="text-5xl mt-2">★</div>
+                        <div class="absolute bottom-6 text-[12px] font-bold tracking-widest">检验专用章</div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-[20mm] left-[20mm] right-[20mm] text-[13px] leading-relaxed font-sans">
+                    <p>地址 (Add): 泉州市刺桐东路质量技术监督质量大楼</p>
+                    <p>Quality and Technic Inspection Complex Building, Chitong East Road, Quanzhou, China</p>
+                    <div class="flex justify-between">
+                        <p>电话 (Tel): 0595-22530322 22530326</p>
+                        <p>传真 (Fax): 0595-22530226</p>
+                    </div>
+                    <div class="flex justify-between">
+                        <p>电子信箱 (E-mail): qzzjs007@163.com</p>
+                        <p>邮政编码 (Post Code): 362000</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第2页 -->
+            <div id="page-2" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border page-break-after font-simsun">
+                <div class="flex justify-between items-end mb-4">
+                    <div class="flex-1"></div>
+                    <div class="shrink-0 text-center text-4xl font-bold tracking-[0.5em] pl-[0.5em] whitespace-nowrap">检验报告</div>
+                    <div class="flex-1 text-right text-[15px] space-y-1">
+                        <div>报告编号：<span class="font-sans val-reportNo"></span></div>
+                        <div>共2页 第1页</div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-[15px] mb-2">
+                    <div>任务来源：福建质监监检（2026）第B82号文</div>
+                    <div>检验性质：委托检验</div>
+                </div>
+
+                <table class="w-full border-collapse border-2 border-black text-[15px] text-center">
+                    <tbody>
+                        <tr>
+                            <td class="border border-black p-2.5 w-[15%]">样品名称</td>
+                            <td class="border border-black p-2.5 w-[25%] val-sampleName"></td>
+                            <td class="border border-black p-2.5 w-[5%] w-10 leading-relaxed" rowspan="4">委<br/>托<br/>单<br/>位</td>
+                            <td class="border border-black p-2.5 w-[15%]">名称</td>
+                            <td class="border border-black p-2.5 val-clientName" colspan="3"></td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-2.5">型号规格</td>
+                            <td class="border border-black p-2.5 font-sans val-specifications"></td>
+                            <td class="border border-black p-2.5">地址</td>
+                            <td class="border border-black p-2.5 val-clientAddress" colspan="3"></td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-2.5">商　　标</td>
+                            <td class="border border-black p-2.5 val-trademark"></td>
+                            <td class="border border-black p-2.5">电话</td>
+                            <td class="border border-black p-2.5 font-sans val-clientPhone" colspan="3"></td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-2.5">等　　级</td>
+                            <td class="border border-black p-2.5 val-grade"></td>
+                            <td class="border border-black p-2.5">邮编</td>
+                            <td class="border border-black p-2.5 w-[15%] font-sans val-clientZip"></td>
+                            <td class="border border-black p-2.5 w-[10%]">联系人</td>
+                            <td class="border border-black p-2.5 w-[15%] val-clientContact"></td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-2.5">出厂编号</td>
+                            <td class="border border-black p-2.5 font-sans val-factoryNo"></td>
+                            <td class="border border-black p-2.5 w-10 leading-relaxed">生<br/>产<br/>单<br/>位</td>
+                            <td class="border border-black p-2.5">名称</td>
+                            <td class="border border-black p-2.5 val-manufacturerName" colspan="3"></td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-2.5">样品数量</td>
+                            <td class="border border-black p-2.5 val-sampleQuantity"></td>
+                            <td class="border border-black p-2.5" colspan="2">到样日期</td>
+                            <td class="border border-black p-2.5 font-sans val-receiveDate" colspan="3"></td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-5">检测依据</td>
+                            <td class="border border-black p-5 text-left leading-loose" colspan="6">
+                                <span class="font-sans">GB6566-2001</span> 建筑材料放射性核素限量<br/>
+                                <span class="font-sans">GB/T19766-2005</span> 天然大理石建筑板材<br/>
+                                <span class="font-sans">00</span>质监质（<span class="font-sans">2003</span>）<span class="font-sans">15</span>号文 关于发布省必检项目及“三统一”的通知
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-5">检验结论</td>
+                            <td class="border border-black p-5 text-left leading-loose" colspan="6">
+                                本次检验符合 <span class="font-sans">GB/T19766-2005</span> 合格品要求<br/>
+                                放射性核素符合 <span class="font-sans">GB6566-2001 A</span>类装修材料限量要求
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-2.5">检验结果</td>
+                            <td class="border border-black p-2.5 text-left" colspan="6">见续页</td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-2.5">说明</td>
+                            <td class="border border-black p-2.5 text-left" colspan="6">样品状况：符合试验要求</td>
+                        </tr>
+                        <tr>
+                            <td class="border border-black p-2.5">检验日期</td>
+                            <td class="border border-black p-2.5 font-sans val-testDate" colspan="2"></td>
+                            <td class="border border-black p-2.5" colspan="2">报告日期</td>
+                            <td class="border border-black p-2.5 font-sans val-reportDate" colspan="2"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="flex justify-between items-center mt-8 px-8 relative">
+                    <div class="flex items-center gap-2">批准：
+                        <div class="stamp-mix transform -rotate-3 flex items-center justify-center">
+                            <img class="img-signStamp1Img hidden h-12 object-contain" />
+                            <div class="default-signStamp1Img border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm">强杨</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">审定：
+                        <div class="stamp-mix transform rotate-2 flex items-center justify-center">
+                            <img class="img-signStamp2Img hidden h-12 object-contain" />
+                            <div class="default-signStamp2Img border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm">杨明琛</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">校核：
+                        <div class="stamp-mix transform -rotate-1 flex items-center justify-center">
+                            <img class="img-signStamp3Img hidden h-12 object-contain" />
+                            <div class="default-signStamp3Img border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm">李苏</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">编制：<span class="w-16"></span></div>
+                </div>
+
+                <div class="text-center text-sm mt-16 font-sans">
+                    注：复制该检验报告未重新加盖泉州市产品检验所“检验报告专用章”无效.
+                </div>
+            </div>
+
+            <!-- 第3页 -->
+            <div id="page-3" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border font-simsun">
+                <div class="flex justify-between items-end mb-4">
+                    <div class="flex-1 text-[15px]">(续页)</div>
+                    <div class="shrink-0 text-center text-4xl font-bold tracking-[0.5em] pl-[0.5em] whitespace-nowrap">检验报告</div>
+                    <div class="flex-1 text-right text-[15px] space-y-1">
+                        <div>报告编号：<span class="font-sans val-reportNo"></span></div>
+                        <div>共2页 第2页</div>
+                    </div>
+                </div>
+
+                <div class="border-t-[3px] border-black mb-6"></div>
+
+                <div class="text-center font-bold text-2xl mb-4 mt-8 tracking-widest">物理性能</div>
+                <div class="relative">
+                    <table class="w-full border-collapse border-2 border-black text-[15px] text-center">
+                        <thead>
+                            <tr>
+                                <th class="border border-black p-4 w-1/3 font-bold">检测项目</th>
+                                <th class="border border-black p-4 w-1/3 font-bold">技术要求</th>
+                                <th class="border border-black p-4 w-1/3 font-bold">检测结果</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border border-black p-4">体积密度<br/><span class="text-xs font-sans">g/cm³</span></td>
+                                <td class="border border-black p-4 font-sans">≥2.65</td>
+                                <td class="border border-black p-4 font-sans val-density"></td>
+                            </tr>
+                            <tr>
+                                <td class="border border-black p-4">吸水率<br/><span class="text-xs font-sans">%</span></td>
+                                <td class="border border-black p-4 font-sans">≤0.26</td>
+                                <td class="border border-black p-4 font-sans val-waterAbsorption"></td>
+                            </tr>
+                            <tr>
+                                <td class="border border-black p-4">干燥压缩强度<br/><span class="text-xs font-sans">MPa</span></td>
+                                <td class="border border-black p-4 font-sans">≥130.0</td>
+                                <td class="border border-black p-4 font-sans val-dryCompressiveStrength"></td>
+                            </tr>
+                            <tr>
+                                <td class="border border-black p-4">干燥弯曲强度<br/><span class="text-xs font-sans">MPa</span></td>
+                                <td class="border border-black p-4 font-sans">≥9.0</td>
+                                <td class="border border-black p-4 font-sans val-dryBendingStrength"></td>
+                            </tr>
+                            <tr>
+                                <td class="border border-black p-4">水饱和弯曲强度<br/><span class="text-xs font-sans">MPa</span></td>
+                                <td class="border border-black p-4 font-sans">≥9.0</td>
+                                <td class="border border-black p-4 font-sans val-waterBendingStrength"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <!-- 第3页图章 -->
+                    <div class="absolute top-[60%] right-12 transform -translate-y-1/2 stamp-mix w-48 h-48 flex flex-col items-center justify-center">
+                        <img class="img-mainStampImg hidden w-full h-full object-contain" />
+                        <div class="default-mainStampImg absolute inset-0 rounded-full border-[5px] border-red-600 flex flex-col items-center justify-center text-red-600">
+                            <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full">
+                                <path id="top-curve-3" d="M 12 50 A 38 38 0 1 1 88 50" fill="transparent" />
+                                <text font-size="11" font-weight="bold" fill="currentColor" letter-spacing="1.5">
+                                    <textPath href="#top-curve-3" startOffset="50%" text-anchor="middle">泉州市产品质量检验所</textPath>
+                                </text>
+                            </svg>
+                            <div class="text-5xl mt-2">★</div>
+                            <div class="absolute bottom-6 text-[12px] font-bold tracking-widest">检验专用章</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center font-bold text-2xl mb-4 mt-16 tracking-widest">放射性核素限量</div>
+                <table class="w-full border-collapse border-2 border-black text-[15px] text-center">
+                    <thead>
+                        <tr>
+                            <th class="border border-black p-4 w-1/4 font-bold">检验项目</th>
+                            <th class="border border-black p-4 w-1/4 font-bold">技术要求<br/>(A类)</th>
+                            <th class="border border-black p-4 w-1/4 font-bold">检验结果</th>
+                            <th class="border border-black p-4 w-1/4 font-bold">单项结论</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="border border-black p-8">装修材料<br/>放射性水平</td>
+                            <td class="border border-black p-8 font-sans">IRa≤1.0<br/>Ir≤1.3</td>
+                            <td class="border border-black p-8 font-sans">IRa≤<span class="val-ira"></span><br/>Ir≤<span class="val-ir"></span></td>
+                            <td class="border border-black p-8 leading-loose">符合 A类装修材料要求<br/>(产销与使用范围不受限制)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 交互逻辑 -->
+    <script>
+        // 默认数据
+        const data = {
+            reportNo: 'TJ(2026)0965',
+            sampleName: '莆田灰麻小花',
+            clientName: '福建省南安市常荣石业有限公司',
+            reportDate: '2026-3-6',
+            clientAddress: '南安市水头镇东泉',
+            clientPhone: '/',
+            clientZip: '/',
+            clientContact: '李恒俊',
+            manufacturerName: '同委托单位',
+            specifications: '(50×50×50) mm',
+            trademark: '/',
+            grade: '/',
+            factoryNo: '/',
+            sampleQuantity: '150个试样块',
+            receiveDate: '2026-3-2',
+            testDate: '2026-3-2—2026-3-6',
+            density: '2.70',
+            waterAbsorption: '0.22',
+            dryCompressiveStrength: '134.5',
+            dryBendingStrength: '9.68',
+            waterBendingStrength: '10.2',
+            ira: '0.06',
+            ir: '0.07'
+        };
+
+        // 表单配置
+        const formSections = [
+            {
+                title: '基本信息',
+                fields: [
+                    { label: '报告编号', name: 'reportNo' },
+                    { label: '样品名称', name: 'sampleName' },
+                    { label: '委托单位', name: 'clientName' },
+                    { label: '报告日期', name: 'reportDate' }
+                ]
+            },
+            {
+                title: '详细信息 (第1页)',
+                fields: [
+                    { label: '型号规格', name: 'specifications' },
+                    { label: '商标', name: 'trademark' },
+                    { label: '等级', name: 'grade' },
+                    { label: '出厂编号', name: 'factoryNo' },
+                    { label: '样品数量', name: 'sampleQuantity' },
+                    { label: '委托单位地址', name: 'clientAddress' },
+                    { label: '委托单位电话', name: 'clientPhone' },
+                    { label: '委托单位邮编', name: 'clientZip' },
+                    { label: '联系人', name: 'clientContact' },
+                    { label: '生产单位名称', name: 'manufacturerName' },
+                    { label: '到样日期', name: 'receiveDate' },
+                    { label: '检验日期', name: 'testDate' }
+                ]
+            },
+            {
+                title: '检测数据 (第2页)',
+                fields: [
+                    { label: '体积密度 (g/cm³)', name: 'density' },
+                    { label: '吸水率 (%)', name: 'waterAbsorption' },
+                    { label: '干燥压缩强度 (MPa)', name: 'dryCompressiveStrength' },
+                    { label: '干燥弯曲强度 (MPa)', name: 'dryBendingStrength' },
+                    { label: '水饱和弯曲强度 (MPa)', name: 'waterBendingStrength' },
+                    { label: '放射性 IRa', name: 'ira' },
+                    { label: '放射性 Ir', name: 'ir' }
+                ]
+            }
+        ];
+
+        const imageFields = [
+            { label: '检验专用章 (圆形)', name: 'mainStampImg' },
+            { label: '批准人签名章', name: 'signStamp1Img' },
+            { label: '审定人签名章', name: 'signStamp2Img' },
+            { label: '校核人签名章', name: 'signStamp3Img' }
+        ];
+
+        // 渲染表单
+        const formContainer = document.getElementById('form-container');
+        
+        formSections.forEach(section => {
+            let html = `<div class="space-y-3"><h2 class="font-semibold text-gray-700 border-b pb-1">${section.title}</h2><div class="space-y-3">`;
+            section.fields.forEach(field => {
+                html += `
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">${field.label}</label>
+                        <input type="text" id="input-${field.name}" value="${data[field.name]}" oninput="updateField('${field.name}', this.value)" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+                    </div>
+                `;
+            });
+            html += `</div></div>`;
+            formContainer.innerHTML += html;
+        });
+
+        // 渲染图片上传表单
+        let imgHtml = `<div class="space-y-3"><h2 class="font-semibold text-gray-700 border-b pb-1">图章设置 (PNG/JPG)</h2><div class="space-y-3">`;
+        imageFields.forEach(field => {
+            imgHtml += `
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">${field.label}</label>
+                    <input type="file" accept="image/png, image/jpeg" onchange="handleImageUpload('${field.name}', this)" class="w-full text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                </div>
+            `;
+        });
+        imgHtml += `</div></div>`;
+        formContainer.innerHTML += imgHtml;
+
+        // 更新字段显示
+        function updateField(name, value) {
+            data[name] = value;
+            document.querySelectorAll('.val-' + name).forEach(el => {
+                el.innerText = value;
+            });
+        }
+
+        // 处理图片上传
+        function handleImageUpload(name, input) {
+            if (input.files && input.files[0]) {
+                const url = URL.createObjectURL(input.files[0]);
+                document.querySelectorAll('.img-' + name).forEach(el => {
+                    el.src = url;
+                    el.classList.remove('hidden');
+                });
+                document.querySelectorAll('.default-' + name).forEach(el => {
+                    el.classList.add('hidden');
+                });
+            }
+        }
+
+        // 初始化数据绑定
+        Object.keys(data).forEach(key => updateField(key, data[key]));
+
+        // 导出做旧JPG逻辑
+        async function exportAgedJpg() {
+            const btn = document.getElementById('export-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '导出中...';
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                for (let i = 1; i <= 3; i++) {
+                    const element = document.getElementById(`page-${i}`);
+                    if (!element) continue;
+
+                    // 1. 渲染为 Canvas
+                    const canvas = await html2canvas(element, {
+                        scale: 2, // 提高初始渲染精度
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff'
+                    });
+
+                    const ctx = canvas.getContext('2d');
+                    const width = canvas.width;
+                    const height = canvas.height;
+
+                    // 2. 像素级处理：纸张泛黄/发灰 + 噪点
+                    const imageData = ctx.getImageData(0, 0, width, height);
+                    const pixels = imageData.data;
+                    for (let j = 0; j < pixels.length; j += 4) {
+                        const noise = (Math.random() - 0.5) * 25;
+                        const r = pixels[j];
+                        const g = pixels[j + 1];
+                        const b = pixels[j + 2];
+
+                        pixels[j] = Math.min(255, r * 0.96 + noise + 10);     // R
+                        pixels[j + 1] = Math.min(255, g * 0.96 + noise + 10); // G
+                        pixels[j + 2] = Math.min(255, b * 0.92 + noise - 5);  // B
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+
+                    // 3. 添加暗角/光照不均效果
+                    ctx.globalCompositeOperation = 'multiply';
+                    const gradient = ctx.createRadialGradient(width / 2, height / 2, width / 3, width / 2, height / 2, width);
+                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                    gradient.addColorStop(1, 'rgba(180, 180, 170, 0.15)');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.globalCompositeOperation = 'source-over';
+
+                    // 4. 导出为低质量 JPEG 模拟压缩伪影
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+                    
+                    // 5. 触发下载
+                    const link = document.createElement('a');
+                    link.download = `检验报告_第${i}页_做旧.jpg`;
+                    link.href = dataUrl;
+                    link.click();
+                    
+                    // 稍微延迟以防浏览器拦截连续下载
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            } catch (error) {
+                console.error('Export failed:', error);
+                alert('导出失败，请重试');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    </script>
+</body>
+</html>
