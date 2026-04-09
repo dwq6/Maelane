@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>梅兰检测报告生成器</title>
+    <title>梅兰检测报告生成器 制作人：杜文奇</title>
     <!-- 引入 Tailwind CSS 用于快速布局 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 html2canvas 用于导出图片 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* 打印样式配置 */
         @media print {
@@ -26,11 +24,30 @@
             .print-m-0 { margin: 0 !important; }
             .print-shadow-none { box-shadow: none !important; }
         }
+        
         /* 字体与排版 */
         .font-simsun { font-family: 'SimSun', '宋体', 'STSong', serif; }
         .justify-text { text-align: justify; text-align-last: justify; }
+        
         /* 图章混合模式，使其看起来像真实盖章 */
         .stamp-mix { opacity: 0.85; mix-blend-mode: multiply; pointer-events: none; }
+
+        /* 全局杂色与模糊效果 (模拟扫描/复印件质感) */
+        .degraded-paper {
+            position: relative;
+            /* 轻微模糊和对比度增强，让字迹发虚 */
+            filter: blur(0.4px) contrast(1.1) grayscale(0.05);
+        }
+        .degraded-paper::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            /* 使用 SVG 生成随机噪点作为背景叠加 */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.12'/%3E%3C/svg%3E");
+            mix-blend-mode: multiply;
+            z-index: 50;
+        }
     </style>
 </head>
 <body class="flex h-screen bg-gray-100 overflow-hidden font-sans">
@@ -39,19 +56,13 @@
     <div class="w-80 bg-white border-r shadow-lg flex flex-col print-hidden z-10 shrink-0">
         <div class="p-4 border-b bg-blue-50 flex flex-col gap-3">
             <h1 class="font-bold text-lg text-blue-800">报告生成器</h1>
-            <div class="flex gap-2">
-                <button onclick="window.print()" class="flex-1 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 text-sm font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                    打印/PDF
-                </button>
-                <button id="export-btn" onclick="exportAgedJpg()" class="flex-1 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors flex items-center justify-center gap-1 text-sm font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                    导出做旧JPG
-                </button>
-            </div>
+            <button onclick="window.print()" class="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                打印 / 另存为PDF
+            </button>
         </div>
         
-        <!-- 表单输入区 (由JS动态生成以保持代码简洁) -->
+        <!-- 表单输入区 -->
         <div id="form-container" class="flex-1 overflow-y-auto p-5 space-y-8"></div>
     </div>
 
@@ -60,7 +71,7 @@
         <div class="max-w-[210mm] mx-auto space-y-8 print-space-y-0">
             
             <!-- 第1页 -->
-            <div id="page-1" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border page-break-after font-simsun">
+            <div id="page-1" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border page-break-after font-simsun degraded-paper">
                 <div class="flex justify-between items-start">
                     <div class="flex gap-12 ml-4">
                         <div class="flex flex-col items-center">
@@ -104,12 +115,11 @@
 
                 <!-- 首页图章 -->
                 <div class="absolute bottom-[180px] left-1/2 transform -translate-x-1/2 stamp-mix w-48 h-48 flex flex-col items-center justify-center">
-                    <img class="img-mainStampImg hidden w-full h-full object-contain" />
-                    <div class="default-mainStampImg absolute inset-0 rounded-full border-[5px] border-red-600 flex flex-col items-center justify-center text-red-600">
+                    <div class="absolute inset-0 rounded-full border-[5px] border-red-600 flex flex-col items-center justify-center text-red-600">
                         <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full">
                             <path id="top-curve-1" d="M 12 50 A 38 38 0 1 1 88 50" fill="transparent" />
                             <text font-size="11" font-weight="bold" fill="currentColor" letter-spacing="1.5">
-                                <textPath href="#top-curve-1" startOffset="50%" text-anchor="middle">泉州市产品质量检验所</textPath>
+                                <textPath href="#top-curve-1" startOffset="50%" text-anchor="middle" class="val-mainStampText"></textPath>
                             </text>
                         </svg>
                         <div class="text-5xl mt-2">★</div>
@@ -132,7 +142,7 @@
             </div>
 
             <!-- 第2页 -->
-            <div id="page-2" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border page-break-after font-simsun">
+            <div id="page-2" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border page-break-after font-simsun degraded-paper">
                 <div class="flex justify-between items-end mb-4">
                     <div class="flex-1"></div>
                     <div class="shrink-0 text-center text-4xl font-bold tracking-[0.5em] pl-[0.5em] whitespace-nowrap">检验报告</div>
@@ -223,20 +233,17 @@
                 <div class="flex justify-between items-center mt-8 px-8 relative">
                     <div class="flex items-center gap-2">批准：
                         <div class="stamp-mix transform -rotate-3 flex items-center justify-center">
-                            <img class="img-signStamp1Img hidden h-12 object-contain" />
-                            <div class="default-signStamp1Img border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm">强杨</div>
+                            <div class="border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm val-sign1"></div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">审定：
                         <div class="stamp-mix transform rotate-2 flex items-center justify-center">
-                            <img class="img-signStamp2Img hidden h-12 object-contain" />
-                            <div class="default-signStamp2Img border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm">杨明琛</div>
+                            <div class="border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm val-sign2"></div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">校核：
                         <div class="stamp-mix transform -rotate-1 flex items-center justify-center">
-                            <img class="img-signStamp3Img hidden h-12 object-contain" />
-                            <div class="default-signStamp3Img border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm">李苏</div>
+                            <div class="border-[2px] border-red-600 text-red-600 px-3 py-1 font-['KaiTi','楷体',serif] text-xl font-bold rounded-sm val-sign3"></div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">编制：<span class="w-16"></span></div>
@@ -248,7 +255,7 @@
             </div>
 
             <!-- 第3页 -->
-            <div id="page-3" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border font-simsun">
+            <div id="page-3" class="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-lg relative print-shadow-none print-m-0 box-border font-simsun degraded-paper">
                 <div class="flex justify-between items-end mb-4">
                     <div class="flex-1 text-[15px]">(续页)</div>
                     <div class="shrink-0 text-center text-4xl font-bold tracking-[0.5em] pl-[0.5em] whitespace-nowrap">检验报告</div>
@@ -301,12 +308,11 @@
                     
                     <!-- 第3页图章 -->
                     <div class="absolute top-[60%] right-12 transform -translate-y-1/2 stamp-mix w-48 h-48 flex flex-col items-center justify-center">
-                        <img class="img-mainStampImg hidden w-full h-full object-contain" />
-                        <div class="default-mainStampImg absolute inset-0 rounded-full border-[5px] border-red-600 flex flex-col items-center justify-center text-red-600">
+                        <div class="absolute inset-0 rounded-full border-[5px] border-red-600 flex flex-col items-center justify-center text-red-600">
                             <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full">
                                 <path id="top-curve-3" d="M 12 50 A 38 38 0 1 1 88 50" fill="transparent" />
                                 <text font-size="11" font-weight="bold" fill="currentColor" letter-spacing="1.5">
-                                    <textPath href="#top-curve-3" startOffset="50%" text-anchor="middle">泉州市产品质量检验所</textPath>
+                                    <textPath href="#top-curve-3" startOffset="50%" text-anchor="middle" class="val-mainStampText"></textPath>
                                 </text>
                             </svg>
                             <div class="text-5xl mt-2">★</div>
@@ -365,7 +371,11 @@
             dryBendingStrength: '9.68',
             waterBendingStrength: '10.2',
             ira: '0.06',
-            ir: '0.07'
+            ir: '0.07',
+            mainStampText: '泉州市产品质量检验所',
+            sign1: '强杨',
+            sign2: '杨明琛',
+            sign3: '李苏'
         };
 
         // 表单配置
@@ -377,6 +387,15 @@
                     { label: '样品名称', name: 'sampleName' },
                     { label: '委托单位', name: 'clientName' },
                     { label: '报告日期', name: 'reportDate' }
+                ]
+            },
+            {
+                title: '图章文字设置',
+                fields: [
+                    { label: '检验专用章 (圆形)', name: 'mainStampText' },
+                    { label: '批准人签名', name: 'sign1' },
+                    { label: '审定人签名', name: 'sign2' },
+                    { label: '校核人签名', name: 'sign3' }
                 ]
             },
             {
@@ -410,13 +429,6 @@
             }
         ];
 
-        const imageFields = [
-            { label: '检验专用章 (圆形)', name: 'mainStampImg' },
-            { label: '批准人签名章', name: 'signStamp1Img' },
-            { label: '审定人签名章', name: 'signStamp2Img' },
-            { label: '校核人签名章', name: 'signStamp3Img' }
-        ];
-
         // 渲染表单
         const formContainer = document.getElementById('form-container');
         
@@ -434,114 +446,16 @@
             formContainer.innerHTML += html;
         });
 
-        // 渲染图片上传表单
-        let imgHtml = `<div class="space-y-3"><h2 class="font-semibold text-gray-700 border-b pb-1">图章设置 (PNG/JPG)</h2><div class="space-y-3">`;
-        imageFields.forEach(field => {
-            imgHtml += `
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">${field.label}</label>
-                    <input type="file" accept="image/png, image/jpeg" onchange="handleImageUpload('${field.name}', this)" class="w-full text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                </div>
-            `;
-        });
-        imgHtml += `</div></div>`;
-        formContainer.innerHTML += imgHtml;
-
         // 更新字段显示
         function updateField(name, value) {
             data[name] = value;
             document.querySelectorAll('.val-' + name).forEach(el => {
-                el.innerText = value;
+                el.textContent = value;
             });
-        }
-
-        // 处理图片上传
-        function handleImageUpload(name, input) {
-            if (input.files && input.files[0]) {
-                const url = URL.createObjectURL(input.files[0]);
-                document.querySelectorAll('.img-' + name).forEach(el => {
-                    el.src = url;
-                    el.classList.remove('hidden');
-                });
-                document.querySelectorAll('.default-' + name).forEach(el => {
-                    el.classList.add('hidden');
-                });
-            }
         }
 
         // 初始化数据绑定
         Object.keys(data).forEach(key => updateField(key, data[key]));
-
-        // 导出做旧JPG逻辑
-        async function exportAgedJpg() {
-            const btn = document.getElementById('export-btn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '导出中...';
-            btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-
-            try {
-                for (let i = 1; i <= 3; i++) {
-                    const element = document.getElementById(`page-${i}`);
-                    if (!element) continue;
-
-                    // 1. 渲染为 Canvas
-                    const canvas = await html2canvas(element, {
-                        scale: 2, // 提高初始渲染精度
-                        useCORS: true,
-                        logging: false,
-                        backgroundColor: '#ffffff'
-                    });
-
-                    const ctx = canvas.getContext('2d');
-                    const width = canvas.width;
-                    const height = canvas.height;
-
-                    // 2. 像素级处理：纸张泛黄/发灰 + 噪点
-                    const imageData = ctx.getImageData(0, 0, width, height);
-                    const pixels = imageData.data;
-                    for (let j = 0; j < pixels.length; j += 4) {
-                        const noise = (Math.random() - 0.5) * 25;
-                        const r = pixels[j];
-                        const g = pixels[j + 1];
-                        const b = pixels[j + 2];
-
-                        pixels[j] = Math.min(255, r * 0.96 + noise + 10);     // R
-                        pixels[j + 1] = Math.min(255, g * 0.96 + noise + 10); // G
-                        pixels[j + 2] = Math.min(255, b * 0.92 + noise - 5);  // B
-                    }
-                    ctx.putImageData(imageData, 0, 0);
-
-                    // 3. 添加暗角/光照不均效果
-                    ctx.globalCompositeOperation = 'multiply';
-                    const gradient = ctx.createRadialGradient(width / 2, height / 2, width / 3, width / 2, height / 2, width);
-                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-                    gradient.addColorStop(1, 'rgba(180, 180, 170, 0.15)');
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(0, 0, width, height);
-                    ctx.globalCompositeOperation = 'source-over';
-
-                    // 4. 导出为低质量 JPEG 模拟压缩伪影
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
-                    
-                    // 5. 触发下载
-                    const link = document.createElement('a');
-                    link.download = `检验报告_第${i}页_做旧.jpg`;
-                    link.href = dataUrl;
-                    link.click();
-                    
-                    // 稍微延迟以防浏览器拦截连续下载
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
-            } catch (error) {
-                console.error('Export failed:', error);
-                alert('导出失败，请重试');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
-        }
     </script>
 </body>
 </html>
