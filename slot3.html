@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>开槽</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            background-color: #f0f2f5; font-family: "Microsoft YaHei", sans-serif;
+            overflow: hidden;
+        }
+        .container {
+            display: flex; flex-direction: column; height: 100%;
+            max-width: 1200px; margin: 0 auto; background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        }
+        .drawing-area {
+            flex: 1; width: 100%; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            background-color: #fff; position: relative;
+        }
+        svg {
+            width: 95%; height: 95%;
+            border: 1px dashed #e8e8e8;
+        }
+        .controls-area {
+            padding: 15px; background-color: #fff;
+            border-top: 1px solid #eee; z-index: 10;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+            overflow-y: auto; max-height: 45vh;
+        }
+        .control-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px; margin-bottom: 15px;
+        }
+        .input-group { display: flex; flex-direction: column; gap: 4px; }
+        .input-group label { font-size: 12px; color: #666; font-weight: bold; }
+        .input-group input, .input-group select {
+            padding: 8px; border: 1px solid #ddd; border-radius: 4px;
+            font-size: 14px; outline: none; transition: border-color 0.2s; background: white;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: #1890ff; }
+        .input-group input:disabled { background-color: #f5f5f5; color: #666; font-weight: normal; cursor: not-allowed; }
+        
+        .custom-text-input {
+            margin-top: 4px;
+            border-color: #ffadd2 !important; 
+            display: none; 
+        }
+        .custom-text-input.active { display: block; }
+
+        .checkbox-wrapper {
+            display: flex; align-items: center; background: white;
+            border: 1px solid #ddd; border-radius: 4px; padding: 8px;
+            height: 38px; 
+        }
+        .checkbox-wrapper input { width: auto; margin-right: 8px; cursor: pointer; }
+        .checkbox-wrapper span { font-size: 14px; cursor: pointer; user-select: none; }
+        .checkbox-wrapper:hover { border-color: #1890ff; }
+
+        .action-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        button {
+            flex: 1; padding: 10px; font-size: 15px;
+            border: none; border-radius: 4px; cursor: pointer;
+            background-color: #1890ff; color: white; font-weight: bold;
+            transition: opacity 0.2s; white-space: nowrap;
+        }
+        button:hover { opacity: 0.9; }
+        button.secondary { background-color: #52c41a; }
+        button.danger { background-color: #ff4d4f; }
+        
+        .slot-row input {
+            padding: 6px; font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="drawing-area">
+        <svg id="drawingSvg" viewBox="-150 -100 1300 900" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrowEnd" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L9,3 z" fill="red" />
+                </marker>
+                <marker id="arrowStart" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M9,0 L9,6 L0,3 z" fill="red" />
+                </marker>
+                <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <circle cx="4" cy="4" r="2" fill="red" />
+                </marker>
+            </defs>
+            <g id="svgContent"></g>
+        </svg>
+    </div>
+    
+    <div class="controls-area">
+        <div class="control-grid" id="mainSettings">
+            <div class="input-group">
+                <label>开槽方向</label>
+                <select id="slotDirection" onchange="draw()">
+                    <option value="horizontal">横向</option>
+                    <option value="vertical">竖向</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>总宽 W (高度)</label>
+                <input type="number" id="totalW" value="618" oninput="draw()">
+            </div>
+            <div class="input-group">
+                <label>总长 L (宽度)</label>
+                <input type="number" id="totalL" value="1400" oninput="draw()">
+            </div>
+            
+            <div class="input-group">
+                <label>底部文字</label>
+                <input type="text" id="bottomTextContent" value="图3-1 开槽6*5" oninput="draw()">
+            </div>
+            
+            <!-- L 标注设置 -->
+            <div class="input-group">
+                <label>L 标注格式</label>
+                <select id="lDisplayMode" onchange="toggleCustomInputs()">
+                    <option value="val">显示数值 (1400)</option>
+                    <option value="l_val">显示 L=数值</option>
+                    <option value="l_only">只显示 L</option>
+                    <option value="custom">自定义文字</option>
+                </select>
+                <input type="text" id="lCustomText" class="custom-text-input" placeholder="输入L标注文字" oninput="draw()">
+            </div>
+
+            <!-- W 标注设置 -->
+            <div class="input-group">
+                <label>W 标注格式</label>
+                <select id="wDisplayMode" onchange="toggleCustomInputs()">
+                    <option value="val">显示数值 (618)</option>
+                    <option value="w_val">显示 W=数值</option>
+                    <option value="w_only">只显示 W</option>
+                    <option value="custom">自定义文字</option>
+                </select>
+                <input type="text" id="wCustomText" class="custom-text-input" placeholder="输入W标注文字" oninput="draw()">
+            </div>
+        </div>
+
+        <div style="margin: 15px 0; border: 1px solid #e8e8e8; padding: 12px; border-radius: 4px; background: #fafafa;">
+            <label style="font-size: 13px; color: #333; font-weight: bold; display: block; margin-bottom: 10px;">逐段开槽设置 (从首端开始逐个输入)</label>
+            <div id="slotsContainer">
+                <!-- JS 会动态插入行 -->
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <button class="secondary" onclick="addSlotRow('', '')" style="padding: 6px 12px; font-size: 13px; flex: initial;">+ 添加一段槽</button>
+                <button class="danger" onclick="removeSlotRow()" style="padding: 6px 12px; font-size: 13px; flex: initial;">- 移除队尾槽</button>
+            </div>
+            <div class="input-group" style="margin-top: 12px;">
+                <label>末端剩余间隔 (自动计算填补至总长)</label>
+                <input type="number" id="finalGapDisplay" disabled style="background:#fff1f0; color:#cf1322; border-color:#ffa39e; font-weight:bold;">
+            </div>
+        </div>
+        
+        <div class="control-grid">
+            <div class="input-group">
+                <label>特殊选项</label>
+                <div class="checkbox-wrapper" onclick="document.getElementById('swapWL').click()">
+                    <input type="checkbox" id="swapWL" onchange="draw()" onclick="event.stopPropagation()">
+                    <span>交换 W/L 标注</span>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>显示选项</label>
+                <div class="checkbox-wrapper" onclick="document.getElementById('showTriangles').click()">
+                    <input type="checkbox" id="showTriangles" checked onchange="draw()" onclick="event.stopPropagation()">
+                    <span>显示间隔三角</span>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>文字选项</label>
+                <div class="checkbox-wrapper" onclick="document.getElementById('showBottomText').click()">
+                    <input type="checkbox" id="showBottomText" checked onchange="draw()" onclick="event.stopPropagation()">
+                    <span>显示底部文字</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="action-bar" style="margin-top: 15px;">
+            <button class="secondary" onclick="downloadJPG()">下载 JPG</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const svg = document.getElementById('drawingSvg');
+    const svgContent = document.getElementById('svgContent');
+
+    function toggleCustomInputs() {
+        const wMode = document.getElementById('wDisplayMode').value;
+        const lMode = document.getElementById('lDisplayMode').value;
+        
+        const wInput = document.getElementById('wCustomText');
+        const lInput = document.getElementById('lCustomText');
+        
+        if (wMode === 'custom') {
+            wInput.classList.add('active');
+        } else {
+            wInput.classList.remove('active');
+        }
+        
+        if (lMode === 'custom') {
+            lInput.classList.add('active');
+        } else {
+            lInput.classList.remove('active');
+        }
+        draw();
+    }
+
+    function addSlotRow(defaultGap = '', defaultSlot = '') {
+        const container = document.getElementById('slotsContainer');
+        const row = document.createElement('div');
+        row.className = 'slot-row';
+        row.style = 'display:flex; gap:10px; margin-bottom:8px; align-items:center;';
+        
+        const idx = container.children.length + 1;
+        
+        row.innerHTML = `
+            <span style="font-size:12px; color:#888; width:15px; font-weight:bold;" class="row-idx">${idx}.</span>
+            <div class="input-group" style="flex:1; flex-direction:row; align-items:center; gap:5px;">
+                <label style="margin:0;">间隔</label>
+                <input type="number" class="row-gap" value="${defaultGap}" style="width:100%;" oninput="draw()">
+            </div>
+            <div class="input-group" style="flex:1; flex-direction:row; align-items:center; gap:5px;">
+                <label style="margin:0;">槽宽</label>
+                <input type="number" class="row-slot" value="${defaultSlot}" style="width:100%;" oninput="draw()">
+            </div>
+        `;
+        container.appendChild(row);
+        draw();
+    }
+
+    function removeSlotRow() {
+        const container = document.getElementById('slotsContainer');
+        if (container.children.length > 0) {
+            container.removeChild(container.lastChild);
+            draw();
+        }
+    }
+
+    function draw() {
+        // 1. 获取数据
+        const direction = document.getElementById('slotDirection').value; 
+        const isVertical = direction === 'vertical';
+
+        const W = parseFloat(document.getElementById('totalW').value) || 618;
+        const L = parseFloat(document.getElementById('totalL').value) || 1400;
+        
+        const lMode = document.getElementById('lDisplayMode').value;
+        const wMode = document.getElementById('wDisplayMode').value;
+        
+        const isSwapped = document.getElementById('swapWL').checked;
+        const labelForW = isSwapped ? 'L' : 'W';
+        const labelForL = isSwapped ? 'W' : 'L';
+
+        const showTriangles = document.getElementById('showTriangles').checked;
+        const showBottomText = document.getElementById('showBottomText').checked;
+        
+        const wCustomText = document.getElementById('wCustomText').value;
+        const lCustomText = document.getElementById('lCustomText').value;
+        const bottomTextContent = document.getElementById('bottomTextContent').value;
+
+        // 清空画布
+        while (svgContent.firstChild) {
+            svgContent.removeChild(svgContent.firstChild);
+        }
+
+        // 2. 计算比例
+        const targetDrawWidth = 1000;
+        const targetDrawHeight = 600;
+        let scale = Math.min(targetDrawWidth / L, targetDrawHeight / W);
+        
+        const toX = (val) => val * scale;
+        const toY = (val) => val * scale;
+
+        const drawL = toX(L);
+        const drawW = toY(W);
+
+        // 3. 绘制外框
+        createSvgElement('rect', {
+            x: 0, y: 0, width: drawL, height: drawW,
+            fill: 'none', stroke: 'black', 'stroke-width': 2
+        });
+
+        // 辅助：绘制三角
+        function drawAdaptiveTriangle(start, end, isVert) {
+            if (!showTriangles) return;
+
+            const h = end - start;
+            if (h <= 0.1) return; 
+
+            const pixelSize = isVert ? toX(h) : toY(h);
+            const maxR = (pixelSize / 2) - 2; 
+            const r = Math.min(6, Math.max(1, maxR)); 
+            
+            if (r < 0.5) return; 
+
+            let centerX, centerY;
+            
+            if (isVert) {
+                centerX = toX(start + h / 2);
+                centerY = drawW / 2;
+            } else {
+                centerY = toY(start + h / 2);
+                centerX = drawL / 2;
+            }
+            
+            const p1 = `${centerX - r},${centerY - r}`;
+            const p2 = `${centerX + r},${centerY - r}`;
+            const p3 = `${centerX},${centerY + r}`;
+            
+            createSvgElement('polygon', {
+                points: `${p1} ${p2} ${p3}`,
+                fill: 'black'
+            });
+        }
+
+        // 4. 读取逐段打槽数据
+        let rawSegments = [];
+        let currentSum = 0;
+        const calcBase = isVertical ? L : W;
+
+        const rows = document.querySelectorAll('.slot-row');
+        rows.forEach((row, index) => {
+            row.querySelector('.row-idx').textContent = (index + 1) + "."; // 更新序号
+            
+            const gapInput = row.querySelector('.row-gap').value;
+            const slotInput = row.querySelector('.row-slot').value;
+            
+            const gapVal = parseFloat(gapInput) || 0;
+            const slotVal = parseFloat(slotInput) || 0;
+            
+            // 空数值时不渲染该分段，但如果是0且填入了则按0处理
+            if (gapInput !== '') {
+                rawSegments.push({ type: 'gap', length: gapVal });
+                currentSum += gapVal;
+            }
+            if (slotInput !== '') {
+                rawSegments.push({ type: 'slot', length: slotVal });
+                currentSum += slotVal;
+            }
+        });
+
+        // 自动计算剩余并更新 UI
+        const finalGap = calcBase - currentSum;
+        const finalGapFormatted = Math.round(finalGap * 100) / 100;
+        const finalGapDisplay = document.getElementById('finalGapDisplay');
+        finalGapDisplay.value = finalGapFormatted;
+
+        if (finalGap < 0) {
+            finalGapDisplay.style.color = '#cf1322'; // 溢出告警红
+        } else {
+            finalGapDisplay.style.color = '#389e0d'; // 正常绿
+        }
+
+        if (finalGap > 0) {
+            rawSegments.push({ type: 'gap', length: finalGapFormatted });
+        }
+
+        // 合并相邻的同类
+        let segments = [];
+        for (let seg of rawSegments) {
+            if (segments.length > 0 && segments[segments.length - 1].type === seg.type) {
+                segments[segments.length - 1].length += seg.length;
+            } else {
+                segments.push({...seg});
+            }
+        }
+
+        if (!isVertical) {
+            // 横向模式
+            const dimX_Gap = -15; 
+            const dimX_Slot = -45;
+            const extLineStartDefault = -50; 
+            let currentY = 0;
+
+            createLine(extLineStartDefault, 0, 0, 0, 'red', 0.5);
+
+            for (let seg of segments) {
+                let nextY = currentY + seg.length;
+                
+                if (seg.type === 'gap') {
+                    let gapLabel = Math.round(seg.length * 100) / 100;
+                    if(gapLabel > 0) {
+                        drawDimLine(dimX_Gap, toY(currentY), dimX_Gap, toY(nextY), gapLabel, true, -15);
+                        createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
+                        createLine(extLineStartDefault, toY(nextY), 0, toY(nextY), 'red', 0.5);
+                        drawAdaptiveTriangle(currentY, nextY, false);
+                    }
+                } else {
+                    if (seg.length > 0) {
+                        createLine(0, toY(nextY), drawL, toY(nextY), 'black', 1);
+                        drawDimLine(dimX_Slot, toY(currentY), dimX_Slot, toY(nextY), Math.round(seg.length * 100) / 100, true, -15);
+                        createLine(extLineStartDefault, toY(nextY), 0, toY(nextY), 'red', 0.5);
+                    }
+                }
+                currentY = nextY;
+            }
+        } else {
+            // 竖向模式
+            const dimY_Gap = -15;
+            const dimY_Slot = -45;
+            const extLineStartDefault = -50;
+            let currentX = 0;
+
+            createLine(0, extLineStartDefault, 0, 0, 'red', 0.5);
+
+            for (let seg of segments) {
+                let nextX = currentX + seg.length;
+                
+                if (seg.type === 'gap') {
+                    let gapLabel = Math.round(seg.length * 100) / 100;
+                    if(gapLabel > 0) {
+                        drawDimLine(toX(currentX), dimY_Gap, toX(nextX), dimY_Gap, gapLabel, false, -15);
+                        createLine(toX(nextX), 0, toX(nextX), drawW, 'black', 1);
+                        createLine(toX(nextX), extLineStartDefault, toX(nextX), 0, 'red', 0.5);
+                        drawAdaptiveTriangle(currentX, nextX, true);
+                    }
+                } else {
+                    if (seg.length > 0) {
+                        createLine(toX(nextX), 0, toX(nextX), drawW, 'black', 1);
+                        drawDimLine(toX(currentX), dimY_Slot, toX(nextX), dimY_Slot, Math.round(seg.length * 100) / 100, false, -15);
+                        createLine(toX(nextX), extLineStartDefault, toX(nextX), 0, 'red', 0.5);
+                    }
+                }
+                currentX = nextX;
+            }
+        }
+
+        // 5. 总尺寸 W
+        let wLabel = W;
+        if (wMode === 'w_val') wLabel = `${labelForW}=${W}`;
+        if (wMode === 'w_only') wLabel = labelForW;
+        if (wMode === 'custom') wLabel = wCustomText || '';
+        
+        const dimTotalX = -120; 
+        drawArrowDimLine(dimTotalX, 0, dimTotalX, drawW, wLabel, true, -20, true);
+        createLine(dimTotalX - 10, 0, -5, 0, 'red', 0.5);
+        createLine(dimTotalX - 10, drawW, -5, drawW, 'red', 0.5);
+
+        // 6. 总尺寸 L
+        let lLabel = L;
+        if (lMode === 'l_val') lLabel = `${labelForL}=${L}`;
+        if (lMode === 'l_only') lLabel = labelForL;
+        if (lMode === 'custom') lLabel = lCustomText || '';
+
+        const dimTopY = isVertical ? -110 : -60;
+        
+        drawArrowDimLine(0, dimTopY, drawL, dimTopY, lLabel, false, -15, true);
+        createLine(0, dimTopY - 10, 0, isVertical ? -55 : 0, 'red', 0.5);
+        createLine(drawL, dimTopY - 10, drawL, isVertical ? -55 : 0, 'red', 0.5);
+
+        // 7. 底部文字
+        if (showBottomText) {
+            const textEl = createSvgElement('text', {
+                id: 'bottomLabel',
+                x: drawL / 2,
+                y: drawW + 80,
+                'text-anchor': 'middle',
+                'font-family': 'SimHei, sans-serif',
+                'font-size': '40px',
+                fill: 'red'
+            }, bottomTextContent);
+        }
+        
+        // ================= 自动调整画布大小 =================
+        const paddingLeft = 250; 
+        const paddingRight = 150;
+        const paddingTop = isVertical ? 220 : 150; 
+        const paddingBottom = 150;
+
+        const vbX = -paddingLeft;
+        const vbY = -paddingTop;
+        const vbW = drawL + paddingLeft + paddingRight;
+        const vbH = drawW + paddingTop + paddingBottom;
+
+        svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+    }
+
+    function createSvgElement(type, attrs, textContent) {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", type);
+        for (const [key, value] of Object.entries(attrs)) {
+            el.setAttribute(key, value);
+        }
+        if (textContent) {
+            el.textContent = textContent;
+        }
+        svgContent.appendChild(el);
+        return el;
+    }
+
+    function createLine(x1, y1, x2, y2, color, width) {
+        createSvgElement('line', {
+            x1: x1, y1: y1, x2: x2, y2: y2,
+            stroke: color, 'stroke-width': width
+        });
+    }
+
+    function drawArrowDimLine(x1, y1, x2, y2, text, isVertical, textOffset, useArrow) {
+        const attrs = {
+            x1: x1, y1: y1, x2: x2, y2: y2,
+            stroke: 'red', 'stroke-width': 1
+        };
+        if (useArrow) {
+            attrs['marker-start'] = 'url(#arrowStart)';
+            attrs['marker-end'] = 'url(#arrowEnd)';
+        }
+        createSvgElement('line', attrs);
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        
+        const textAttrs = {
+            'font-family': 'Times New Roman, SimHei',
+            'font-size': '36px',
+            fill: 'red',
+            'text-anchor': 'middle',
+            'dominant-baseline': 'middle'
+        };
+
+        if (isVertical) {
+            textAttrs.transform = `rotate(-90, ${midX}, ${midY})`;
+            textAttrs.x = midX;
+            textAttrs.y = midY + textOffset; 
+        } else {
+            textAttrs.x = midX;
+            textAttrs.y = midY + textOffset; 
+        }
+        
+        createSvgElement('text', textAttrs, text);
+    }
+
+    function drawDimLine(x1, y1, x2, y2, text, isVertical, textOffset) {
+         const dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+         createSvgElement('line', {
+            x1: x1, y1: y1, x2: x2, y2: y2,
+            stroke: 'red', 'stroke-width': 1,
+            'marker-start': dist > 10 ? 'url(#dot)' : '',
+            'marker-end': dist > 10 ? 'url(#dot)' : ''
+        });
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        
+        const textAttrs = {
+            'font-family': 'Times New Roman, SimHei',
+            'font-size': '20px',
+            fill: 'red',
+            'text-anchor': 'middle',
+            'dominant-baseline': 'middle'
+        };
+
+        if (isVertical) {
+            textAttrs.transform = `rotate(-90, ${midX}, ${midY})`;
+            textAttrs.x = midX;
+            textAttrs.y = midY + textOffset;
+        } else {
+            textAttrs.x = midX;
+            textAttrs.y = midY + textOffset;
+        }
+        createSvgElement('text', textAttrs, text);
+    }
+
+    function downloadJPG() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+        const vbX = vb[0];
+        const vbY = vb[1];
+        const vbW = vb[2];
+        const vbH = vb[3];
+        const scaleFactor = 2; 
+        canvas.width = vbW * scaleFactor;
+        canvas.height = vbH * scaleFactor;
+        
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(svg);
+        if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+            source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        
+        const img = new Image();
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+        
+        img.onload = function() {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.scale(scaleFactor, scaleFactor);
+            ctx.translate(-vbX, -vbY); 
+            ctx.drawImage(img, vbX, vbY, vbW, vbH);
+            ctx.restore();
+            
+            const a = document.createElement('a');
+            const bottomText = document.getElementById('bottomTextContent').value;
+            const dir = document.getElementById('slotDirection').value === 'vertical' ? '竖向' : '横向';
+            
+            let safeName = bottomText.replace(/[\\/:*?"<>|]/g, '_');
+            if (safeName.length > 20) safeName = safeName.substring(0, 20);
+            if (safeName.length === 0) safeName = "开槽图";
+
+            const showBottomText = document.getElementById('showBottomText').checked;
+            const suffix = showBottomText ? '' : '_无字';
+            
+            a.download = `${safeName}_${dir}${suffix}.jpg`;
+            a.href = canvas.toDataURL('image/jpeg', 0.9);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+    }
+    
+    // 初始化
+    document.addEventListener("DOMContentLoaded", () => {
+        toggleCustomInputs();
+        // 初始装载 4 段开槽数据作为演示模板
+        for(let i=0; i<4; i++){
+            addSlotRow(114, 6);
+        }
+        draw();
+    });
+</script>
+</body>
+</html>
