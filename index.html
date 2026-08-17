@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>制图工具箱v1.9</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <style>
         /* 自定义滚动条样式 */
         ::-webkit-scrollbar {
@@ -236,11 +236,19 @@
             });
         }
 
+        // 为 iframe 地址加入时间戳，避免 GitHub Pages 或浏览器继续使用旧缓存。
+        // “新窗口”按钮仍使用不带参数的原始地址。
+        function getFreshIframeUrl(rawUrl) {
+            const url = new URL(rawUrl, window.location.href);
+            url.searchParams.set('_iframe_reload', Date.now().toString());
+            return url.href;
+        }
+
         function loadTool(index) {
             const tool = tools[index];
-            contentFrame.src = tool.url;
             currentToolName.textContent = tool.name;
             openNewTabLink.href = tool.url;
+            contentFrame.src = getFreshIframeUrl(tool.url);
         }
 
         // 初始化
