@@ -349,6 +349,12 @@
                             <button id="btnBW" class="py-2 text-[10px] sm:text-xs rounded border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 font-medium whitespace-nowrap">黑白阈值</button>
                         </div>
 
+                        <!-- Rotate Whole Image -->
+                        <button id="rotateImageBtn" disabled class="w-full py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition-colors text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" title="顺时针旋转整张图片和全部标注">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
+                            顺时针旋转 90°
+                        </button>
+
                         <!-- Threshold Control (Original/Old Modes) -->
                         <div id="thresholdControl" class="hidden">
                             <div class="flex justify-between mb-1">
@@ -419,6 +425,7 @@
         const btnSmartInvert = document.getElementById('btnSmartInvert');
         const btnBinary = document.getElementById('btnBinary');
         const btnBW = document.getElementById('btnBW');
+        const rotateImageBtn = document.getElementById('rotateImageBtn');
         
         const btnUpscale = document.getElementById('btnUpscale');
         const upscaleText = document.getElementById('upscaleText');
@@ -473,7 +480,8 @@
         let originalImage = null;
         let currentMode = 'original'; // 'original', 'smart_invert', 'binary', 'bw'
         let isUpscaled = false;
-        let scaleFactor = 1; 
+        let scaleFactor = 1;
+        let imageRotation = 0; // 整张作品顺时针旋转角度：0/90/180/270
         let viewZoom = 1.0; 
         let activeItem = null; 
 
@@ -505,6 +513,7 @@
                     originalImage = img;
                     isUpscaled = false;
                     scaleFactor = 1;
+                    imageRotation = 0;
                     upscaleText.textContent = "2x 高清锐化";
                     btnUpscale.classList.remove('bg-purple-600', 'text-white');
                     btnUpscale.classList.add('bg-purple-50', 'text-purple-700');
@@ -525,6 +534,7 @@
             addRectBtn.disabled = false;
             addTriangleBtn.disabled = false;
             downloadBtn.disabled = false;
+            rotateImageBtn.disabled = false;
 
             const existingItems = document.querySelectorAll('.overlay-item');
             existingItems.forEach(el => el.remove());
@@ -606,11 +616,52 @@
         btnBinary.addEventListener('click', () => { currentMode = 'binary'; updateModeButtons(); processImage(); });
         btnBW.addEventListener('click', () => { currentMode = 'bw'; updateModeButtons(); processImage(); });
 
+        function rotateImageClockwise() {
+            if (!originalImage || !canvas.width || !canvas.height) return;
+
+            const oldCanvasHeight = canvas.height;
+            const itemStates = Array.from(document.querySelectorAll('.overlay-item')).map(item => {
+                const width = item.offsetWidth;
+                const height = item.offsetHeight;
+                return {
+                    item,
+                    width,
+                    height,
+                    centerX: parseFloat(item.style.left || 0) + width / 2,
+                    centerY: parseFloat(item.style.top || 0) + height / 2,
+                    rotation: parseFloat(item.dataset.rotation || 0)
+                };
+            });
+
+            imageRotation = (imageRotation + 90) % 360;
+            processImage();
+
+            // 顺时针 90° 坐标变换：(x, y) → (旧画布高 - y, x)
+            itemStates.forEach(({ item, width, height, centerX, centerY, rotation }) => {
+                const newCenterX = oldCanvasHeight - centerY;
+                const newCenterY = centerX;
+                const newRotation = ((rotation + 90) % 360 + 360) % 360;
+
+                item.style.left = (newCenterX - width / 2) + 'px';
+                item.style.top = (newCenterY - height / 2) + 'px';
+                item.dataset.rotation = String(newRotation);
+                item.style.transform = `rotate(${newRotation}deg)`;
+            });
+
+            requestAnimationFrame(fitToScreen);
+        }
+
+        rotateImageBtn.addEventListener('click', rotateImageClockwise);
+
         function processImage() {
             if (!originalImage) return;
 
-            const w = originalImage.width * scaleFactor;
-            const h = originalImage.height * scaleFactor;
+            const sourceW = originalImage.width * scaleFactor;
+            const sourceH = originalImage.height * scaleFactor;
+            const normalizedRotation = ((imageRotation % 360) + 360) % 360;
+            const isQuarterTurn = normalizedRotation === 90 || normalizedRotation === 270;
+            const w = isQuarterTurn ? sourceH : sourceW;
+            const h = isQuarterTurn ? sourceW : sourceH;
 
             canvas.width = w;
             canvas.height = h;
@@ -619,7 +670,21 @@
 
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(originalImage, 0, 0, w, h);
+            ctx.save();
+
+            if (normalizedRotation === 90) {
+                ctx.translate(w, 0);
+                ctx.rotate(Math.PI / 2);
+            } else if (normalizedRotation === 180) {
+                ctx.translate(w, h);
+                ctx.rotate(Math.PI);
+            } else if (normalizedRotation === 270) {
+                ctx.translate(0, h);
+                ctx.rotate(-Math.PI / 2);
+            }
+
+            ctx.drawImage(originalImage, 0, 0, sourceW, sourceH);
+            ctx.restore();
 
             const imageData = ctx.getImageData(0, 0, w, h);
             const data = imageData.data;
